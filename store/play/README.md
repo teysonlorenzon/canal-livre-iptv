@@ -94,7 +94,7 @@ O repositório é privado, então o link do GitHub não serve. Opções:
   link "Raw" pelo serviço htmlpreview, ou colar o texto num **Google Sites** gratuito;
 - tornar o repositório público e ativar o **GitHub Pages**.
 
-Antes de publicar, troque `[seu e-mail de contato]` no fim da política por um e-mail seu.
+Link público: https://teysonlorenzon.github.io/canal-livre-iptv/store/play/politica-de-privacidade.html
 
 ## 6. Envio
 
