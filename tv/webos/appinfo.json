@@ -1,6 +1,6 @@
 {
   "id": "com.canallivre.iptv",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "vendor": "Zapp IPTV",
   "type": "web",
   "main": "index.html",
