@@ -1,13 +1,13 @@
 {
   "id": "com.canallivre.iptv",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "vendor": "Zapp IPTV",
   "type": "web",
   "main": "index.html",
   "title": "Zapp IPTV",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
-  "bgColor": "#0c0f11",
+  "bgColor": "#13171a",
   "resolution": "1280x720",
   "disableBackHistoryAPI": true,
   "requiredACG": []

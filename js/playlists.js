@@ -5,6 +5,7 @@
  */
 function renderPlSel(){
   $('plSelTxt').textContent = P ? P.name : pls.length ? 'Escolha uma lista' : 'Nenhuma lista';
+  $('plSel').title = 'Lista: ' + $('plSelTxt').textContent;
   $('plMenu').innerHTML = pls.map(p => `<li role="option" tabindex="-1" data-id="${esc(p.id)}" aria-selected="${P && P.id === p.id}"><b>${esc(p.name)}</b><small>${p.type === 'xtream' ? 'Xtream' : p.url ? 'M3U' : 'Arquivo M3U'}</small></li>`).join('')
     + `<li class="dd-act" tabindex="-1" data-manage="1">${pls.length ? 'Gerenciar listas…' : 'Adicionar lista…'}</li>`;
   $('plList').innerHTML = pls.length ? pls.map(p => `<div class="plrow"><div><b>${esc(p.name)}</b><small>${p.type === 'xtream' ? 'Xtream · ' + esc(p.server) + ' · ' + esc(p.user) : p.url ? 'M3U · ' + esc(p.url) : 'M3U · arquivo local'}</small></div>

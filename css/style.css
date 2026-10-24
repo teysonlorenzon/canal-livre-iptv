@@ -47,6 +47,12 @@ header{display:flex;align-items:center;gap:12px;padding-block:10px;border-bottom
 .dd{position:relative;min-width:0}
 .dd-btn{display:flex;align-items:center;text-align:left;color:var(--fg)}
 .dd-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* À direita do cabeçalho: relógio, tema, seletor de lista e configurações
+   (em telas estreitas, sem relógio, o botão de tema é que empurra o grupo para a direita). */
+header .clock{margin-left:auto}
+header .dd-btn{gap:8px}
+.dd-btn .pl-ico{width:18px;height:18px;flex:0 0 auto;color:var(--muted)}
+header .dd-menu{left:auto;right:0}
 .dd-btn[aria-expanded=true]{border-color:var(--accent)}
 .dd-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:40;min-width:max(100%,240px);max-width:min(360px,calc(100vw - 32px));max-height:min(60vh,420px);overflow-y:auto;margin:0;padding:4px;list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.28)}
 .dd-menu li{display:flex;flex-direction:column;gap:1px;padding:8px 10px 8px 12px;border-radius:6px;cursor:pointer;outline:none}
@@ -59,7 +65,7 @@ header{display:flex;align-items:center;gap:12px;padding-block:10px;border-bottom
 .dd-menu .dd-act{color:var(--muted);font-size:13px;border-top:1px solid var(--line);border-radius:0 0 6px 6px;margin-top:4px}
 .dd-menu .dd-act:first-child{border-top:0;margin-top:0}
 .dd-menu .dd-act:hover,.dd-menu .dd-act:focus{color:var(--fg)}
-.hr{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hr{display:flex;gap:8px;align-items:center}
 .clock{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:7px 12px;white-space:nowrap}
 .btn:hover{border-color:var(--accent)}
@@ -266,19 +272,23 @@ dialog::backdrop{background:var(--backdrop)}
 /* Celular: cabeçalho numa linha só, blocos lado a lado, configurações e player compactos. */
 @media (max-width:600px){
 header{flex-wrap:nowrap;gap:8px}
+header #themeBtn{margin-left:auto}
 .brand{font-size:15px;gap:6px;flex:0 0 auto}
-.dd{flex:1;min-width:0}
-#plSel{max-width:none;width:100%}
+/* Seletor de lista vira um botão de ícone à direita, junto do tema e das configurações. */
+.dd{flex:0 0 auto}
+header #plSel{width:38px;min-width:38px;max-width:38px;min-height:38px;padding:0;justify-content:center;background-image:none}
+header #plSel span{display:none}
+header #plSel .pl-ico{display:block;width:20px;height:20px;color:var(--fg)}
 .hr{gap:6px;flex:0 0 auto}
 #openSettings span{display:none}
 #home{gap:16px;padding-block:14px}
-.tiles{grid-template-columns:repeat(3,1fr)!important;gap:8px}
-.tile{min-height:88px!important;padding:12px!important;gap:2px}
-.tile em{top:10px;left:12px;font-size:9px;z-index:1}
+.tiles{grid-template-columns:1fr!important;gap:8px}
+.tile{min-height:74px!important;padding:12px 14px!important;gap:2px}
+.tile em{top:10px;left:14px;font-size:10px;z-index:1}
 #themeBtn{min-width:38px;font-size:16px;padding-inline:8px}
-.tile b{font-size:16px!important;line-height:1.1}
-.tile span{font-size:11px}
-.tile::after{width:64px!important;height:64px!important;right:-12px!important;top:-10px!important}
+.tile b{font-size:19px!important;line-height:1.1}
+.tile span{font-size:12px}
+.tile::after{width:76px!important;height:76px!important;right:-6px!important;top:-6px!important}
 .shelf{padding:14px 14px 12px;gap:12px}
 .shelf .strip .card{flex-basis:118px}
 .shelf-cont .strip .card{flex-basis:180px}
@@ -325,6 +335,7 @@ dialog{width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
 .two{grid-template-columns:1fr}
 #plSel{max-width:140px}
 .clock{display:none}
+header #themeBtn{margin-left:auto}
 }
 
 /* Abertura animada (js/views/intro.js) */
