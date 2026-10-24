@@ -54,4 +54,41 @@
     C.Plugins.App.exitApp();
   };
   if (C.Plugins.App) C.Plugins.App.addListener('backButton', back);
+
+  /**
+   * Picture-in-picture e tela cheia. A WebView não tem esses recursos do navegador:
+   * no Android usamos o plugin nativo ZappPlayer (MainActivity), no iOS os modos de
+   * apresentação do próprio <video>.
+   */
+  const ZP = C.Plugins.ZappPlayer, ios = C.getPlatform() === 'ios';
+  let full = false;
+
+  /**
+   * Liga ou desliga a tela cheia (Android: esconde as barras e gira para paisagem).
+   * @param {boolean} on Ligar.
+   * @returns {void}
+   */
+  const setFull = on => { full = on; document.documentElement.classList.toggle('app-full', on); if (ZP) ZP.setFullscreen({ enabled: on }); };
+
+  $('cFs').onclick = () => {
+    if (ios) { if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); return; }
+    setFull(!full);
+  };
+  $('cPip').onclick = async () => {
+    if (ios) {
+      if (v.webkitSupportsPresentationMode && v.webkitSupportsPresentationMode('picture-in-picture')) v.webkitSetPresentationMode(v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+      else toast('Picture-in-Picture indisponível neste aparelho.');
+      return;
+    }
+    const r = ZP ? await ZP.enterPip() : { entered: false };
+    if (!r.entered) toast('Picture-in-Picture indisponível neste aparelho.');
+  };
+  // No modo PiP, só o vídeo aparece na janela flutuante.
+  if (ZP) ZP.addListener('pipChanged', e => { document.documentElement.classList.toggle('pip', !!e.active); if (e.active) $('side').hidden = true; });
+
+  // Com o player aberto, sair do app (Início/gesto) leva o vídeo para o PiP; ao fechar o player,
+  // sai da tela cheia.
+  const webOpen = openPlayer, webClose = closePlayer;
+  openPlayer = () => { webOpen(); if (ZP) ZP.setAutoPip({ enabled: true }); };
+  closePlayer = () => { webClose(); if (ZP) ZP.setAutoPip({ enabled: false }); if (full) setFull(false); };
 })();
