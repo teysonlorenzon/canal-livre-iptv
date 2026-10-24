@@ -35,7 +35,8 @@ const msg = html => { $('plMsg').innerHTML = html ? `<div>${html}</div>` : ''; }
 
 /**
  * Tenta tocar usando cada etapa da cadeia até uma funcionar.
- * Cada etapa tem 20 s para começar antes de passar para a próxima.
+ * Cada etapa tem 20 s para começar antes de passar para a próxima; se o vídeo ainda
+ * estiver chegando (servidor lento), espera até 60 s e oferece uma versão mais leve do canal.
  * @param {EtapaReproducao[]} chain Etapas em ordem de preferência.
  * @param {boolean} live Se é transmissão ao vivo.
  * @returns {void}
@@ -71,7 +72,24 @@ function runChain(chain, live){
       if (live && (step.started || step.retrying)) return liveRecover(w);
       step.giveUp(w);
     };
-    watchdog = step.wd = setTimeout(() => { if (my === token && v.readyState < 2) bad('tempo esgotado'); }, 20000);
+    let lastLoaded = 0, waited = 0;
+    /**
+     * Verifica se o vídeo começou. Se não, mas o pedaço de vídeo ainda está baixando,
+     * dá mais tempo (servidor lento) em vez de desistir.
+     * @returns {void}
+     */
+    const check = () => {
+      if (my !== token || engine !== step || v.readyState >= 2) return;
+      const loaded = step.frag ? step.frag.stats.loaded : 0;
+      if (loaded > lastLoaded && waited < 40000) {
+        lastLoaded = loaded; waited += 10000;
+        slowMsg();
+        watchdog = step.wd = setTimeout(check, 10000);
+        return;
+      }
+      bad('tempo esgotado');
+    };
+    watchdog = step.wd = setTimeout(check, 20000);
     if (!retrying) msg('<div class="spinner"></div>');
     if (eng === 'hls') {
       if (window.Hls && Hls.isSupported()) {
@@ -82,6 +100,7 @@ function runChain(chain, live){
         } : { enableWorker:true, backBufferLength:30, maxBufferLength:60, fragLoadingMaxRetry:6 });
         let r = 0;
         hls.on(Hls.Events.MANIFEST_PARSED, (_, d) => { setupTracks(d); v.play().catch(tapToPlay); });
+        hls.on(Hls.Events.FRAG_LOADING, (_, d) => { step.frag = d.frag; });
         hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => setupTracks());
         hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => setupTracks());
         hls.on(Hls.Events.ERROR, (_, d) => {
@@ -105,6 +124,34 @@ function runChain(chain, live){
   };
   next(0);
 }
+/**
+ * Versão mais leve do canal atual na lista (mesmo nome, qualidade menor),
+ * ex.: "GLOBO RBS RS FHD" → "GLOBO RBS RS HD" ou "... SD".
+ * @returns {Item|null} Canal mais leve, ou `null` se não houver.
+ */
+function lighterChannel(){
+  const c = playing && playing.kind === 'live' && playing.item; if (!c) return null;
+  const QUAL = /\s*\b(4K|UHD|FHD|HD|SD)\b(\s*\[[^\]]*\])?\s*$/i;
+  const m = c.name.match(QUAL); if (!m) return null;
+  const base = c.name.replace(QUAL, '').trim().toUpperCase(), order = ['4K', 'UHD', 'FHD', 'HD', 'SD'];
+  const cur = order.indexOf(m[1].toUpperCase());
+  for (const q of order.slice(cur + 1)) {
+    const alt = liveList.find(i => i !== c && !/\[/.test(i.name) && i.name.replace(QUAL, '').trim().toUpperCase() === base && (i.name.match(QUAL) || [])[1] && i.name.match(QUAL)[1].toUpperCase() === q);
+    if (alt) return alt;
+  }
+  return null;
+}
+
+/**
+ * Avisa que o servidor está lento e, se existir, oferece a versão mais leve do canal.
+ * @returns {void}
+ */
+function slowMsg(){
+  const alt = lighterChannel();
+  msg(`<div class="spinner"></div><p style="margin-top:14px">O servidor está enviando este canal devagar. Aguardando o vídeo…</p>${alt ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn primary" id="fLighter">Assistir ${esc(alt.name)}</button></div>` : ''}`);
+  if (alt) { $('fLighter').onclick = () => playLive(alt, liveList); if (document.documentElement.classList.contains('tv')) $('fLighter').focus(); }
+}
+
 /**
  * Toca pelo elemento `<video>` nativo.
  * @param {string} url URL do conteúdo.
@@ -239,9 +286,12 @@ function playLive(c, list){
   ux.recentLive = [c.k, ...ux.recentLive.filter(k => k !== c.k)].slice(0, 30); saveUx();
   openPlayer();
   $('plTitle').textContent = `${c.num}  ${c.name}`;
+  $('osdName').textContent = `${c.num}  ${c.name}`;
+  $('osdLogo').innerHTML = c.logo ? `<img src="${esc(c.logo)}" alt="" onerror="this.outerHTML='${initials(c.name)}'">` : initials(c.name);
+  $('epgNow').hidden = false; $('epgT').textContent = 'Carregando programação…'; $('epgTime').textContent = $('epgLeft').textContent = $('epgN').textContent = ''; $('epgP').style.width = '0';
   $('seekRow').hidden = true; $('cBack10').hidden = $('cFwd10').hidden = true;
   $('cList').hidden = false; $('cEpg').hidden = false; $('cFav').hidden = false;
-  $('cFav').textContent = isFav('live', c.k) ? '★' : '☆';
+  $('cFav').innerHTML = icon('star', isFav('live', c.k) ? 'on' : '');
   resetTracks();
   liveGuardReset();
   runChain(chainFor(playing.url, true), true);
@@ -286,7 +336,8 @@ function playCatchup(c, p){
 
 let epgTimer;
 /**
- * Mostra no player o programa atual e o próximo, atualizando a cada 30 s.
+ * Mostra no cartão do canal o programa atual (com progresso e tempo restante) e o
+ * próximo, atualizando a cada 30 s. Sem guia, avisa que não há programação.
  * @returns {Promise<void>}
  */
 async function updateEpg(){
@@ -300,11 +351,14 @@ async function updateEpg(){
    */
   const draw = () => {
     const [n, x] = nowNext(l);
-    if (!n && !x) { $('epgNow').hidden = true; return; }
     $('epgNow').hidden = false;
-    $('epgT').innerHTML = n ? `<span>${hm(new Date(n.s))}–${hm(new Date(n.e))}</span>${esc(n.title)}` : '<span>agora</span>Sem informação';
+    $('epgNow').classList.toggle('none', !n);
+    $('epgT').textContent = n ? n.title : 'Programação não disponível para este canal';
+    $('epgTime').textContent = n ? `${hm(new Date(n.s))} – ${hm(new Date(n.e))}` : '';
     $('epgP').style.width = n ? Math.min(100, (Date.now() - n.s) / (n.e - n.s) * 100) + '%' : '0';
-    $('epgN').textContent = x ? `A seguir ${hm(new Date(x.s))} · ${x.title}` : '';
+    const left = n ? Math.max(0, Math.round((n.e - Date.now()) / 60000)) : 0;
+    $('epgLeft').textContent = n ? (left >= 60 ? `faltam ${Math.floor(left / 60)}h${String(left % 60).padStart(2, '0')}` : `faltam ${left} min`) : '';
+    $('epgN').innerHTML = x ? `<span>A seguir</span> ${hm(new Date(x.s))} · ${esc(x.title)}` : '';
   };
   draw(); epgTimer = setInterval(draw, 30000);
 }
@@ -438,6 +492,12 @@ $('cNext').onclick = () => step(1);
  */
 $('cPlay').onclick = () => v.paused ? v.play().catch(()=>{}) : v.pause();
 /**
+ * Mostra no botão a ação disponível: pausar enquanto toca, tocar quando pausado.
+ */
+const syncPlayIcon = () => { $('cPlay').innerHTML = icon(v.paused ? 'play' : 'pause'); };
+v.addEventListener('play', syncPlayIcon);
+v.addEventListener('pause', syncPlayIcon);
+/**
  * Volta 10 segundos.
  */
 $('cBack10').onclick = () => { v.currentTime = Math.max(0, v.currentTime - 10); };
@@ -448,11 +508,11 @@ $('cFwd10').onclick = () => { v.currentTime += 10; };
 /**
  * Liga ou desliga o som.
  */
-$('cMute').onclick = () => { v.muted = !v.muted; $('cMute').textContent = v.muted ? '🔇' : '🔊'; };
+$('cMute').onclick = () => { v.muted = !v.muted; $('cMute').innerHTML = icon(v.muted ? 'mute' : 'vol'); };
 /**
  * Alterna o favorito do canal em reprodução.
  */
-$('cFav').onclick = () => { if (playing && playing.item) $('cFav').textContent = toggleFav('live', playing.item.k) ? '★' : '☆'; };
+$('cFav').onclick = () => { if (playing && playing.item) $('cFav').innerHTML = icon('star', toggleFav('live', playing.item.k) ? 'on' : ''); };
 /**
  * Entra ou sai da tela cheia (travando em paisagem quando possível).
  */
@@ -523,10 +583,15 @@ $('sideClose').onclick = () => { $('side').hidden = true; };
 
 let idleT;
 /**
- * Mostra os controles e agenda escondê-los após 3,5 s parado.
+ * Mostra os controles e agenda escondê-los após 5 s parado. Se nesse momento o vídeo
+ * estiver pausado ou a lista lateral aberta, verifica de novo a cada 5 s.
  * @returns {void}
  */
-function poke(){ player.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => { if (!v.paused && $('side').hidden) player.classList.add('idle'); }, 3500); }
+function poke(){
+  player.classList.remove('idle'); clearTimeout(idleT);
+  const hide = () => { if (!v.paused && $('side').hidden) player.classList.add('idle'); else idleT = setTimeout(hide, 5000); };
+  idleT = setTimeout(hide, 5000);
+}
 ['mousemove','touchstart','click'].forEach(e => player.addEventListener(e, poke, { passive:true }));
 /**
  * Clique no vídeo (sem ação além de reexibir os controles).

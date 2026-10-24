@@ -123,8 +123,11 @@
  * @property {string} url URL a tocar.
  */
 
+/** @type {Playlist} Lista padrão com canais brasileiros gratuitos, cadastrada na primeira execução. */
+const DEFAULT_PL = { id:'br-gratis', name:'Canais abertos BR', type:'m3u' };
 /** @type {Playlist[]} Listas cadastradas. */
-let pls = store.get('pls', []);
+let pls = store.get('pls', null);
+if (pls === null) { pls = [DEFAULT_PL]; store.set('pls', pls); store.set('active', DEFAULT_PL.id); }
 /** @type {{fmt: string, auto: string, pin: string}} Opções gerais (formato ao vivo, próximo episódio automático, PIN). */
 let opts = store.get('opts', { fmt:'m3u8', auto:'1', pin:'0000' });
 /** @type {Playlist|null} Lista ativa. */

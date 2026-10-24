@@ -103,7 +103,7 @@ async function openPlaylist(id, force){
   try {
     if (p.type === 'xtream') { D = await loadXtream(); preloadSections(); }
     else {
-      let text = (!force || !p.url) ? store.get('m3u_' + p.id, null) : null;
+      let text = p.id === DEFAULT_PL.id ? DEFAULT_M3U : (!force || !p.url) ? store.get('m3u_' + p.id, null) : null;
       if (!text && p.url) { loading('Baixando lista…'); const r = await fetchT(p.url, 120000); text = await r.text(); store.set('m3u_' + p.id, text); }
       if (!text) throw new Error('Conteúdo da lista não encontrado. Adicione de novo.');
       loading('Organizando canais…');

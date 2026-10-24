@@ -68,16 +68,30 @@ function renderHome(){
       <button class="tile" data-sec="series"><em>SÉRIES</em><b>Séries</b><span>${cnt('series','séries')}</span></button>
     </div>
     ${acct}
-    <div><div class="rowh"><h3>Continuar assistindo</h3><span>${cont.length || ''}</span></div>
-      ${cont.length ? `<div class="strip">${cont.map((x,i) => cardHtml({ name:x.title, logo:x.logo, pg:x.pos/x.dur }, 'data-cont="'+i+'"')).join('')}</div>` : '<div class="empty">Filmes e episódios que você começar aparecem aqui.</div>'}</div>
-    <div><div class="rowh"><h3>Canais recentes</h3></div>
-      ${recLive.length ? `<div class="strip">${recLive.map(c => chipHtml(c)).join('')}</div>` : '<div class="empty">Nenhum canal assistido ainda.</div>'}</div>
-    <div><div class="rowh"><h3>Canais favoritos</h3></div>
-      ${favLive.length ? `<div class="strip">${favLive.map(c => chipHtml(c)).join('')}</div>` : '<div class="empty">Toque na estrela de um canal para favoritar.</div>'}</div>`;
+    <div class="shelves">
+      ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', cont.length, cont.map((x,i) => cardHtml({ name:x.title, logo:x.logo, pg:x.pos/x.dur }, 'data-cont="'+i+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
+      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recLive.length, recLive.map(c => chipHtml(c)).join(''), 'Os canais que você assistir aparecem aqui.')}
+      ${shelfHtml('fav', 'Canais favoritos', 'Seus canais marcados', favLive.length, favLive.map(c => chipHtml(c)).join(''), 'Toque na estrela ★ de um canal para favoritar.')}
+    </div>`;
   h.querySelectorAll('[data-sec]').forEach(b => b.onclick = () => openSection(b.dataset.sec));
   h.querySelectorAll('[data-cont]').forEach(b => b.onclick = () => { const x = cont[+b.dataset.cont]; playMedia(x.desc, x.pos); });
   h.querySelectorAll('[data-live]').forEach(b => b.onclick = () => { const c = D.live.items.find(i => i.k === b.dataset.live); playLive(c, D.live.items); });
 }
+/**
+ * HTML de uma prateleira da tela inicial: cabeçalho com ícone e contagem, e a faixa de
+ * cartões (ou um estado vazio).
+ * @param {'cont'|'recent'|'fav'} kind Tipo (define ícone e cor).
+ * @param {string} title Título.
+ * @param {string} sub Subtítulo.
+ * @param {number} n Quantidade de itens.
+ * @param {string} items HTML dos cartões.
+ * @param {string} empty Texto do estado vazio.
+ * @returns {string} HTML.
+ */
+const shelfHtml = (kind, title, sub, n, items, empty) => `<section class="shelf shelf-${kind}">
+  <div class="shelf-h"><span class="shelf-ico">${icon(kind === 'fav' ? 'star' : kind)}</span><div><h3>${title}</h3><small>${sub}</small></div>${n ? `<span class="shelf-n">${n}</span>` : ''}</div>
+  ${n ? `<div class="strip">${items}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${empty}</p></div>`}
+</section>`;
 /**
  * HTML do cartão compacto de um canal.
  * @param {Item} c Canal.

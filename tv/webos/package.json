@@ -1,0 +1,18 @@
+{
+  "name": "zapp-iptv-webos",
+  "private": true,
+  "description": "Empacota o Zapp IPTV como app para TVs LG (webOS).",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "package": "node build.mjs && ares-package dist -o out --no-minify",
+    "install-tv": "node -e \"const v=require('./appinfo.json').version;require('child_process').execSync('ares-install --device tv out/com.canallivre.iptv_'+v+'_all.ipk',{stdio:'inherit'})\"",
+    "launch": "ares-launch --device tv com.canallivre.iptv"
+  },
+  "devDependencies": {
+    "@webos-tools/cli": "3.2.6",
+    "esbuild": "0.28.2",
+    "hls.js": "1.5.13",
+    "mpegts.js": "1.7.3"
+  }
+}

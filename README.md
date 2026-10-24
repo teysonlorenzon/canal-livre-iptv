@@ -1,4 +1,4 @@
-# Canal Livre IPTV
+# Zapp IPTV
 
 Player IPTV que roda direto no navegador, sem instalação e sem build.
 
