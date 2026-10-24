@@ -1,0 +1,65 @@
+# Gera os apps do Zapp IPTV nas plataformas que não dá para compilar no Linux local:
+# instalador do Windows (.exe), Linux (AppImage/.deb), Android (.apk) e um build de
+# verificação do iOS (simulador, sem assinatura). Rode pela aba Actions ou criando uma tag v*.
+name: Build dos apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win
+          - os: ubuntu-latest
+            script: dist:linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run ${{ matrix.script }} -w apps/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            apps/desktop/out/*.exe
+            apps/desktop/out/*.zip
+            apps/desktop/out/*.AppImage
+            apps/desktop/out/*.deb
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run android:apk -w apps/mobile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run ios:sync -w apps/mobile
+      - name: Compilar para o simulador (sem assinatura)
+        working-directory: apps/mobile/ios/App
+        run: xcodebuild -project App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulador
+          path: apps/mobile/ios/App/build/Build/Products/Debug-iphonesimulator/App.app

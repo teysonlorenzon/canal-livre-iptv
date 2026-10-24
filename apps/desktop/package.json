@@ -1,0 +1,57 @@
+{
+  "name": "zapp-iptv-desktop",
+  "productName": "Zapp IPTV",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zapp IPTV para Windows e Linux (Electron).",
+  "author": {
+    "name": "Zapp IPTV",
+    "email": "teysonlorenzon@users.noreply.github.com"
+  },
+  "main": "main.cjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && electron .",
+    "dist:linux": "node build.mjs && electron-builder --linux",
+    "dist:win": "node build.mjs && electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.zappiptv.desktop",
+    "productName": "Zapp IPTV",
+    "directories": {
+      "output": "out",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "app/**"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "maintainer": "Zapp IPTV"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Zapp IPTV"
+    }
+  },
+  "homepage": "https://github.com/teysonlorenzon/canal-livre-iptv"
+}

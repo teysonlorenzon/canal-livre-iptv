@@ -32,7 +32,8 @@ function applyTheme(mode){
   if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.dataset.theme = mode;
   const b = document.getElementById('themeBtn');
-  if (b) { b.textContent = THEME_INFO[mode].icon; b.title = 'Tema: ' + THEME_INFO[mode].label; b.setAttribute('aria-label', b.title); }
+  // Ícone de traço (js/views/icons.js); antes dele carregar, usa o símbolo de texto.
+  if (b) { if (typeof icon === 'function') b.innerHTML = icon({ auto:'themeAuto', light:'themeLight', dark:'themeDark' }[mode]); else b.textContent = THEME_INFO[mode].icon; b.title = 'Tema: ' + THEME_INFO[mode].label; b.setAttribute('aria-label', b.title); }
 }
 
 /**

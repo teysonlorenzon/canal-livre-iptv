@@ -1,4 +1,35 @@
-.claude/
+# Dependências
+node_modules/
+
+# Listas IPTV pessoais (podem conter usuário e senha); só a lista padrão vai para o repositório
 *.m3u
 *.m3u8
+!listas/brasil-gratis.m3u
+
+# Builds gerados
+tv/webos/dist/
+tv/webos/out/
+apps/desktop/app/
+apps/desktop/out/
+apps/mobile/www/
+apps/mobile/android/local.properties
+apps/mobile/ios/App/build/
+apps/mobile/ios/DerivedData/
+
+# Chaves de assinatura e segredos
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+.env
+.env.*
+
+# Logs, editores e sistema
+*.log
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
+
+# Configuração local do Claude Code
+.claude/

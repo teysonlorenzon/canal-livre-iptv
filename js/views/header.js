@@ -7,8 +7,8 @@ document.body.insertAdjacentHTML('beforeend', `
   </div>
   <div class="hr">
     <span class="clock" id="clock"></span>
-    <button class="btn" id="themeBtn"></button>
-    <button class="btn" id="openSettings">Configurações</button>
+    <button class="btn ib" id="themeBtn"></button>
+    <button class="btn ib" id="openSettings" title="Configurações">${icon('gear')}<span>Configurações</span></button>
   </div>
 </header>
 `);

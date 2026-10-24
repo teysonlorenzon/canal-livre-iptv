@@ -10,9 +10,6 @@
     "launch": "ares-launch --device tv com.canallivre.iptv"
   },
   "devDependencies": {
-    "@webos-tools/cli": "3.2.6",
-    "esbuild": "0.28.2",
-    "hls.js": "1.5.13",
-    "mpegts.js": "1.7.3"
+    "@webos-tools/cli": "3.2.6"
   }
 }
