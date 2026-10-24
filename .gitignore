@@ -12,6 +12,9 @@ tv/webos/out/
 apps/desktop/app/
 apps/desktop/out/
 apps/mobile/www/
+*.apk
+*.aab
+*.ipk
 apps/mobile/android/local.properties
 apps/mobile/ios/App/build/
 apps/mobile/ios/DerivedData/
