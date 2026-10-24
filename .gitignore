@@ -21,6 +21,7 @@ apps/mobile/ios/DerivedData/
 *.keystore
 *.p12
 *.mobileprovision
+apps/mobile/android/keystore.properties
 .env
 .env.*
 

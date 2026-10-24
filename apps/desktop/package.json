@@ -6,7 +6,7 @@
   "description": "Zapp IPTV para Windows e Linux (Electron).",
   "author": {
     "name": "Zapp IPTV",
-    "email": "teysonlorenzon@users.noreply.github.com"
+    "email": "47832168+teysonlorenzon@users.noreply.github.com"
   },
   "main": "main.cjs",
   "scripts": {

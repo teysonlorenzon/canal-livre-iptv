@@ -9,7 +9,8 @@
     "icons": "node icons.mjs",
     "android:apk": "node build.mjs && cap sync android && cd android && ./gradlew assembleDebug",
     "android:install": "adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
-    "ios:sync": "node build.mjs && cap sync ios"
+    "ios:sync": "node build.mjs && cap sync ios",
+    "android:aab": "node build.mjs && cap sync android && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
