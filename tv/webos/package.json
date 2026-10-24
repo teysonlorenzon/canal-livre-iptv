@@ -6,8 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "package": "node build.mjs && ares-package dist -o out --no-minify",
-    "install-tv": "node -e \"const v=require('./appinfo.json').version;require('child_process').execSync('ares-install --device tv out/com.canallivre.iptv_'+v+'_all.ipk',{stdio:'inherit'})\"",
-    "launch": "ares-launch --device tv com.canallivre.iptv"
+    "install-tv": "node -e \"const a=require('./appinfo.json');require('child_process').execSync('ares-install --device tv out/'+a.id+'_'+a.version+'_all.ipk',{stdio:'inherit'})\"",
+    "launch": "node -e \"require('child_process').execSync('ares-launch --device tv '+require('./appinfo.json').id,{stdio:'inherit'})\""
   },
   "devDependencies": {
     "@webos-tools/cli": "3.2.6"

@@ -103,7 +103,24 @@ function tvBack(){
     return;
   }
   if (!$('section').hidden) { show('home'); focusFirst(); return; }
-  window.close();
+  confirmExit();
+}
+
+/**
+ * Pergunta antes de fechar o app (Voltar na tela inicial), como pedem as diretrizes da LG.
+ * O foco começa em "Cancelar"; Voltar de novo fecha só a pergunta.
+ * @returns {void}
+ */
+function confirmExit(){
+  let d = document.getElementById('dExit');
+  if (!d) {
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="dExit" style="width:min(380px,calc(100vw - 32px))"><div class="dlg"><h3>Sair do Zapp IPTV?</h3><div class="row"><button class="btn" id="exitNo">Cancelar</button><button class="btn primary" id="exitYes">Sair</button></div></div></dialog>`);
+    d = document.getElementById('dExit');
+    document.getElementById('exitNo').onclick = () => d.close();
+    document.getElementById('exitYes').onclick = () => window.close();
+  }
+  d.showModal();
+  focusEl(document.getElementById('exitNo'));
 }
 
 /**

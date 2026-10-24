@@ -9,7 +9,7 @@ npm install
 npm run package
 ```
 
-O arquivo sai em `out/com.canallivre.iptv_<versão>_all.ipk`.
+O arquivo sai em `out/com.zappiptv.tv_<versão>_all.ipk`.
 
 `npm run build` só monta a pasta `dist/` (útil para testar no navegador com
 `python3 -m http.server -d dist`).
@@ -40,7 +40,7 @@ Developer Mode e use **Extend** antes de acabar o prazo.
 |---|---|
 | Setas | Movem o foco entre botões, categorias e canais |
 | OK | Abre o item focado; num campo de texto, abre o teclado (OK de novo confirma) |
-| Voltar | Fecha diálogo / player / seção; na tela inicial sai do app |
+| Voltar | Fecha diálogo / player / seção; na tela inicial pergunta se quer sair |
 | Amarelo | Favorita o canal focado |
 | ← / → no player | Troca de canal (ao vivo) ou volta/avança 10 s (filmes e séries) |
 | ↑ / ↓ no player | Mostra os controles e foca o play/pause; depois as setas andam entre os botões |
