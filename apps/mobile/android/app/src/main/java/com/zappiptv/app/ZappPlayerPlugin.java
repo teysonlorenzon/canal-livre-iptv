@@ -88,7 +88,9 @@ public class ZappPlayerPlugin extends Plugin {
                 a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
             } else {
                 c.show(WindowInsetsCompat.Type.systemBars());
-                a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                // Volta a seguir a rotação do sistema: gira com o aparelho quando a rotação automática
+                // está ligada e respeita a trava de orientação do usuário quando está desligada.
+                a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
             }
             call.resolve();
         });

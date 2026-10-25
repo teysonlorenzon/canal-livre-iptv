@@ -42,14 +42,18 @@
   };
 
   /**
-   * Botão Voltar do Android: fecha diálogo, menu, lista lateral, player ou seção, nessa ordem.
+   * Botão Voltar do Android: fecha diálogo, menu, tela cheia, lista lateral, player ou seção, nessa ordem.
    * @returns {void}
    */
   const back = () => {
     const dlg = document.querySelector('dialog[open]');
     if (dlg) return dlg.close();
     if (!$('plMenu').hidden) return togglePlMenu(false);
-    if (!$('player').hidden) { if (!$('side').hidden) $('side').hidden = true; else closePlayer(); return; }
+    if (!$('player').hidden) {
+      if (full) return setFull(false);
+      if (!$('side').hidden) $('side').hidden = true; else closePlayer();
+      return;
+    }
     if (!$('section').hidden) return show('home');
     C.Plugins.App.exitApp();
   };
@@ -91,4 +95,6 @@
   const webOpen = openPlayer, webClose = closePlayer;
   openPlayer = () => { webOpen(); if (ZP) ZP.setAutoPip({ enabled: true }); };
   closePlayer = () => { webClose(); if (ZP) ZP.setAutoPip({ enabled: false }); if (full) setFull(false); };
+  // O botão voltar do player guardou a função original; liga-o à nova para sair também da tela cheia.
+  $('plBack').onclick = () => closePlayer();
 })();
