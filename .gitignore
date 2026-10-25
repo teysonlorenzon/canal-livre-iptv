@@ -28,12 +28,15 @@ apps/mobile/android/keystore.properties
 .env
 .env.*
 
-# Logs, editores e sistema
+# Logs, cache, editores e sistema
 *.log
+__pycache__/
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
-# Configuração local do Claude Code
-.claude/
+# Configuração local do Claude Code (skills e agentes do projeto vão para o repositório)
+.claude/*
+!.claude/skills/
+!.claude/agents/

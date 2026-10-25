@@ -1,0 +1,14 @@
+{
+  "id": "com.empresa.app",
+  "version": "1.0.0",
+  "vendor": "Empresa",
+  "type": "web",
+  "main": "index.html",
+  "title": "Nome do App",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#13171a",
+  "resolution": "1280x720",
+  "disableBackHistoryAPI": true,
+  "requiredACG": []
+}
