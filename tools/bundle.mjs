@@ -35,14 +35,15 @@ export function bundleWeb(outDir, { target, extraJs = [], extraCss = [], headHtm
   writeFileSync(join(outDir, 'head.js'), js(head));
   writeFileSync(join(outDir, 'app.js'), js([...body, ...extraJs]));
 
-  const css = [join(root, 'css/style.css'), ...extraCss].map(f => readFileSync(f, 'utf8')).join('\n');
+  const css = [join(root, 'src/styles/style.css'), ...extraCss].map(f => readFileSync(f, 'utf8')).join('\n');
   writeFileSync(join(outDir, 'style.css'), transformSync(css, { loader: 'css', target, charset: 'utf8' }).code);
 
   copyFileSync(require.resolve('hls.js/dist/hls.min.js'), join(outDir, 'vendor/hls.min.js'));
   copyFileSync(require.resolve('mpegts.js/dist/mpegts.js'), join(outDir, 'vendor/mpegts.js'));
 
   const page = html
-    .replace(/<link rel="stylesheet" href="css\/style.css">/, '<link rel="stylesheet" href="style.css">')
+    .replace(/<!--[\s\S]*?-->\n?/g, '')
+    .replace(/<link rel="stylesheet" href="src\/styles\/style.css">/, '<link rel="stylesheet" href="style.css">')
     .replace(/<script src="https:\/\/[^"]*hls[^"]*"><\/script>/, '<script src="vendor/hls.min.js"></script>')
     .replace(/<script src="https:\/\/[^"]*mpegts[^"]*"><\/script>/, '<script src="vendor/mpegts.js"></script>')
     .replace(/<script src="(?!vendor\/)[^"]+"><\/script>\n?/g, '')

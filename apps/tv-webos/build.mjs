@@ -13,6 +13,6 @@ const n = bundleWeb(dist, { target: 'chrome68', extraJs: [join(here, 'tv.js')], 
 copyFileSync(join(here, 'appinfo.json'), join(dist, 'appinfo.json'));
 // Ícone quadrado, sem cantos transparentes: o launcher da LG aplica o próprio formato, e com
 // cantos vazios o ícone parecia menor e com moldura.
-const icon = readFileSync(join(here, 'icon.svg'), 'utf8').replace(/rx="\d+"/, 'rx="0"');
+const icon = readFileSync(join(here, '..', '..', 'brand', 'icon-tv.svg'), 'utf8').replace(/rx="\d+"/, 'rx="0"');
 for (const [name, size] of [['icon.png', 80], ['largeIcon.png', 130]]) renderSvg(icon, size, size, join(dist, name), '13171aff');
 console.log('dist/ pronto:', n, 'scripts do app');

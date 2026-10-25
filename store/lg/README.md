@@ -5,8 +5,8 @@ Material para enviar o Zapp IPTV pelo **LG Seller Lounge** (seller.lgappstv.com)
 | Item | Valor |
 |---|---|
 | Id do app | `com.zappiptv.tv` (não muda depois de cadastrado) |
-| Versão | `1.0.0` (`tv/webos/appinfo.json`) |
-| Pacote | `tv/webos/out/com.zappiptv.tv_1.0.0_all.ipk` (`npm run package -w tv/webos`) |
+| Versão | `1.0.0` (`apps/tv-webos/appinfo.json`) |
+| Pacote | `apps/tv-webos/out/com.zappiptv.tv_1.0.0_all.ipk` (`npm run package -w apps/tv-webos`) |
 | Política de privacidade | https://teysonlorenzon.github.io/canal-livre-iptv/store/play/politica-de-privacidade.html |
 | Contato | teyson_lorenzon@hotmail.com |
 
@@ -19,7 +19,7 @@ Material para enviar o Zapp IPTV pelo **LG Seller Lounge** (seller.lgappstv.com)
 | `destaque-1920x1080.png` | imagem de destaque / banner |
 | `tv-1-inicio.png` … `tv-5-listas.png` | capturas de tela em 1920×1080, só com a lista de canais públicos |
 
-Se o formulário pedir um tamanho que não está aqui, os ícones saem de `tv/webos/icon.svg`
+Se o formulário pedir um tamanho que não está aqui, os ícones saem de `brand/icon-tv.svg`
 e o banner de `store/play/feature.svg`.
 
 ## Textos

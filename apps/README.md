@@ -56,7 +56,7 @@ só para conferir que o projeto está certo; instalar num iPhone exige assinatur
 ### Ícones
 
 Os ícones e telas de abertura já estão nos projetos `android/` e `ios/`. Para recriá-los a
-partir de `tv/webos/icon.svg` (precisa do Chrome): `npm run icons -w apps/mobile`.
+partir de `brand/icon-app.svg` (precisa do Chrome): `npm run icons -w apps/mobile`.
 
 ## GitHub Actions
 

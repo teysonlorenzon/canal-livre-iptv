@@ -11,7 +11,7 @@
 | Plataforma | Onde fica | Formato |
 |---|---|---|
 | Navegador | `iptv-player.html` | abre direto, sem instalação |
-| TV LG (webOS) | [`tv/webos`](tv/webos/README.md) | `.ipk` |
+| TV LG (webOS) | [`apps/tv-webos`](apps/tv-webos/README.md) | `.ipk` |
 | Windows e Linux | [`apps/desktop`](apps/README.md) | `.exe` / `.zip`, `.AppImage`, `.deb` (Electron) |
 | Android e iOS | [`apps/mobile`](apps/README.md) | `.apk` / `.aab`, projeto Xcode (Capacitor) |
 
@@ -50,7 +50,7 @@ npm install
 
 | App | Comando | Guia |
 |---|---|---|
-| TV LG | `npm run package -w tv/webos` | [tv/webos/README.md](tv/webos/README.md) |
+| TV LG | `npm run package -w apps/tv-webos` | [apps/tv-webos/README.md](apps/tv-webos/README.md) |
 | Linux | `npm run dist:linux -w apps/desktop` | [apps/README.md](apps/README.md) |
 | Windows | `npm run dist:win -w apps/desktop` | [apps/README.md](apps/README.md) |
 | Android | `npm run android:apk -w apps/mobile` | [apps/README.md](apps/README.md) |
@@ -65,19 +65,28 @@ Material para publicar na Google Play (imagens, textos, formulários e passo a p
 
 ## Estrutura
 
+Monorepo organizado por funcionalidade: o código do player fica em `src/` (camadas `core`,
+`data`, `ui` e uma pasta por funcionalidade em `features/`) e cada plataforma em `apps/`.
+Detalhes e regras de onde colocar código novo em [src/README.md](src/README.md).
+
 ```
-iptv-player.html     página principal do player (só carrega CSS e scripts)
-css/style.css        estilos, temas e layouts (TV, computador e celular)
-js/views/            markup de cada parte da interface, ícones e abertura animada
-js/*.js              lógica do app (scripts clássicos, a ordem no HTML importa)
-js/default-list.js   lista de exemplo embutida (cópia de listas/brasil-gratis.m3u)
+iptv-player.html     entrada do player (carrega o CSS e os scripts de src/ na ordem certa)
+src/
+  core/              base: utilidades, estado global, tema
+  data/              fontes de dados: lista padrão, M3U, Xtream, guia (EPG)
+  ui/                peças visuais comuns: ícones, abertura, cabeçalho, diálogos
+  features/          home, playlists, section, details, player, settings (tela + lógica)
+  styles/style.css   tokens de cor, temas e layouts (computador, TV e celular)
+  main.js            ponto de partida
+apps/
+  tv-webos/          app para TV LG (webOS)
+  desktop/           app para Windows e Linux (Electron)
+  mobile/            app para Android e iOS (Capacitor)
+tools/bundle.mjs     monta o player para as plataformas de apps/
+brand/               ícones da marca (app e TV)
 listas/              lista de exemplo com canais abertos e públicos
-brand/               ícone do app
-tools/bundle.mjs     montagem do player para as outras plataformas
-tv/webos/            app para TV LG
-apps/desktop/        app para Windows e Linux (Electron)
-apps/mobile/         app para Android e iOS (Capacitor)
-store/play/          material da Google Play
+store/               material das lojas (play/ e lg/)
+.claude/             agentes e skills do Claude Code para este projeto
 ```
 
 Bibliotecas: [hls.js](https://github.com/video-dev/hls.js) e [mpegts.js](https://github.com/xqq/mpegts.js)

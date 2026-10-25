@@ -2,7 +2,11 @@
   "name": "zapp-iptv",
   "private": true,
   "description": "Zapp IPTV: player web e empacotamento para TV LG, desktop (Windows/Linux) e celular (Android/iOS).",
-  "workspaces": ["tv/webos", "apps/desktop", "apps/mobile"],
+  "workspaces": [
+    "apps/tv-webos",
+    "apps/desktop",
+    "apps/mobile"
+  ],
   "devDependencies": {
     "esbuild": "0.28.2",
     "hls.js": "1.5.13",

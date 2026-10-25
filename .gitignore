@@ -7,8 +7,8 @@ node_modules/
 !listas/brasil-gratis.m3u
 
 # Builds gerados
-tv/webos/dist/
-tv/webos/out/
+apps/tv-webos/dist/
+apps/tv-webos/out/
 apps/desktop/app/
 apps/desktop/out/
 apps/mobile/www/
