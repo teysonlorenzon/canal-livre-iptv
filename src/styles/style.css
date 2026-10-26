@@ -216,9 +216,6 @@ header .dd-menu{left:auto;right:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
 .numpad{position:absolute;top:max(70px,calc(env(safe-area-inset-top,0px) + 60px));right:max(24px,env(safe-area-inset-right,0px));font:800 54px var(--display);color:var(--accent);text-shadow:0 2px 12px #000}
-.btn.ib.skip-intro{position:absolute;right:24px;right:max(24px,calc(env(safe-area-inset-right,0px) + 12px));bottom:32px;bottom:max(32px,calc(env(safe-area-inset-bottom,0px) + 16px));padding:11px 18px;gap:9px;font-weight:600;font-size:15px;background:rgba(12,15,17,.82);border-color:#ffffff40;box-shadow:0 8px 24px rgba(0,0,0,.45)}
-.btn.ib.skip-intro .ico{width:20px;height:20px}
-.btn.ib.skip-intro:hover{border-color:var(--accent)}
 .pl-side{position:absolute;top:0;right:0;bottom:0;width:min(360px,100%);background:#0c0f11f2;border-left:1px solid var(--line);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
 .pl-side header{background:none;padding:12px 14px}
 .pl-side header b{font:700 15px var(--display)}
@@ -298,7 +295,6 @@ dialog{width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
 .pctrl{justify-content:center}
 .pctrl .sp{display:none}
 .pctrl .btn.ib span{display:none}
-.btn.ib.skip-intro{min-height:46px;padding:12px 18px;right:16px;right:max(16px,calc(env(safe-area-inset-right,0px) + 8px))}
 }
 @media (max-height:500px){
 .pl-top{padding-bottom:12px}

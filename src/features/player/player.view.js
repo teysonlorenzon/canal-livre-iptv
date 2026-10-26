@@ -46,7 +46,6 @@ document.body.insertAdjacentHTML('beforeend', `
       </div>
     </div>
   </div>
-  <button class="btn ib skip-intro" id="skipIntro" hidden>${icon('skip')}<span>Pular abertura</span></button>
   <aside class="pl-side" id="side" hidden>
     <header><b id="sideTitle"></b><button class="btn sm ib" id="sideClose" style="margin-left:auto" title="Fechar" aria-label="Fechar">${icon('close')}</button></header>
     <ul id="sideList"></ul>

@@ -43,11 +43,8 @@ document.body.insertAdjacentHTML('beforeend', `
         <select id="optFmt"><option value="m3u8">HLS (.m3u8)</option><option value="ts">MPEG-TS (.ts)</option></select></div>
       <div class="fld"><label for="optAuto">Próximo episódio automático</label>
         <select id="optAuto"><option value="1">Ligado</option><option value="0">Desligado</option></select></div>
-      <div class="fld" id="introAudioField"><label for="optIntroAudio">Detectar a abertura pelo som</label>
-        <select id="optIntroAudio"><option value="1">Ligada</option><option value="0">Desligada</option></select></div>
     </div>
     <div class="row">
-      <button class="btn" id="forgetIntros">Esquecer aberturas aprendidas</button>
       <button class="btn danger" id="clearHist">Limpar histórico</button>
       <button class="btn primary" id="closeSettings">Fechar</button>
     </div>

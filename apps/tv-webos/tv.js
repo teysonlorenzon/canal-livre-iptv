@@ -14,12 +14,6 @@ const FOCUSABLE = 'button:not([disabled]):not(.star),a[href],input:not([disabled
 const ARROW_DIRECTIONS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
 
 document.documentElement.classList.add('tv');
-/**
- * Na TV LG o som do vídeo não chega ao navegador (decodificador de hardware): a abertura é
- * detectada baixando e decodificando o áudio do episódio pelo WebCodecs (TVs de 2021 em diante).
- * Sem WebCodecs (TV de 2020), fica só o aprendizado por temporada.
- */
-useDecodedIntroAnalysis();
 
 /**
  * Indica se o elemento está visível na tela.
@@ -156,20 +150,6 @@ function playerArrow(direction){
 
 /** Quando os controles do player somem por inatividade, tira o foco deles: as setas voltam a trocar de canal. */
 new MutationObserver(() => { if (playerScreen.classList.contains('idle') && inPlayerUi()) document.activeElement.blur(); }).observe(playerScreen, { attributes:true, attributeFilter:['class'] });
-
-/**
- * Ao pular a abertura com o botão focado, o botão some: leva o foco para o play/pause,
- * para as setas continuarem navegando pelos controles.
- */
-document.addEventListener('click', event => {
-  if (event.target.closest && event.target.closest('#skipIntro') && document.activeElement === $('skipIntro') && !playerScreen.classList.contains('idle')) focusElement($('cPlay'));
-}, true);
-
-/**
- * Quando o botão "Pular abertura" some sozinho (10 s sem ser usado) com o foco nele, leva o
- * foco para o play/pause, para as setas continuarem navegando pelos controles.
- */
-new MutationObserver(() => { if ($('skipIntro').hidden && document.activeElement === $('skipIntro')) focusElement($('cPlay')); }).observe($('skipIntro'), { attributes:true, attributeFilter:['hidden'] });
 
 /** Campos de texto: só entram em edição (e abrem o teclado virtual da TV) ao apertar OK. */
 const TEXT_FIELD_SELECTOR = 'input[type=text],input[type=search],input[type=url],input[type=password],input:not([type]),textarea';
@@ -363,8 +343,7 @@ function openSearch(){
 
 /**
  * Trata as teclas do player aberto: mídia, teclas coloridas, setas e OK. Com os controles
- * escondidos (foco fora deles), o OK pula a abertura enquanto o botão "Pular abertura"
- * estiver na tela; fora dela, pausa/retoma e mostra os controles.
+ * escondidos (foco fora deles), o OK pausa/retoma e mostra os controles.
  * @param {KeyboardEvent} event Evento de tecla.
  * @returns {void}
  */
@@ -381,7 +360,6 @@ function handlePlayerKey(event){
     const direction = ARROW_DIRECTIONS[event.key];
     if (direction && !(direction !== 'up' && direction !== 'down' && event.target.matches && event.target.matches('input[type=range]'))) { event.preventDefault(); event.stopImmediatePropagation(); playerArrow(direction); }
     else if (event.key === 'Enter' && inPlayerUi()) poke();
-    else if (event.key === 'Enter' && $('side').hidden && isSkipIntroVisible()) { event.preventDefault(); event.stopImmediatePropagation(); skipIntro(); }
     else if (event.key === 'Enter' && $('side').hidden) { event.preventDefault(); event.stopImmediatePropagation(); $('cPlay').click(); poke(); }
   }
 }

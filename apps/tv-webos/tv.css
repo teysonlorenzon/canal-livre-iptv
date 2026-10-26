@@ -10,5 +10,3 @@ html.tv dialog{overflow-y:auto;max-height:calc(100vh - 32px)}
 html.tv input[readonly]:focus,html.tv textarea[readonly]:focus{background:var(--panel2)}
 html.tv [data-editing]{outline-color:var(--ok)!important;box-shadow:0 0 0 6px rgba(62,207,142,.25)}
 html.tv #cPip,html.tv #cFs,html.tv #cMute{display:none!important}
-html.tv .btn.ib.skip-intro{background:var(--accent);color:#1a1200;border-color:var(--accent);font-size:18px;padding:13px 22px}
-html.tv .btn.ib.skip-intro:focus{outline-color:var(--fg)}

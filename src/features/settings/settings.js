@@ -4,7 +4,7 @@ let addType = 'xtream';
  * Abre o diálogo de configurações com os valores atuais.
  * @returns {void}
  */
-function openSettings(){ renderPlaylistSelect(); renderCatRows(); $('optFmt').value = options.fmt; $('optAuto').value = options.auto; $('optIntroAudio').value = options.introAudio === '0' ? '0' : '1'; $('introAudioField').hidden = !isIntroAudioDetectionSupported(); $('dSettings').showModal(); }
+function openSettings(){ renderPlaylistSelect(); renderCatRows(); $('optFmt').value = options.fmt; $('optAuto').value = options.auto; $('dSettings').showModal(); }
 $('openSettings').onclick = openSettings;
 /**
  * Fecha as configurações.
@@ -77,16 +77,6 @@ $('optAuto').onchange = changeEvent => { options.auto = changeEvent.target.value
  * Limpa o histórico e os canais recentes da lista ativa.
  */
 $('clearHist').onclick = () => { if (!userData) return; userData.hist = []; userData.recentLive = []; saveUserData(); toast('Histórico limpo.'); renderHome(); };
-/**
- * Liga ou desliga a detecção da abertura pelo som.
- * @param {Event} changeEvent Evento de mudança.
- */
-$('optIntroAudio').onchange = changeEvent => { options.introAudio = changeEvent.target.value; store.set('opts', options); if (options.introAudio === '0') stopIntroAudioSession(false); };
-/**
- * Esquece as aberturas aprendidas (por temporada e no formato antigo, por série) e as
- * impressões digitais do som da lista ativa.
- */
-$('forgetIntros').onclick = () => { if (!userData) return; userData.intro = {}; saveUserData(); forgetIntroPrints(); toast('Aberturas esquecidas. O app vai aprender de novo.'); };
 
 /**
  * Desenha a tabela de bloqueio/ocultação de categorias da seção escolhida.
