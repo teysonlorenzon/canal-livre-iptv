@@ -24,9 +24,12 @@ src/
     section/     categorias e itens de TV ao vivo, filmes e séries
     details/     detalhes de filme e série
     player/      player (hls.js / mpegts.js / nativo), controles, guia e reconexão
-                 skip-intro.js: botão "Pular abertura" e aprendizado da abertura por temporada
-                 (userData.intro); intro-audio.js: detecção da abertura comparando a impressão
-                 digital do som entre episódios (cl_fp_<lista>; desligada na TV LG pelo tv.js)
+                 skip-intro.js: botão "Pular abertura" (some após 10 s) e aprendizado da abertura
+                 por temporada (userData.intro); intro-audio.js: detecção da abertura comparando
+                 a impressão digital do som entre episódios e padrão da abertura por temporada
+                 (cl_fp_<lista>); intro-calibration.js: calibração em segundo plano (vídeo
+                 auxiliar mudo em 8×, ou download + decodificação na TV); intro-audio-decode.js:
+                 leitura do áudio de MP4/MKV pelo WebCodecs, sem tocar o vídeo (modo da TV LG)
     settings/    configurações (listas, PIN, reprodução)
   styles/style.css   tokens de cor, temas e layouts (computador, TV e celular)
   main.js      ponto de partida

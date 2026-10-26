@@ -93,6 +93,22 @@
   /** No modo PiP, só o vídeo aparece na janela flutuante. */
   if (zappPlayer) zappPlayer.addListener('pipChanged', pipState => { document.documentElement.classList.toggle('pip', !!pipState.active); if (pipState.active) $('side').hidden = true; });
 
+  /**
+   * Vídeos de outro servidor cujo áudio será analisado (episódios de séries e o vídeo auxiliar
+   * da calibração da abertura) tocam pelo proxy de vídeo do app Android
+   * (MediaProxyWebViewClient), que os serve pela origem do app: sem isso a WebView recusa a
+   * leitura do áudio (servidor sem CORS). No player, se o proxy falhar, a cadeia original
+   * continua como reserva.
+   */
+  if (!isIos) mediaUrlForAudioAnalysis = url => /^https?:/i.test(url) && !url.startsWith(location.origin) ? location.origin + '/_zapp_media_?u=' + encodeURIComponent(url) : url;
+  const webChainFor = chainFor;
+  chainFor = (url, live) => {
+    const originalChain = webChainFor(url, live), analysisUrl = mediaUrlForAudioAnalysis(url);
+    const isSeriesEpisode = !live && currentMedia && currentMedia.kind === 'series';
+    if (!isSeriesEpisode || analysisUrl === url || originalChain[0].eng !== 'native' || !isIntroAudioDetectionEnabled()) return originalChain;
+    return [{ eng: 'native', url: analysisUrl }, ...originalChain];
+  };
+
   const webOpenPlayer = openPlayer, webClosePlayer = closePlayer;
   openPlayer = () => { webOpenPlayer(); if (zappPlayer) zappPlayer.setAutoPip({ enabled: true }); };
   closePlayer = () => { webClosePlayer(); if (zappPlayer) zappPlayer.setAutoPip({ enabled: false }); if (isFullscreen) setFullscreen(false); };

@@ -30,6 +30,8 @@ const SKIP_INTRO_MANUAL_MAX_JUMP = 180;
 const SKIP_INTRO_MANUAL_LATEST_START = 480;
 /** @type {number} Intervalo (ms) máximo entre avanços seguidos (±10 s repetido) para somá-los num só. */
 const SKIP_INTRO_SEEK_BURST_MS = 2500;
+/** @type {number} Segundos de vídeo em que o botão fica na tela se o usuário não tocar nele. */
+const SKIP_INTRO_DISPLAY_SECONDS = 10;
 
 const skipIntroButton = $('skipIntro');
 
@@ -60,6 +62,8 @@ const skipIntroButton = $('skipIntro');
  * @property {boolean} learnedFromBehavior Se este episódio já ensinou uma abertura (só a primeira conta).
  * @property {number|null} stablePosition Última posição tocada normalmente (fora de um seek); `null` antes de tocar.
  * @property {{origin: number, lastSeekAt: number}|null} seekBurst Sequência de avanços seguidos em andamento.
+ * @property {number|null} shownAtPosition Posição do vídeo em que o botão apareceu (`null` = fora da janela da abertura).
+ * @property {string} shownForRange Trecho da abertura para o qual o botão apareceu (outro trecho achado o mostra de novo).
  */
 /** @type {EstadoPuloAbertura} Estado do pulo da abertura. */
 let skipIntroState = createSkipIntroState(null);
@@ -69,7 +73,7 @@ let skipIntroState = createSkipIntroState(null);
  * @param {Object|null} media Mídia em reprodução.
  * @returns {EstadoPuloAbertura} Estado inicial.
  */
-function createSkipIntroState(media){ return { media, skipped:false, learning:null, learnedFromBehavior:false, stablePosition:null, seekBurst:null }; }
+function createSkipIntroState(media){ return { media, skipped:false, learning:null, learnedFromBehavior:false, stablePosition:null, seekBurst:null, shownAtPosition:null, shownForRange:'' }; }
 
 /**
  * Temporada do episódio em reprodução.
@@ -147,13 +151,14 @@ function syncSkipIntroState(){ if (skipIntroState.media !== currentMedia) skipIn
 /**
  * Indica se a posição atual está dentro da janela da abertura do episódio.
  * Sem abertura aprendida, a janela são os primeiros 3 min; com ela, vai de 1 s antes do
- * início até 2 s antes do fim.
+ * início até 2 s antes do fim. Enquanto o som da abertura da temporada é procurado no
+ * episódio, o botão espera ele tocar.
  * @returns {boolean} `true` se o botão deve aparecer.
  */
 function isInsideIntroWindow(){
   const seasonKey = playingSeasonKey(); if (!seasonKey || playerScreen.hidden) return false;
   syncSkipIntroState();
-  if (skipIntroState.skipped) return false;
+  if (skipIntroState.skipped || isIntroPatternSearchPending()) return false;
   const isResumePending = currentMedia.resume > 5 && video.currentTime < 1;
   if (isResumePending || video.readyState < 2) return false;
   const knownRange = introRangeFor(seasonKey), duration = video.duration, position = video.currentTime;
@@ -161,6 +166,23 @@ function isInsideIntroWindow(){
   if (isFinite(duration) && duration > 0 && (knownRange ? jumpTarget : SKIP_INTRO_DEFAULT_JUMP) >= duration - SKIP_INTRO_END_MARGIN) return false;
   if (!knownRange) return position < SKIP_INTRO_DEFAULT_WINDOW_END;
   return position >= knownRange.start - SKIP_INTRO_SHOW_BEFORE_START && position < knownRange.end - SKIP_INTRO_HIDE_BEFORE_END;
+}
+
+/**
+ * Indica se o botão ainda está no seu tempo de tela: ele some depois de 10 s de vídeo sem o
+ * usuário tocar nele. Volta a aparecer se a abertura achada mudar ou se o usuário voltar o
+ * vídeo para antes de onde o botão apareceu.
+ * @param {boolean} isInsideWindow Se a posição está dentro da janela da abertura.
+ * @returns {boolean} `true` se o botão pode continuar na tela.
+ */
+function isWithinSkipIntroDisplayTime(isInsideWindow){
+  if (!isInsideWindow) { skipIntroState.shownAtPosition = null; return false; }
+  const knownRange = introRangeFor(playingSeasonKey()), rangeKey = knownRange ? knownRange.start + '-' + knownRange.end : '';
+  const position = video.currentTime;
+  if (skipIntroState.shownAtPosition === null || skipIntroState.shownForRange !== rangeKey || position < skipIntroState.shownAtPosition) {
+    skipIntroState.shownAtPosition = position; skipIntroState.shownForRange = rangeKey;
+  }
+  return position - skipIntroState.shownAtPosition < SKIP_INTRO_DISPLAY_SECONDS;
 }
 
 /**
@@ -196,13 +218,13 @@ function positionSkipIntroButton(){
 }
 
 /**
- * Mostra ou esconde o botão conforme a posição do episódio e o mantém acima da barra, que
- * muda de altura ao girar a tela ou quando aparecem os seletores de áudio e legenda
- * (só mexe no DOM quando algo muda).
+ * Mostra ou esconde o botão conforme a posição do episódio (por até 10 s de vídeo) e o mantém
+ * acima da barra, que muda de altura ao girar a tela ou quando aparecem os seletores de áudio
+ * e legenda (só mexe no DOM quando algo muda).
  * @param {boolean} [isVisible] Visibilidade desejada; sem valor, calcula pela janela da abertura.
  * @returns {void}
  */
-function updateSkipIntroButton(isVisible = isInsideIntroWindow()){
+function updateSkipIntroButton(isVisible = isWithinSkipIntroDisplayTime(isInsideIntroWindow())){
   if (skipIntroButton.hidden === isVisible) skipIntroButton.hidden = !isVisible;
   positionSkipIntroButton();
 }

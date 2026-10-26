@@ -10,11 +10,15 @@ import com.getcapacitor.BridgeActivity;
  */
 public class MainActivity extends BridgeActivity {
 
-    /** Registra o plugin nativo do player antes de iniciar o Capacitor. */
+    /**
+     * Registra o plugin nativo do player antes de iniciar o Capacitor e liga o proxy de vídeo
+     * (vídeos de outros servidores pela origem do app, para a detecção da abertura pelo som).
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ZappPlayerPlugin.class);
         super.onCreate(savedInstanceState);
+        bridge.setWebViewClient(new MediaProxyWebViewClient(bridge));
     }
 
     /** Ao sair do app com vídeo tocando, continua em picture-in-picture. */

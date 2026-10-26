@@ -14,8 +14,12 @@ const FOCUSABLE = 'button:not([disabled]):not(.star),a[href],input:not([disabled
 const ARROW_DIRECTIONS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
 
 document.documentElement.classList.add('tv');
-/** Na TV LG a abertura não é detectada pelo som (o áudio do decodificador de hardware não deve ser capturado); fica só o aprendizado por temporada. */
-disableIntroAudioDetection();
+/**
+ * Na TV LG o som do vídeo não chega ao navegador (decodificador de hardware): a abertura é
+ * detectada baixando e decodificando o áudio do episódio pelo WebCodecs (TVs de 2021 em diante).
+ * Sem WebCodecs (TV de 2020), fica só o aprendizado por temporada.
+ */
+useDecodedIntroAnalysis();
 
 /**
  * Indica se o elemento está visível na tela.
@@ -160,6 +164,12 @@ new MutationObserver(() => { if (playerScreen.classList.contains('idle') && inPl
 document.addEventListener('click', event => {
   if (event.target.closest && event.target.closest('#skipIntro') && document.activeElement === $('skipIntro') && !playerScreen.classList.contains('idle')) focusElement($('cPlay'));
 }, true);
+
+/**
+ * Quando o botão "Pular abertura" some sozinho (10 s sem ser usado) com o foco nele, leva o
+ * foco para o play/pause, para as setas continuarem navegando pelos controles.
+ */
+new MutationObserver(() => { if ($('skipIntro').hidden && document.activeElement === $('skipIntro')) focusElement($('cPlay')); }).observe($('skipIntro'), { attributes:true, attributeFilter:['hidden'] });
 
 /** Campos de texto: só entram em edição (e abrem o teclado virtual da TV) ao apertar OK. */
 const TEXT_FIELD_SELECTOR = 'input[type=text],input[type=search],input[type=url],input[type=password],input:not([type]),textarea';
