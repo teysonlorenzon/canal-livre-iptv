@@ -2,6 +2,7 @@
 --bg:#0c0f11; --panel:#13171a; --panel2:#1a1f23; --line:#252c31;
 --fg:#e7ecef; --fg2:#c9d1d6; --muted:#8b979f; --accent:#ffb020; --live:#ff4d4d; --ok:#3ecf8e;
 --scrim:#0c0f11e8; --backdrop:rgba(0,0,0,.65);
+--avatar-ink:#0c0f11; --av0:#ffb020; --av1:#ff6b5a; --av2:#3ecf8e; --av3:#5aa9ff; --av4:#a98bff; --av5:#ff7ac0;
 color-scheme:dark;
 --display:'Archivo',system-ui,sans-serif; --body:'Inter Tight',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
 }
@@ -164,6 +165,9 @@ header .dd-menu{left:auto;right:0}
 .badge{font:600 10px var(--mono);letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px}
 .star{background:none;border:0;font-size:18px;color:var(--muted);padding:4px}
 .star.on{color:var(--accent)}
+.del{background:none;border:0;color:var(--muted);padding:4px;display:grid;place-items:center;cursor:pointer}
+.del:hover{color:var(--live)}
+.list li.rm{grid-template-columns:4ch 48px 1fr auto auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:14px}
 .card{background:none;border:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0}
 .poster{position:relative;width:100%;aspect-ratio:2/3;max-width:100%;border-radius:8px;background:var(--panel2);overflow:hidden;display:grid;place-items:center;color:var(--muted);font:700 22px var(--display);border:1px solid var(--line)}
@@ -171,6 +175,11 @@ header .dd-menu{left:auto;right:0}
 .card:hover .poster{border-color:var(--accent)}
 .poster .rt{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.75);font:600 11px var(--mono);padding:2px 6px;border-radius:4px;color:var(--accent)}
 .poster .pg{position:absolute;left:0;bottom:0;height:4px;background:var(--accent)}
+.card-del{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.75);color:#fff;opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
+.card-del .ico{width:14px;height:14px;stroke-width:2.4}
+.card:hover .card-del,.card:focus .card-del{opacity:1}
+.card-del:hover{background:var(--live)}
+@media (hover:none){.card-del{opacity:1}}
 .card b{font-weight:500;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .more{display:flex;justify-content:center;padding:16px}
 
@@ -244,6 +253,34 @@ dialog::backdrop{background:var(--backdrop)}
 .plrow{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px}
 .plrow div{flex:1;min-width:0}
 .plrow small{display:block;color:var(--muted);font:12px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-pin{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap}
+.avatar{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:700 15px var(--display);color:var(--avatar-ink);background:var(--av0)}
+.avatar-c0{background:var(--av0)}
+.avatar-c1{background:var(--av1)}
+.avatar-c2{background:var(--av2)}
+.avatar-c3{background:var(--av3)}
+.avatar-c4{background:var(--av4)}
+.avatar-c5{background:var(--av5)}
+.avatar .ico{width:62%;height:62%;stroke-width:2}
+.avatar-btn{background:none;border:0;padding:0;border-radius:50%;cursor:pointer}
+.avatar-btn:hover .avatar,.avatar-btn:focus-visible .avatar{box-shadow:0 0 0 2px var(--fg)}
+.profiles{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin:10px 0}
+.profile-card{background:none;border:0;padding:6px;display:flex;flex-direction:column;align-items:center;gap:10px;width:110px;color:var(--fg);cursor:pointer;border-radius:12px}
+.profile-card .avatar{width:84px;height:84px;font-size:36px;border:3px solid transparent;transition:border-color .15s,transform .15s}
+.profile-card:hover .avatar,.profile-card:focus .avatar{border-color:var(--fg);transform:scale(1.05)}
+.profile-card.on .avatar{box-shadow:0 0 0 3px var(--accent)}
+.profile-card b{font-weight:500;font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-card small{color:var(--muted);font-size:11px;margin-top:-6px}
+.profile-card.add .avatar{background:var(--panel2);color:var(--muted);border:2px dashed var(--line)}
+.profile-preview{display:flex;justify-content:center}
+.profile-preview .avatar{width:84px;height:84px;font-size:36px}
+.icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:8px}
+.icon-choice,.color-choice{border:2px solid transparent;border-radius:50%;padding:2px;background:none;cursor:pointer;display:grid;place-items:center}
+.icon-choice .avatar{width:38px;height:38px;font-size:16px}
+.icon-choice.on,.color-choice.on{border-color:var(--fg)}
+.icon-choice:hover,.icon-choice:focus,.color-choice:hover,.color-choice:focus{border-color:var(--accent)}
+.color-row{display:flex;gap:10px;flex-wrap:wrap}
+.color-choice span{display:block;width:28px;height:28px;border-radius:50%}
 .catrows{max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
 .catrows label{display:grid;grid-template-columns:1fr auto auto;gap:14px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
 .catrows label span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -261,8 +298,12 @@ dialog::backdrop{background:var(--backdrop)}
 .stabs button{flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:6px;padding:6px 12px;color:var(--muted)}
 .stabs button.on{color:var(--fg);border-color:var(--accent)}
 .pin{font:700 28px var(--mono);letter-spacing:.5em;text-align:center}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100vw - 32px);z-index:100}
-.toast.show{opacity:1}
+.pin.wrong,.pin.wrong:focus,.pin.wrong:focus-visible{outline:none;border-color:var(--live);box-shadow:0 0 0 1px var(--live)}
+.pin-error{margin:0;display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--live);border-left-width:4px;border-radius:6px;background:var(--panel2);color:var(--live);font-size:13px;font-weight:600}
+.pin-error[hidden]{display:none}
+.pin-error .ico{width:18px;height:18px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .22s ease,transform .22s cubic-bezier(.2,.8,.2,1);pointer-events:none;max-width:calc(100vw - 32px);z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
 .loading{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:60;text-align:center}
 .loading p{color:var(--muted);margin-top:14px;font:13px var(--mono)}
 
@@ -324,6 +365,7 @@ dialog{width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
 .toolbar h2{width:100%}
 .toolbar input{flex:1}
 .list li{grid-template-columns:3ch 44px 1fr auto;gap:10px}
+.list li.rm{grid-template-columns:3ch 44px 1fr auto auto}
 .detail{grid-template-columns:1fr}
 .detail .poster{width:120px}
 .two{grid-template-columns:1fr}
@@ -357,3 +399,22 @@ header #themeBtn{margin-left:auto}
 @keyframes in-name{to{opacity:1;letter-spacing:.15em;padding-left:.15em}}
 @keyframes in-dive{0%{transform:scale(1);opacity:1}80%{opacity:1}100%{transform:scale(9);opacity:0}}
 @keyframes in-streak{0%{transform:scaleY(0) scaleX(1);opacity:0}25%{opacity:.9}100%{transform:scaleY(1.15) scaleX(4);opacity:0}}
+
+@keyframes dialog-in{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes backdrop-in{from{opacity:0}to{opacity:1}}
+@keyframes menu-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes side-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes dialog-out{from{opacity:1;transform:none}to{opacity:0;transform:translateY(8px) scale(.97)}}
+@keyframes backdrop-out{from{opacity:1}to{opacity:0}}
+@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+dialog[open]{animation:dialog-in .24s cubic-bezier(.2,.8,.2,1)}
+dialog[open]::backdrop{animation:backdrop-in .24s ease}
+.dialog-ghost{position:fixed;margin:0;box-sizing:border-box;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;overflow:hidden;pointer-events:none;z-index:200;animation:dialog-out .18s ease forwards}
+.dialog-ghost-backdrop{position:fixed;top:0;right:0;bottom:0;left:0;background:var(--backdrop);pointer-events:none;z-index:199;animation:backdrop-out .18s ease forwards}
+.dd-menu:not([hidden]){animation:menu-in .16s ease-out}
+.pl-side:not([hidden]){animation:side-in .22s cubic-bezier(.2,.8,.2,1)}
+.pin-error:not([hidden]){animation:shake .35s ease}
+@media (prefers-reduced-motion:reduce){
+dialog[open],dialog[open]::backdrop,.dd-menu:not([hidden]),.pl-side:not([hidden]),.pin-error:not([hidden]){animation:none}
+.toast{transition:opacity .2s}
+}

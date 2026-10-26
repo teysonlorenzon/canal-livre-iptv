@@ -26,8 +26,24 @@ const ICONS = {
   playlist: '<path d="M4 6.5h13M4 12h13M4 17.5h7"/><path d="M15 14.5v6l5-3z" class="ico-fill"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   cont: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z" class="ico-fill"/>',
-  recent: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>'
+  recent: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.5"/>',
+  avSmile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 0 0 7 0M9 9.5v.5M15 9.5v.5"/>',
+  avCat: '<path d="M4.5 4l3.5 4h8l3.5-4v10a7.5 7 0 0 1-15 0z"/><path d="M9.5 13v.5M14.5 13v.5M11 16.5h2"/>',
+  avDog: '<path d="M7 5C4 5 3 9 3.5 12L6 11M17 5c3 0 4 4 3.5 7L18 11"/><path d="M7 5h10l1 6v4a6 5 0 0 1-12 0v-4z"/><path d="M10 12v.5M14 12v.5M11 16h2"/>',
+  avPaw: '<circle cx="12" cy="15.5" r="3.5"/><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6.5" r="1.8"/><circle cx="14" cy="6.5" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/>',
+  avHeart: '<path d="M12 20s-7.5-4.5-7.5-10A4.2 4.2 0 0 1 12 7.5 4.2 4.2 0 0 1 19.5 10C19.5 15.5 12 20 12 20z"/>',
+  avBolt: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/>',
+  avRocket: '<path d="M12 3c3.5 2.5 5 6 4.5 11h-9C7 9 8.5 5.5 12 3z"/><path d="M7.5 14L5 18h4M16.5 14l2.5 4h-4M10.5 18.5l1.5 2.5 1.5-2.5"/><circle cx="12" cy="9.5" r="1.5"/>',
+  avMusic: '<path d="M9 17.5V6l10-2v11.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/>',
+  avBall: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5l4 3-1.5 4.5h-5L8 10.5z"/><path d="M12 3v4.5M16 10.5l4.5-1.5M14.5 15l2.5 4M9.5 15L7 19M8 10.5L3.5 9"/>',
+  avCrown: '<path d="M4 18h16M4.5 15.5L3.5 7l5 4L12 5l3.5 6 5-4-1 8.5z"/>',
+  avGame: '<path d="M7 8h10a4 4 0 0 1 4 4.5l-.5 3a2.5 2.5 0 0 1-4.3 1.3L14.5 15h-5l-1.7 1.8a2.5 2.5 0 0 1-4.3-1.3l-.5-3A4 4 0 0 1 7 8z"/><path d="M8 10.5v3M6.5 12h3M15.5 11.5v.5M17.5 13v.5"/>',
+  avFilm: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M7.5 5v14M16.5 5v14M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/>',
+  avPlus: '<path d="M12 5v14M5 12h14"/>'
 };
+/** @type {string[]} Ícones disponíveis como foto de perfil (vazio = inicial do nome). */
+const PROFILE_ICONS = ['', 'avSmile', 'avCat', 'avDog', 'avPaw', 'star', 'avHeart', 'avBolt', 'avRocket', 'avMusic', 'avBall', 'avCrown', 'avGame', 'avFilm', 'themeDark', 'themeLight'];
 
 /**
  * HTML de um ícone.

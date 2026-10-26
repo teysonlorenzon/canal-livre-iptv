@@ -15,12 +15,22 @@ const THEME_INFO = {
 };
 
 /**
- * Lê o modo de tema salvo. Usa o `localStorage` direto porque roda no `<head>`,
- * antes de `store` existir.
+ * Chave do tema do perfil ativo: `cl_theme` no Principal, `cl_theme@<perfil>` nos outros.
+ * Usa o `localStorage` direto porque roda no `<head>`, antes de `store` existir.
+ * @returns {string} Chave no `localStorage`.
+ */
+function themeStorageKey(){
+  let profileId = 'main';
+  try { profileId = JSON.parse(localStorage.getItem('cl_user')) || 'main'; } catch {}
+  return profileId === 'main' ? 'cl_theme' : 'cl_theme@' + profileId;
+}
+
+/**
+ * Lê o modo de tema salvo do perfil ativo.
  * @returns {ModoTema} Modo salvo, ou `auto`.
  */
 function getTheme(){
-  try { const savedMode = JSON.parse(localStorage.getItem('cl_theme')); return THEMES.includes(savedMode) ? savedMode : 'auto'; } catch { return 'auto'; }
+  try { const savedMode = JSON.parse(localStorage.getItem(themeStorageKey())); return THEMES.includes(savedMode) ? savedMode : 'auto'; } catch { return 'auto'; }
 }
 
 /**
@@ -42,7 +52,7 @@ function applyTheme(mode){
  */
 function cycleTheme(){
   const mode = THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length];
-  try { localStorage.setItem('cl_theme', JSON.stringify(mode)); } catch {}
+  try { localStorage.setItem(themeStorageKey(), JSON.stringify(mode)); } catch {}
   applyTheme(mode);
   return mode;
 }

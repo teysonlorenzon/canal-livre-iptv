@@ -69,12 +69,18 @@ function renderHome(){
     </div>
     ${accountHtml}
     <div class="shelves">
-      ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', continueWatching.length, continueWatching.map((historyEntry, index) => cardHtml({ name:historyEntry.title, logo:historyEntry.logo, pg:historyEntry.pos/historyEntry.dur }, 'data-cont="'+index+'" data-fav="'+esc(historyEntry.series || historyEntry.ref)+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
-      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recentChannels.length, recentChannels.map(channel => chipHtml(channel)).join(''), 'Os canais que você assistir aparecem aqui.')}
+      ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', continueWatching.length, continueWatching.map((historyEntry, index) => cardHtml({ name:historyEntry.title, logo:historyEntry.logo, pg:historyEntry.pos/historyEntry.dur, removable:true }, 'data-cont="'+index+'" data-fav="'+esc(historyEntry.series || historyEntry.ref)+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
+      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recentChannels.length, recentChannels.map(channel => chipHtml(channel, true)).join(''), 'Os canais que você assistir aparecem aqui.')}
       ${shelfHtml('fav', 'Canais favoritos', 'Seus canais marcados', favoriteChannels.length, favoriteChannels.map(channel => chipHtml(channel)).join(''), 'Toque na estrela ★ de um canal para favoritar.')}
     </div>`;
   homeScreen.querySelectorAll('[data-sec]').forEach(sectionButton => sectionButton.onclick = () => openSection(sectionButton.dataset.sec));
   homeScreen.querySelectorAll('[data-cont]').forEach(continueButton => continueButton.onclick = () => { const historyEntry = continueWatching[+continueButton.dataset.cont]; if (historyEntry.series) resumeEpisode(historyEntry); else playMedia(historyEntry.desc, historyEntry.pos); });
+  homeScreen.querySelectorAll('.card-del').forEach(removeButton => removeButton.onclick = clickEvent => {
+    clickEvent.stopPropagation();
+    const cardElement = removeButton.closest('.card');
+    if (cardElement.dataset.cont) removeHistoryEntry(continueWatching[+cardElement.dataset.cont].ref); else removeRecentChannel(cardElement.dataset.live);
+    toast('Removido do histórico.'); renderHome();
+  });
   homeScreen.querySelectorAll('[data-live]').forEach(channelButton => channelButton.onclick = () => { const channel = catalog.live.items.find(item => item.k === channelButton.dataset.live); playLive(channel, catalog.live.items); });
 }
 /**
@@ -93,15 +99,21 @@ const shelfHtml = (kind, title, subtitle, itemCount, itemsHtml, emptyText) => `<
   ${itemCount ? `<div class="strip">${itemsHtml}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${emptyText}</p></div>`}
 </section>`;
 /**
+ * HTML do botão "×" que remove um cartão do histórico.
+ * @type {string}
+ */
+const removeFromHistoryHtml = `<span class="card-del" role="button" aria-label="Remover do histórico" title="Remover do histórico">${icon('close')}</span>`;
+/**
  * HTML do cartão compacto de um canal.
  * @param {Item} channel Canal.
+ * @param {boolean} [removable] Mostrar o botão de remover do histórico.
  * @returns {string} HTML.
  */
-const chipHtml = channel => `<button class="card" data-live="${esc(channel.k)}" style="flex:0 0 130px"><div class="poster" style="aspect-ratio:16/10">${channel.logo ? `<img loading="lazy" src="${esc(channel.logo)}" alt="" style="object-fit:contain;padding:10px" onerror="this.remove()">` : ''}${initials(channel.name)}</div><b>${esc(channel.name)}</b></button>`;
+const chipHtml = (channel, removable) => `<button class="card" data-live="${esc(channel.k)}" style="flex:0 0 130px"><div class="poster" style="aspect-ratio:16/10">${channel.logo ? `<img loading="lazy" src="${esc(channel.logo)}" alt="" style="object-fit:contain;padding:10px" onerror="this.remove()">` : ''}${initials(channel.name)}${removable ? removeFromHistoryHtml : ''}</div><b>${esc(channel.name)}</b></button>`;
 /**
  * HTML do cartão com pôster de um filme, série ou item do histórico.
- * @param {{name: string, logo?: string, rate?: number, pg?: number}} cardData Dados do cartão (`pg` = progresso de 0 a 1).
+ * @param {{name: string, logo?: string, rate?: number, pg?: number, removable?: boolean}} cardData Dados do cartão (`pg` = progresso de 0 a 1; `removable` mostra o botão de remover do histórico).
  * @param {string} extraAttributes Atributos extras do botão.
  * @returns {string} HTML.
  */
-const cardHtml = (cardData, extraAttributes) => `<button class="card" ${extraAttributes}><div class="poster">${initials(cardData.name)}${cardData.logo ? `<img loading="lazy" src="${esc(cardData.logo)}" alt="" onerror="this.remove()">` : ''}${cardData.rate ? `<span class="rt">★ ${(+cardData.rate).toFixed(1)}</span>` : ''}${cardData.pg ? `<span class="pg" style="width:${Math.min(100, cardData.pg*100)}%"></span>` : ''}</div><b>${esc(cardData.name)}</b></button>`;
+const cardHtml = (cardData, extraAttributes) => `<button class="card" ${extraAttributes}><div class="poster">${initials(cardData.name)}${cardData.logo ? `<img loading="lazy" src="${esc(cardData.logo)}" alt="" onerror="this.remove()">` : ''}${cardData.rate ? `<span class="rt">★ ${(+cardData.rate).toFixed(1)}</span>` : ''}${cardData.pg ? `<span class="pg" style="width:${Math.min(100, cardData.pg*100)}%"></span>` : ''}${cardData.removable ? removeFromHistoryHtml : ''}</div><b>${esc(cardData.name)}</b></button>`;

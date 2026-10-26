@@ -73,13 +73,23 @@
  */
 
 /**
- * Preferências e histórico do usuário para uma lista.
+ * Preferências e histórico do perfil para uma lista.
  * @typedef {Object} Ux
  * @property {{live: string[], vod: string[], series: string[]}} fav Chaves favoritas por seção.
  * @property {string[]} locked Categorias bloqueadas por PIN (`secao:id`).
  * @property {string[]} hidden Categorias ocultas (`secao:id`).
  * @property {Object[]} hist Histórico de reprodução.
  * @property {string[]} recentLive Chaves dos canais assistidos recentemente.
+ */
+
+/**
+ * Perfil de usuário (sem login). Listas são compartilhadas; o resto é por perfil.
+ * @typedef {Object} Perfil
+ * @property {string} id Identificador (`main` = perfil Principal, que usa as chaves antigas).
+ * @property {string} name Nome exibido.
+ * @property {boolean} [askPin] Pedir o PIN do perfil para entrar nele.
+ * @property {string} [icon] Ícone da foto de perfil (nome em `PROFILE_ICONS`; vazio = inicial).
+ * @property {number} [color] Cor da foto de perfil (0 a 5).
  */
 
 /**
@@ -128,13 +138,48 @@ const DEFAULT_PLAYLIST = { id:'br-gratis', name:'Canais abertos BR', type:'m3u' 
 /** @type {Playlist[]} Listas cadastradas. */
 let playlists = store.get('pls', null);
 if (playlists === null) { playlists = [DEFAULT_PLAYLIST]; store.set('pls', playlists); store.set('active', DEFAULT_PLAYLIST.id); }
-/** @type {{fmt: string, auto: string, pin: string}} Opções gerais (formato ao vivo, próximo episódio automático, PIN). */
-let options = store.get('opts', { fmt:'m3u8', auto:'1', pin:'0000' });
+/** @type {string} Id do perfil Principal, dono dos dados de antes de existirem perfis. */
+const MAIN_PROFILE_ID = 'main';
+/** @type {Perfil[]} Perfis cadastrados. */
+let profiles = store.get('users', null) || [{ id:MAIN_PROFILE_ID, name:'Principal' }];
+/** @type {string} Id do perfil ativo. */
+let activeProfileId = profiles.some(profile => profile.id === store.get('user', null)) ? store.get('user', null) : profiles[0].id;
+/**
+ * Chave de armazenamento de um dado do perfil. O Principal usa a chave antiga (sem sufixo),
+ * para os dados de antes dos perfis continuarem com ele.
+ * @param {string} baseKey Chave base (ex.: `opts`, `ux_<lista>`).
+ * @param {string} [profileId] Perfil (padrão: o ativo).
+ * @returns {string} Chave do perfil.
+ */
+const profileKey = (baseKey, profileId = activeProfileId) => profileId === MAIN_PROFILE_ID ? baseKey : baseKey + '@' + profileId;
+/**
+ * Perfil ativo.
+ * @returns {Perfil} Perfil.
+ */
+const activeProfile = () => profiles.find(profile => profile.id === activeProfileId);
+/**
+ * Salva a lista de perfis.
+ * @returns {boolean} `true` se salvou.
+ */
+const saveProfiles = () => store.set('users', profiles);
+/**
+ * Lê as opções de um perfil (formato ao vivo, próximo episódio automático, PIN).
+ * @param {string} [profileId] Perfil (padrão: o ativo).
+ * @returns {{fmt: string, auto: string, pin: string}} Opções.
+ */
+const readOptions = profileId => Object.assign({ fmt:'m3u8', auto:'1', pin:'0000' }, store.get(profileKey('opts', profileId), {}));
+/** @type {{fmt: string, auto: string, pin: string}} Opções do perfil ativo. */
+let options = readOptions();
+/**
+ * Salva as opções do perfil ativo.
+ * @returns {boolean} `true` se salvou.
+ */
+const saveOptions = () => store.set(profileKey('opts'), options);
 /** @type {Playlist|null} Lista ativa. */
 let activePlaylist = null;
 /** @type {DadosLista|null} Dados carregados da lista ativa. */
 let catalog = null;
-/** @type {Ux|null} Preferências e histórico da lista ativa. */
+/** @type {Ux|null} Preferências e histórico da lista ativa no perfil ativo. */
 let userData = null;
 /** @type {Secao} Seção aberta na tela de seção. */
 let currentSection = 'live';
@@ -148,10 +193,10 @@ let unlockedCategories = new Set();
 let lastError = '';
 
 /**
- * Chave de armazenamento das preferências da lista ativa.
- * @returns {string} Chave no formato `ux_<id>`.
+ * Chave de armazenamento das preferências da lista ativa no perfil ativo.
+ * @returns {string} Chave no formato `ux_<id>` (Principal) ou `ux_<id>@<perfil>`.
  */
-const userDataKey = () => 'ux_' + activePlaylist.id;
+const userDataKey = () => profileKey('ux_' + activePlaylist.id);
 /**
  * Carrega as preferências e o histórico da lista ativa em `userData`.
  * @returns {void}
@@ -176,3 +221,16 @@ const isFav = (section, itemKey) => userData.fav[section].includes(String(itemKe
  * @returns {boolean} `true` se passou a ser favorito.
  */
 function toggleFav(section, itemKey){ const favoriteKey = String(itemKey); const favoriteKeys = userData.fav[section]; const favoriteIndex = favoriteKeys.indexOf(favoriteKey); favoriteIndex < 0 ? favoriteKeys.unshift(favoriteKey) : favoriteKeys.splice(favoriteIndex,1); saveUserData(); return favoriteIndex < 0; }
+/**
+ * Remove um filme ou episódio do "Continuar assistindo" e salva. O progresso de cada
+ * episódio (registros ocultos) é mantido para as barras da lista de episódios.
+ * @param {string} historyRef Referência do registro no histórico.
+ * @returns {void}
+ */
+function removeHistoryEntry(historyRef){ userData.hist = userData.hist.filter(entry => entry.hidden || entry.ref !== historyRef); saveUserData(); }
+/**
+ * Remove um canal dos recentes e salva.
+ * @param {string|number} channelKey Chave do canal.
+ * @returns {void}
+ */
+function removeRecentChannel(channelKey){ const recentKey = String(channelKey); userData.recentLive = userData.recentLive.filter(otherKey => otherKey !== recentKey); saveUserData(); }

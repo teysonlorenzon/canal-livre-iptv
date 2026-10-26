@@ -25,6 +25,7 @@ src/
     details/     detalhes de filme e série
     player/      player (hls.js / mpegts.js / nativo), controles, guia e reconexão
     settings/    configurações (listas, PIN, reprodução)
+    profiles/    usuários sem login: seletor "Quem está assistindo?", editor (nome, ícone, cor)
   styles/style.css   tokens de cor, temas e layouts (computador, TV e celular)
   main.js      ponto de partida
 ```
@@ -48,3 +49,7 @@ src/
   `cur`), ícones via `icon()` e cores via variáveis CSS (`var(--accent)` etc.).
 - Layouts responsivos: regras de celular em `@media (max-width:600px)` e de pouca altura em
   `@media (max-height:500px)`; a TV usa 1280×720 (sem regra especial além de `tv.css`).
+- **Usuários (perfis)**: só as listas (`cl_pls`, `cl_m3u_*`) e a lista ativa (`cl_active`) são
+  compartilhadas. Dados por usuário (histórico, favoritos, bloqueios, PIN, opções, tema, proporção)
+  usam `profileKey(chave)`: o perfil Principal (`main`) usa a chave antiga e os outros
+  `chave@<id>`. Ao criar um dado novo por usuário, salve com `profileKey()`.

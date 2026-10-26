@@ -25,7 +25,12 @@ document.body.insertAdjacentHTML('beforeend', `
       <div class="row"><button class="btn primary" type="button" id="addBtn">Adicionar e abrir</button></div>
     </form>
 
-    <h4>Controle parental</h4>
+    <h4>Usuários</h4>
+    <p class="hint">As listas valem para todos. Histórico, favoritos, bloqueios, PIN e preferências são de cada usuário.</p>
+    <div id="profileList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="row"><button class="btn" type="button" id="profileAdd">Adicionar usuário</button></div>
+
+    <h4 id="parentalTitle">Controle parental</h4>
     <div class="two">
       <div class="fld"><label for="pinOld">PIN atual</label><input id="pinOld" inputmode="numeric" maxlength="8" placeholder="padrão 0000"></div>
       <div class="fld"><label for="pinNew">Novo PIN</label><input id="pinNew" inputmode="numeric" maxlength="8"></div>

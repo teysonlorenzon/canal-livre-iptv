@@ -4,7 +4,7 @@ let addType = 'xtream';
  * Abre o diálogo de configurações com os valores atuais.
  * @returns {void}
  */
-function openSettings(){ renderPlaylistSelect(); renderCatRows(); $('optFmt').value = options.fmt; $('optAuto').value = options.auto; $('dSettings').showModal(); }
+function openSettings(){ renderPlaylistSelect(); renderProfileRows(); renderCatRows(); $('optFmt').value = options.fmt; $('optAuto').value = options.auto; $('dSettings').showModal(); }
 $('openSettings').onclick = openSettings;
 /**
  * Fecha as configurações.
@@ -61,20 +61,20 @@ $('addBtn').onclick = async () => {
 $('pinSave').onclick = () => {
   if ($('pinOld').value !== (options.pin || '0000')) return toast('PIN atual incorreto.');
   if (!/^\d{4,8}$/.test($('pinNew').value)) return toast('O novo PIN precisa ter de 4 a 8 números.');
-  options.pin = $('pinNew').value; store.set('opts', options); $('pinOld').value = $('pinNew').value = ''; toast('PIN alterado.');
+  options.pin = $('pinNew').value; saveOptions(); $('pinOld').value = $('pinNew').value = ''; toast('PIN alterado.');
 };
 /**
  * Salva o formato da TV ao vivo.
  * @param {Event} changeEvent Evento de mudança.
  */
-$('optFmt').onchange = changeEvent => { options.fmt = changeEvent.target.value; store.set('opts', options); };
+$('optFmt').onchange = changeEvent => { options.fmt = changeEvent.target.value; saveOptions(); };
 /**
  * Salva a opção de próximo episódio automático.
  * @param {Event} changeEvent Evento de mudança.
  */
-$('optAuto').onchange = changeEvent => { options.auto = changeEvent.target.value; store.set('opts', options); };
+$('optAuto').onchange = changeEvent => { options.auto = changeEvent.target.value; saveOptions(); };
 /**
- * Limpa o histórico e os canais recentes da lista ativa.
+ * Limpa o histórico e os canais recentes da lista ativa, só do perfil ativo.
  */
 $('clearHist').onclick = () => { if (!userData) return; userData.hist = []; userData.recentLive = []; saveUserData(); toast('Histórico limpo.'); renderHome(); };
 

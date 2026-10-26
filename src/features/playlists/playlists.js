@@ -90,7 +90,7 @@ $('plList').onclick = clickEvent => {
   if (actionButton.dataset.reload) { $('dSettings').close(); openPlaylist(actionButton.dataset.reload, true); }
   if (actionButton.dataset.del) {
     if (actionButton.dataset.confirm !== '1') { actionButton.dataset.confirm = '1'; actionButton.textContent = 'Confirmar'; return; }
-    const playlistId = actionButton.dataset.del; playlists = playlists.filter(playlist => playlist.id !== playlistId); store.set('pls', playlists); store.del('ux_'+playlistId); store.del('m3u_'+playlistId);
+    const playlistId = actionButton.dataset.del; playlists = playlists.filter(playlist => playlist.id !== playlistId); store.set('pls', playlists); profiles.forEach(profile => store.del(profileKey('ux_'+playlistId, profile.id))); store.del('m3u_'+playlistId);
     if (activePlaylist && activePlaylist.id === playlistId) { activePlaylist = null; catalog = null; store.del('active'); }
     renderPlaylistSelect(); renderHome();
   }

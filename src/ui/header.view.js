@@ -9,6 +9,7 @@ document.body.insertAdjacentHTML('beforeend', `
   </div>
   <div class="hr">
     <button class="btn ib" id="openSettings" title="Configurações">${icon('gear')}<span>Configurações</span></button>
+    <button class="avatar-btn" id="profileBtn" type="button"></button>
   </div>
 </header>
 `);

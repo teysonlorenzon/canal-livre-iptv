@@ -422,8 +422,13 @@ $('cSub').onchange = changeEvent => { const selectedIndex = +changeEvent.target.
  * Troca o formato da tela e salva a preferência.
  * @param {Event} changeEvent Evento de mudança.
  */
-$('cRatio').onchange = changeEvent => { video.style.objectFit = changeEvent.target.value; store.set('ratio', changeEvent.target.value); };
-video.style.objectFit = $('cRatio').value = store.get('ratio', 'contain');
+$('cRatio').onchange = changeEvent => { video.style.objectFit = changeEvent.target.value; store.set(profileKey('ratio'), changeEvent.target.value); };
+/**
+ * Aplica a proporção do vídeo salva no perfil ativo.
+ * @returns {void}
+ */
+const applyVideoRatio = () => { video.style.objectFit = $('cRatio').value = store.get(profileKey('ratio'), 'contain'); };
+applyVideoRatio();
 
 /**
  * Remove mensagens quando o vídeo começa a tocar.

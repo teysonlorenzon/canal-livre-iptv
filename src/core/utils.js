@@ -38,11 +38,35 @@ const store = {
   del(key){ try{ localStorage.removeItem('cl_'+key); }catch{} }
 };
 /**
- * Mostra uma mensagem temporária (3,2 s) no rodapé da tela.
+ * Executa uma função sempre que um diálogo fechar (botão, Esc, Voltar do controle ou do
+ * Android). Observa o atributo `open` em vez do evento `close`, que nem todo navegador entrega.
+ * @param {HTMLDialogElement} dialog Diálogo.
+ * @param {Function} handler Função chamada ao fechar.
+ * @returns {void}
+ */
+const onDialogClose = (dialog, handler) => new MutationObserver(() => { if (!dialog.open) handler(); }).observe(dialog, { attributes:true, attributeFilter:['open'] });
+/**
+ * Coloca o aviso (toast) dentro do diálogo em uso (o do elemento focado, ou o último aberto), ou
+ * no corpo da página se não houver nenhum. Diálogos modais ficam numa camada acima de tudo e esconderiam o aviso.
+ * @returns {void}
+ */
+function placeToast(){
+  const toastElement = $('toast'), openDialogs = document.querySelectorAll('dialog[open]'), focusedElement = document.activeElement;
+  const focusedDialog = focusedElement && focusedElement.closest ? focusedElement.closest('dialog[open]') : null;
+  const toastParent = focusedDialog || (openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body);
+  if (toastElement.parentElement !== toastParent) toastParent.appendChild(toastElement);
+}
+/**
+ * Quando um diálogo fecha com o aviso dentro, o aviso volta para o próximo diálogo aberto ou
+ * para a página, para continuar visível.
+ */
+document.querySelectorAll('dialog').forEach(dialog => onDialogClose(dialog, () => { if (dialog.contains($('toast'))) placeToast(); }));
+/**
+ * Mostra uma mensagem temporária (3,2 s) no rodapé da tela, por cima de diálogos abertos.
  * @param {string} message Mensagem.
  * @returns {void}
  */
-const toast = message => { const toastElement = $('toast'); toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(toastElement._h); toastElement._h = setTimeout(() => toastElement.classList.remove('show'), 3200); };
+const toast = message => { const toastElement = $('toast'); placeToast(); toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(toastElement._h); toastElement._h = setTimeout(() => toastElement.classList.remove('show'), 3200); };
 /** @type {number} Momento (ms) em que a tela de carregamento atual apareceu. */
 let loadingStartedAt = 0;
 /** @type {number|undefined} Intervalo que atualiza o contador de segundos do carregamento. */

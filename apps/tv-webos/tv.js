@@ -8,7 +8,7 @@
 const TV_KEY = { BACK:461, PLAY:415, PAUSE:19, STOP:413, FF:417, RW:412, RED:403, GREEN:404, YELLOW:405, BLUE:406 };
 
 /** Seletor dos elementos que recebem foco pelas setas. */
-const FOCUSABLE = 'button:not([disabled]):not(.star),a[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea,[tabindex]:not([tabindex="-1"]),.dd-menu li,#cats li,#items li[data-i],#sideList li[data-x],.eps li[data-e]';
+const FOCUSABLE = 'button:not([disabled]):not(.star):not(.del),a[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea,[tabindex]:not([tabindex="-1"]),.dd-menu li,#cats li,#items li[data-i],#sideList li[data-x],.eps li[data-e]';
 
 /** Mapa das teclas de seta para a direção da navegação. */
 const ARROW_DIRECTIONS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
@@ -39,7 +39,7 @@ function getNavigationRoot(){
  */
 function getFocusCandidates(){
   const navigationRoot = getNavigationRoot();
-  return [...navigationRoot.querySelectorAll(FOCUSABLE)].filter(element => isShown(element) && (navigationRoot !== document || !element.closest('#player,dialog')));
+  return [...navigationRoot.querySelectorAll(FOCUSABLE)].filter(element => isShown(element) && !element.closest('.dialog-ghost') && (navigationRoot !== document || !element.closest('#player,dialog')));
 }
 
 /**
@@ -292,6 +292,36 @@ function toggleFocusedFavorite(focusedElement){
 }
 
 /**
+ * Botão azul fora do player: remove do histórico o que estiver selecionado (cartão de
+ * "Continuar assistindo" ou "Canais recentes", ou canal da categoria Recentes) e devolve o
+ * foco ao vizinho da mesma prateleira ou lista.
+ * @param {EventTarget} focusedElement Elemento focado.
+ * @returns {void}
+ */
+function removeFocusedHistoryItem(focusedElement){
+  if (document.querySelector('dialog[open]') || !focusedElement || !focusedElement.closest) return;
+  const sectionItem = focusedElement.closest('#items li[data-i]');
+  const sectionRemoveButton = sectionItem && sectionItem.querySelector('.del');
+  if (sectionRemoveButton) {
+    const itemIndex = +sectionItem.dataset.i;
+    sectionRemoveButton.click();
+    const sectionItems = $('items').querySelectorAll('[data-i]');
+    const itemToFocus = sectionItems[Math.min(itemIndex, sectionItems.length - 1)] || document.querySelector('#cats li.on');
+    if (itemToFocus) focusElement(itemToFocus);
+    return;
+  }
+  const homeCard = focusedElement.closest('#home .card');
+  const cardRemoveButton = homeCard && homeCard.querySelector('.card-del');
+  if (!cardRemoveButton) return;
+  const shelfElement = homeCard.closest('.shelf'), shelfKindClass = [...shelfElement.classList].find(className => className.indexOf('shelf-') === 0);
+  const cardIndex = [...shelfElement.querySelectorAll('.card')].indexOf(homeCard);
+  cardRemoveButton.click();
+  const shelfCards = [...document.querySelectorAll('#home .' + shelfKindClass + ' .card')];
+  const cardToFocus = shelfCards[Math.min(cardIndex, shelfCards.length - 1)] || document.querySelector('#home .tile');
+  if (cardToFocus) focusElement(cardToFocus);
+}
+
+/**
  * Favorito correspondente ao que está tocando: o canal (ao vivo ou catch-up), o filme ou a série do episódio.
  * @returns {{section: string, key: string}|null} Seção e chave, ou `null` se não houver.
  */
@@ -386,6 +416,7 @@ document.addEventListener('keydown', event => {
   }
   if (event.keyCode === TV_KEY.RED) { event.preventDefault(); event.stopImmediatePropagation(); openSearch(); return; }
   if (event.keyCode === TV_KEY.YELLOW) { event.preventDefault(); event.stopImmediatePropagation(); toggleFocusedFavorite(target); return; }
+  if (event.keyCode === TV_KEY.BLUE) { event.preventDefault(); event.stopImmediatePropagation(); removeFocusedHistoryItem(target); return; }
   const direction = ARROW_DIRECTIONS[event.key]; if (!direction) return;
   if (target.closest && target.closest('#plMenu')) return;
   if (target.id === 'plSel' && direction === 'down') return;
