@@ -80,6 +80,7 @@
  * @property {string[]} hidden Categorias ocultas (`secao:id`).
  * @property {Object[]} hist Histórico de reprodução.
  * @property {string[]} recentLive Chaves dos canais assistidos recentemente.
+ * @property {Object<string, TrechoAbertura|number>} intro Abertura aprendida por temporada (`series:<k>:<temporada>` → trecho); o formato antigo, por série (`series:<k>` → fim em segundos), vale para temporadas sem valor próprio.
  */
 
 /**
@@ -128,8 +129,8 @@ const DEFAULT_PLAYLIST = { id:'br-gratis', name:'Canais abertos BR', type:'m3u' 
 /** @type {Playlist[]} Listas cadastradas. */
 let playlists = store.get('pls', null);
 if (playlists === null) { playlists = [DEFAULT_PLAYLIST]; store.set('pls', playlists); store.set('active', DEFAULT_PLAYLIST.id); }
-/** @type {{fmt: string, auto: string, pin: string}} Opções gerais (formato ao vivo, próximo episódio automático, PIN). */
-let options = store.get('opts', { fmt:'m3u8', auto:'1', pin:'0000' });
+/** @type {{fmt: string, auto: string, pin: string, introAudio: string}} Opções gerais (formato ao vivo, próximo episódio automático, PIN, detecção da abertura pelo som; listas antigas sem `introAudio` contam como ligada). */
+let options = store.get('opts', { fmt:'m3u8', auto:'1', pin:'0000', introAudio:'1' });
 /** @type {Playlist|null} Lista ativa. */
 let activePlaylist = null;
 /** @type {DadosLista|null} Dados carregados da lista ativa. */
@@ -156,7 +157,7 @@ const userDataKey = () => 'ux_' + activePlaylist.id;
  * Carrega as preferências e o histórico da lista ativa em `userData`.
  * @returns {void}
  */
-function loadUserData(){ userData = Object.assign({ fav:{live:[],vod:[],series:[]}, locked:[], hidden:[], hist:[], recentLive:[] }, store.get(userDataKey(), {})); }
+function loadUserData(){ userData = Object.assign({ fav:{live:[],vod:[],series:[]}, locked:[], hidden:[], hist:[], recentLive:[], intro:{} }, store.get(userDataKey(), {})); }
 /**
  * Salva `userData` no armazenamento local.
  * @returns {boolean} `true` se salvou.
