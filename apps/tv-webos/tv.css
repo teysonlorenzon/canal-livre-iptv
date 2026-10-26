@@ -9,3 +9,4 @@ html.tv .eps li:focus{outline:none;background:var(--panel2);box-shadow:inset 0 0
 html.tv dialog{overflow-y:auto;max-height:calc(100vh - 32px)}
 html.tv input[readonly]:focus,html.tv textarea[readonly]:focus{background:var(--panel2)}
 html.tv [data-editing]{outline-color:var(--ok)!important;box-shadow:0 0 0 6px rgba(62,207,142,.25)}
+html.tv #cPip,html.tv #cFs,html.tv #cMute{display:none!important}

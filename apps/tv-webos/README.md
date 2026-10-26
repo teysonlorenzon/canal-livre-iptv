@@ -41,12 +41,15 @@ Developer Mode e use **Extend** antes de acabar o prazo.
 | Setas | Movem o foco entre botões, categorias e canais |
 | OK | Abre o item focado; num campo de texto, abre o teclado (OK de novo confirma) |
 | Voltar | Fecha diálogo / player / seção; na tela inicial pergunta se quer sair |
-| Amarelo | Favorita o canal focado |
+| Amarelo | Favorita/desfavorita o item focado (canal, filme ou série na seção ou na tela inicial; filme/série aberto nos detalhes) |
+| Vermelho | Abre a busca da seção atual (na tela inicial, da seção atual; fecha antes o diálogo aberto) |
 | ← / → no player | Troca de canal (ao vivo) ou volta/avança 10 s (filmes e séries) |
 | ↑ / ↓ no player | Mostra os controles e foca o play/pause; depois as setas andam entre os botões |
 | Voltar no player | Fecha a lista lateral, depois esconde os controles, depois sai do player |
 | Canal +/− | Troca de canal |
-| Vermelho / Verde no player | Lista de canais / guia |
+| Amarelo no player | Favorita o que está tocando; na lista lateral de canais, o canal focado |
+| Vermelho no player | Fecha o player e abre a busca da seção do que estava tocando |
+| Verde no player | Guia de programação (a lista de canais fica no botão "Canais" dos controles) |
 | Play, Pause, Stop, ⏩, ⏪ | Controle de reprodução |
 | Números no player | Vai direto para o canal |
 

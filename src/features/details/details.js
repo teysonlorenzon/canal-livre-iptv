@@ -38,14 +38,13 @@ async function openMovie(movie){
 }
 
 /**
- * Abre o diálogo de detalhes de uma série com temporadas e episódios.
+ * Carrega as informações e os episódios de uma série (da API Xtream ou da lista M3U),
+ * com temporadas e episódios em ordem.
  * @param {Item} series Série.
- * @returns {Promise<void>}
+ * @returns {Promise<{info: Object, episodesBySeason: Object<string, Episodio[]>, seasons: string[], episodeList: Episodio[]}>} Dados da série.
  */
-async function openSeries(series){
-  const detailBody = $('detailBody');
-  detailBody.innerHTML = '<div class="spinner"></div>'; $('dDetail').showModal();
-  let info = { plot:series.plot, cover:series.logo }, episodesBySeason = {};
+async function loadSeriesEpisodes(series){
+  let info = { plot:series.plot, cover:series.logo }; const episodesBySeason = {};
   if (activePlaylist.type === 'xtream') {
     try { const response = await xtreamApi('get_series_info', '&series_id=' + series.k); const seriesInfo = response.info || {};
       info = { plot:seriesInfo.plot, cover:seriesInfo.cover || series.logo, genre:seriesInfo.genre, year:(seriesInfo.releaseDate||seriesInfo.release_date||'').slice(0,4), cast:seriesInfo.cast };
@@ -55,6 +54,18 @@ async function openSeries(series){
   const seasons = Object.keys(episodesBySeason).sort((firstSeason, secondSeason) => firstSeason-secondSeason);
   seasons.forEach(seasonNumber => episodesBySeason[seasonNumber].sort((firstEpisode, secondEpisode) => firstEpisode.num - secondEpisode.num));
   const episodeList = seasons.flatMap(seasonNumber => episodesBySeason[seasonNumber]);
+  return { info, episodesBySeason, seasons, episodeList };
+}
+
+/**
+ * Abre o diálogo de detalhes de uma série com temporadas e episódios.
+ * @param {Item} series Série.
+ * @returns {Promise<void>}
+ */
+async function openSeries(series){
+  const detailBody = $('detailBody');
+  detailBody.innerHTML = '<div class="spinner"></div>'; $('dDetail').showModal();
+  const { info, episodesBySeason, seasons, episodeList } = await loadSeriesEpisodes(series);
   const lastWatched = userData.hist.find(entry => !entry.hidden && entry.series === 'series:' + series.k);
   let selectedSeason = lastWatched ? String(lastWatched.season) : seasons[0];
   /**
@@ -91,4 +102,24 @@ async function openSeries(series){
 function playEpisode(series, info, episodeList, episodeIndex, startPosition=0){
   const episode = episodeList[episodeIndex];
   playMedia({ kind:'series', ref:'ep:'+episode.id, series:'series:'+series.k, season:episode.season, num:episode.num, epId:episode.id, title:`${series.name} · T${episode.season}E${episode.num}`, logo:info.cover || series.logo, url:episode.url }, startPosition, { s: series, info, flat: episodeList, i: episodeIndex });
+}
+
+/**
+ * Retoma um episódio pelo "Continuar assistindo": carrega a série inteira para o player
+ * poder avançar e voltar episódios e mostrar a lista lateral. Se a série não for
+ * encontrada, toca só o episódio salvo.
+ * @param {Object} historyEntry Registro do histórico do episódio.
+ * @returns {Promise<void>}
+ */
+async function resumeEpisode(historyEntry){
+  const seriesKey = historyEntry.series.slice('series:'.length);
+  const seriesAvailable = await ensureSection('series');
+  const series = seriesAvailable && catalog.series.items.find(item => String(item.k) === seriesKey);
+  if (!series) { playMedia(historyEntry.desc, historyEntry.pos); return; }
+  loading('Carregando episódios…');
+  const { info, episodeList } = await loadSeriesEpisodes(series);
+  loading(null);
+  const episodeIndex = episodeList.findIndex(episode => episode.id === historyEntry.epId);
+  if (episodeIndex < 0) { playMedia(historyEntry.desc, historyEntry.pos); return; }
+  playEpisode(series, info, episodeList, episodeIndex, historyEntry.pos);
 }

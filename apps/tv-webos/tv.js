@@ -208,6 +208,140 @@ function focusFirst(){
 }
 
 /**
+ * Mostra o aviso de favorito adicionado ou removido.
+ * @param {boolean} isNowFavorite Se o item ficou favorito.
+ * @returns {void}
+ */
+const announceFavorite = isNowFavorite => toast(isNowFavorite ? 'Adicionado aos favoritos' : 'Removido dos favoritos');
+
+/**
+ * Separa uma referência de favorito no formato `seção:chave` (ex.: `vod:123`, `series:45`).
+ * @param {string} favoriteRef Referência.
+ * @returns {{section: string, key: string}|null} Seção e chave, ou `null` se inválida.
+ */
+function parseFavoriteRef(favoriteRef){
+  const separatorIndex = favoriteRef ? favoriteRef.indexOf(':') : -1;
+  const section = separatorIndex > 0 ? favoriteRef.slice(0, separatorIndex) : '';
+  return userData && userData.fav[section] ? { section, key:favoriteRef.slice(separatorIndex + 1) } : null;
+}
+
+/**
+ * Alterna o favorito de um item da seção (canal da lista ou cartão de filme/série) e mantém
+ * o foco na mesma posição se a lista for redesenhada (ex.: na categoria Favoritos).
+ * @param {HTMLElement} itemElement Item focado (`#items [data-i]`).
+ * @returns {void}
+ */
+function toggleSectionItemFavorite(itemElement){
+  const itemIndex = +itemElement.dataset.i, item = $('items')._a[itemIndex]; if (!item) return;
+  const starButton = itemElement.querySelector('.star');
+  if (starButton) starButton.click();
+  else { toggleFav(currentSection, item.k); if (currentCategory === 'fav') renderItems(); renderCats(); }
+  announceFavorite(isFav(currentSection, item.k));
+  if (itemElement.isConnected) return;
+  const sectionItems = $('items').querySelectorAll('[data-i]');
+  const itemToFocus = sectionItems[Math.min(itemIndex, sectionItems.length - 1)] || document.querySelector('#cats li.on');
+  if (itemToFocus) focusElement(itemToFocus);
+}
+
+/**
+ * Alterna o favorito de um cartão da tela inicial (canal das prateleiras ou filme/série de
+ * "Continuar assistindo"). Se for um canal, redesenha a tela inicial (prateleira de favoritos)
+ * e devolve o foco ao mesmo cartão, ou ao vizinho da mesma prateleira se ele sumiu.
+ * @param {HTMLElement} cardElement Cartão focado (`#home .card`).
+ * @returns {void}
+ */
+function toggleHomeCardFavorite(cardElement){
+  const favoriteTarget = parseFavoriteRef(cardElement.dataset.live ? 'live:' + cardElement.dataset.live : cardElement.dataset.fav);
+  if (!favoriteTarget) return;
+  announceFavorite(toggleFav(favoriteTarget.section, favoriteTarget.key));
+  if (favoriteTarget.section !== 'live') return;
+  const shelfElement = cardElement.closest('.shelf'), shelfKindClass = shelfElement ? [...shelfElement.classList].find(className => className.indexOf('shelf-') === 0) : '';
+  const cardIndex = shelfElement ? [...shelfElement.querySelectorAll('.card')].indexOf(cardElement) : 0;
+  const cardSelector = '[data-live="' + CSS.escape(favoriteTarget.key) + '"]';
+  renderHome();
+  const shelfCards = shelfKindClass ? [...document.querySelectorAll('#home .' + shelfKindClass + ' .card')] : [];
+  const cardToFocus = shelfCards.find(card => card.matches(cardSelector)) || shelfCards[Math.min(cardIndex, shelfCards.length - 1)] || document.querySelector('#home ' + cardSelector) || document.querySelector('#home .tile');
+  if (cardToFocus) focusElement(cardToFocus);
+}
+
+/**
+ * Alterna o favorito do filme ou da série aberta no diálogo de detalhes, pelo botão
+ * "Favoritar" do próprio diálogo (que atualiza o texto).
+ * @returns {void}
+ */
+function toggleDetailFavorite(){
+  const favoriteButton = $('detailBody').querySelector('#mFav,#sFav'); if (!favoriteButton) return;
+  favoriteButton.click();
+  announceFavorite(favoriteButton.textContent.indexOf('★') === 0);
+}
+
+/**
+ * Botão amarelo fora do player: favorita o que estiver selecionado (item da seção, cartão
+ * da tela inicial ou o filme/série do diálogo de detalhes).
+ * @param {EventTarget} focusedElement Elemento focado.
+ * @returns {void}
+ */
+function toggleFocusedFavorite(focusedElement){
+  const openDialog = document.querySelector('dialog[open]');
+  if (openDialog) { if (openDialog.id === 'dDetail') toggleDetailFavorite(); return; }
+  if (!focusedElement || !focusedElement.closest) return;
+  const sectionItem = focusedElement.closest('#items [data-i]');
+  if (sectionItem) { toggleSectionItemFavorite(sectionItem); return; }
+  const homeCard = focusedElement.closest('#home .card');
+  if (homeCard) toggleHomeCardFavorite(homeCard);
+}
+
+/**
+ * Favorito correspondente ao que está tocando: o canal (ao vivo ou catch-up), o filme ou a série do episódio.
+ * @returns {{section: string, key: string}|null} Seção e chave, ou `null` se não houver.
+ */
+function playingFavoriteTarget(){
+  if (!currentMedia) return null;
+  if (currentMedia.item) return { section:'live', key:currentMedia.item.k };
+  return currentMedia.desc ? parseFavoriteRef(currentMedia.desc.series || currentMedia.desc.ref) : null;
+}
+
+/**
+ * Botão amarelo no player: na lista lateral de canais, favorita o canal focado; senão,
+ * o que está tocando. Atualiza a estrela dos controles quando o canal é o atual.
+ * @returns {void}
+ */
+function togglePlayerFavorite(){
+  const focusedElement = document.activeElement;
+  const isChannelSideList = !$('side').hidden && $('side').dataset.mode === 'list' && !(currentMedia && currentMedia.ctx);
+  const focusedSideChannel = isChannelSideList && focusedElement && focusedElement.matches && focusedElement.matches('#sideList li[data-x]') ? liveChannelList[+focusedElement.dataset.x] : null;
+  const favoriteTarget = focusedSideChannel ? { section:'live', key:focusedSideChannel.k } : playingFavoriteTarget();
+  if (!favoriteTarget) return;
+  const isNowFavorite = toggleFav(favoriteTarget.section, favoriteTarget.key);
+  if (favoriteTarget.section === 'live' && currentMedia && currentMedia.item && currentMedia.item.k === favoriteTarget.key) $('cFav').innerHTML = icon('star', isNowFavorite ? 'on' : '');
+  announceFavorite(isNowFavorite);
+}
+
+/** Seção de cada tipo de mídia do player, para o botão vermelho buscar no lugar certo. */
+const SECTION_OF_MEDIA_KIND = { live:'live', catchup:'live', vod:'vod', series:'series' };
+
+/**
+ * Coloca o campo de busca da seção em edição (abre o teclado da TV).
+ * @returns {void}
+ */
+function focusSearchField(){ const searchField = $('q'); focusElement(searchField); startEdit(searchField); }
+
+/**
+ * Botão vermelho: abre a busca. Fecha antes o diálogo ou o menu de listas aberto; no player,
+ * fecha o player e busca na seção do que estava tocando; na tela inicial, abre a seção atual.
+ * @returns {void}
+ */
+function openSearch(){
+  document.querySelectorAll('dialog[open]').forEach(openDialog => openDialog.close());
+  if (!$('plMenu').hidden) togglePlaylistMenu(false);
+  let targetSection = currentSection || 'live';
+  if (!$('player').hidden) { targetSection = SECTION_OF_MEDIA_KIND[currentMedia && currentMedia.kind] || targetSection; closePlayer(); }
+  if (!$('section').hidden && currentSection === targetSection) { focusSearchField(); return; }
+  if (!catalog) return;
+  openSection(targetSection).then(() => { if (!$('section').hidden && currentSection === targetSection) focusSearchField(); });
+}
+
+/**
  * Trata as teclas do player aberto: mídia, teclas coloridas, setas e OK. Com os controles
  * escondidos (foco fora deles), o OK pausa/retoma e mostra os controles.
  * @param {KeyboardEvent} event Evento de tecla.
@@ -218,7 +352,8 @@ function handlePlayerKey(event){
   else if (event.keyCode === TV_KEY.STOP) { event.preventDefault(); closePlayer(); }
   else if (event.keyCode === TV_KEY.FF) { event.preventDefault(); $('cFwd10').click(); }
   else if (event.keyCode === TV_KEY.RW) { event.preventDefault(); $('cBack10').click(); }
-  else if (event.keyCode === TV_KEY.RED) { event.preventDefault(); $('cList').click(); }
+  else if (event.keyCode === TV_KEY.RED) { event.preventDefault(); event.stopImmediatePropagation(); openSearch(); }
+  else if (event.keyCode === TV_KEY.YELLOW) { event.preventDefault(); event.stopImmediatePropagation(); togglePlayerFavorite(); poke(); }
   else if (event.keyCode === TV_KEY.GREEN && $('cEpg')) { event.preventDefault(); $('cEpg').click(); }
   else if (event.key === 'Enter' && event.target.matches && event.target.matches('#sideList li[data-x]')) { event.preventDefault(); event.stopImmediatePropagation(); event.target.click(); }
   else {
@@ -249,7 +384,8 @@ document.addEventListener('keydown', event => {
     event.preventDefault(); event.stopImmediatePropagation(); startEdit(target);
     return;
   }
-  if (event.keyCode === TV_KEY.YELLOW && target.matches && target.matches('#items [data-i]')) { const starButton = target.querySelector('.star'); if (starButton) { event.preventDefault(); starButton.click(); } return; }
+  if (event.keyCode === TV_KEY.RED) { event.preventDefault(); event.stopImmediatePropagation(); openSearch(); return; }
+  if (event.keyCode === TV_KEY.YELLOW) { event.preventDefault(); event.stopImmediatePropagation(); toggleFocusedFavorite(target); return; }
   const direction = ARROW_DIRECTIONS[event.key]; if (!direction) return;
   if (target.closest && target.closest('#plMenu')) return;
   if (target.id === 'plSel' && direction === 'down') return;

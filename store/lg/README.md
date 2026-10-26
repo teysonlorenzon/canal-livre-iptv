@@ -43,7 +43,8 @@ RECURSOS
 • Guia de programação (EPG): programa atual, tempo restante e o próximo
 • Favoritos, canais recentes e "continuar assistindo"
 • Troca de canal pelas setas, pelos botões Canal +/− ou digitando o número
-• Lista lateral de canais e guia no próprio player (botões vermelho e verde)
+• Lista lateral de canais e guia no próprio player (guia no botão verde)
+• Busca rápida no botão vermelho e favoritos no botão amarelo
 • Reconexão automática quando o sinal trava ou a internet oscila
 • Controle parental com PIN
 • Tema claro, escuro ou automático
@@ -65,7 +66,7 @@ O Zapp IPTV não fornece, vende nem hospeda conteúdo. Ele apenas reproduz as li
 
 ```
 O app abre com uma lista de exemplo de canais públicos e gratuitos, sem login. Para testar uma lista própria, use Configurações > URL M3U.
-Controle remoto: setas e OK navegam; Voltar fecha um nível por vez e, na tela inicial, pergunta se quer sair; no player, setas laterais e Canal +/− trocam de canal, setas para cima/baixo mostram os controles, vermelho abre a lista de canais e verde o guia.
+Controle remoto: setas e OK navegam; Voltar fecha um nível por vez e, na tela inicial, pergunta se quer sair; no player, setas laterais e Canal +/− trocam de canal, setas para cima/baixo mostram os controles, o botão Canais dos controles abre a lista de canais e o verde abre o guia. Vermelho abre a busca (no player, fecha o player e busca na seção do conteúdo); amarelo favorita ou desfavorita o item selecionado ou o que está tocando.
 ```
 
 ## Passo a passo no Seller Lounge
