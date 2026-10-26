@@ -61,6 +61,7 @@ function renderHome(){
   const continueWatching = userData.hist.filter(historyEntry => !historyEntry.hidden && historyEntry.desc && historyEntry.dur && historyEntry.pos / historyEntry.dur < 0.95).slice(0, 20);
   const favoriteChannels = userData.fav.live.map(channelKey => catalog.live.items.find(item => item.k === channelKey)).filter(Boolean).slice(0, 20);
   const topMovies = weeklyTop('vod'), topSeries = weeklyTop('series');
+  const recommendedMovies = recommendedItems('vod'), recommendedSeries = recommendedItems('series');
   const recentChannels = userData.recentLive.map(channelKey => catalog.live.items.find(item => item.k === channelKey)).filter(Boolean).slice(0, 20);
   homeScreen.innerHTML = `
     <div class="tiles">
@@ -71,6 +72,8 @@ function renderHome(){
     ${accountHtml}
     <div class="shelves">
       ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', continueWatching.length, continueWatching.map((historyEntry, index) => cardHtml({ name:historyEntry.title, logo:historyEntry.logo, pg:historyEntry.pos/historyEntry.dur, removable:true }, 'data-cont="'+index+'" data-fav="'+esc(historyEntry.series || historyEntry.ref)+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
+      ${recommendationShelfHtml('vod', recommendedMovies)}
+      ${recommendationShelfHtml('series', recommendedSeries)}
       ${weeklyTopShelfHtml('vod', topMovies)}
       ${weeklyTopShelfHtml('series', topSeries)}
       ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recentChannels.length, recentChannels.map(channel => chipHtml(channel, true)).join(''), 'Os canais que você assistir aparecem aqui.')}
@@ -79,6 +82,10 @@ function renderHome(){
   homeScreen.querySelectorAll('[data-sec]').forEach(sectionButton => sectionButton.onclick = () => openSection(sectionButton.dataset.sec));
   homeScreen.querySelectorAll('[data-cont]').forEach(continueButton => continueButton.onclick = () => { const historyEntry = continueWatching[+continueButton.dataset.cont]; if (historyEntry.series) resumeEpisode(historyEntry); else playMedia(historyEntry.desc, historyEntry.pos); });
   homeScreen.querySelectorAll('.shelf').forEach(shelfElement => { const strip = shelfElement.querySelector('.strip'), arrows = shelfElement.querySelector('.scroll-arrows'); if (strip && arrows) bindScrollArrows(strip, arrows); });
+  homeScreen.querySelectorAll('[data-rec]').forEach(recommendationButton => recommendationButton.onclick = () => {
+    const sectionName = recommendationButton.dataset.rec, item = (sectionName === 'vod' ? recommendedMovies : recommendedSeries).items[+recommendationButton.dataset.i];
+    if (item) withPin(sectionName + ':' + item.cat, () => sectionName === 'vod' ? openMovie(item) : openSeries(item));
+  });
   homeScreen.querySelectorAll('[data-top]').forEach(topButton => topButton.onclick = () => {
     const sectionName = topButton.dataset.top, item = (sectionName === 'vod' ? topMovies : topSeries).items[+topButton.dataset.rank];
     if (item) withPin(sectionName + ':' + item.cat, () => sectionName === 'vod' ? openMovie(item) : openSeries(item));
@@ -94,7 +101,7 @@ function renderHome(){
 /**
  * HTML de uma prateleira da tela inicial: cabeçalho com ícone, contagem e setas para rolar,
  * e a faixa de cartões (ou um estado vazio).
- * @param {'cont'|'recent'|'fav'|'topvod'|'topseries'} kind Tipo (define ícone e cor).
+ * @param {'cont'|'recent'|'fav'|'topvod'|'topseries'|'recvod'|'recseries'} kind Tipo (define ícone e cor).
  * @param {string} title Título.
  * @param {string} subtitle Subtítulo.
  * @param {number} itemCount Quantidade de itens.
@@ -103,7 +110,7 @@ function renderHome(){
  * @returns {string} HTML.
  */
 const shelfHtml = (kind, title, subtitle, itemCount, itemsHtml, emptyText) => `<section class="shelf shelf-${kind}">
-  <div class="shelf-h"><span class="shelf-ico">${icon({ fav:'star', topvod:'trophy', topseries:'trophy' }[kind] || kind)}</span><div><h3>${title}</h3><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>${scrollArrowsHtml()}` : ''}</div>
+  <div class="shelf-h"><span class="shelf-ico">${icon({ fav:'star', topvod:'trophy', topseries:'trophy', recvod:'sparkle', recseries:'sparkle' }[kind] || kind)}</span><div><h3>${title}</h3><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>${scrollArrowsHtml()}` : ''}</div>
   ${itemCount ? `<div class="strip">${itemsHtml}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${emptyText}</p></div>`}
 </section>`;
 /**
@@ -173,6 +180,13 @@ function firstUniqueTitles(items){
   }
   return uniqueItems;
 }
+/**
+ * Categorias da seção que podem aparecer em destaques da tela inicial (Top 10, recomendações):
+ * sem as ocultas, as bloqueadas pelo PIN e as adultas.
+ * @param {'vod'|'series'} sectionName Seção.
+ * @returns {Set<string>} Ids das categorias.
+ */
+const visibleCategoryIds = sectionName => new Set(catalog[sectionName].cats.filter(category => !userData.hidden.includes(sectionName + ':' + category.id) && !userData.locked.includes(sectionName + ':' + category.id) && !ADULT_PATTERN.test(category.name)).map(category => category.id));
 /** @type {WeakMap<DadosSecao, {signature: string, top: {items: Item[], source: string}}>} Top da semana já calculado por seção. */
 const weeklyTopCache = new WeakMap();
 /**
@@ -186,8 +200,7 @@ function weeklyTop(sectionName){
   const sectionData = catalog[sectionName]; if (!sectionData) return { items:[], source:'' };
   const signature = userData.hidden.join('|') + '#' + userData.locked.join('|');
   const cached = weeklyTopCache.get(sectionData); if (cached && cached.signature === signature) return cached.top;
-  const isAllowedCategory = category => !userData.hidden.includes(sectionName + ':' + category.id) && !userData.locked.includes(sectionName + ':' + category.id) && !ADULT_PATTERN.test(category.name);
-  const allowedCategoryIds = new Set(sectionData.cats.filter(isAllowedCategory).map(category => category.id));
+  const allowedCategoryIds = visibleCategoryIds(sectionName);
   const highlightCategories = sectionData.cats.filter(category => allowedCategoryIds.has(category.id) && TOP_CATEGORY_PATTERN.test(category.name)).sort((first, second) => topCategoryPriority(second.name) - topCategoryPriority(first.name));
   let top = { items:[], source:'' };
   for (const category of highlightCategories) {
@@ -212,4 +225,16 @@ function weeklyTopShelfHtml(sectionName, top){
   if (!top.items.length) return '';
   const kind = sectionName === 'vod' ? 'topvod' : 'topseries', title = sectionName === 'vod' ? 'Top 10 filmes da semana' : 'Top 10 séries da semana';
   return shelfHtml(kind, title, esc(top.source), top.items.length, top.items.map((item, index) => topCardHtml(item, index, sectionName)).join(''), '');
+}
+/**
+ * HTML da prateleira de recomendações ("Filmes recomendados" ou "Séries recomendadas"), que só
+ * aparece quando o histórico do perfil tem algo a dizer sobre a seção.
+ * @param {'vod'|'series'} sectionName Seção.
+ * @param {{items: Item[], reason: string}} recommendations Títulos e motivo (de `recommendedItems`).
+ * @returns {string} HTML.
+ */
+function recommendationShelfHtml(sectionName, recommendations){
+  if (!recommendations.items.length) return '';
+  const kind = sectionName === 'vod' ? 'recvod' : 'recseries', title = sectionName === 'vod' ? 'Filmes recomendados' : 'Séries recomendadas';
+  return shelfHtml(kind, title, esc(recommendations.reason), recommendations.items.length, recommendations.items.map((item, index) => cardHtml(item, `data-rec="${sectionName}" data-i="${index}" data-fav="${sectionName}:${esc(item.k)}"`)).join(''), '');
 }
