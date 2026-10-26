@@ -8,7 +8,7 @@
 const TV_KEY = { BACK:461, PLAY:415, PAUSE:19, STOP:413, FF:417, RW:412, RED:403, GREEN:404, YELLOW:405, BLUE:406 };
 
 /** Seletor dos elementos que recebem foco pelas setas. */
-const FOCUSABLE = 'button:not([disabled]):not(.star),a[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea,[tabindex]:not([tabindex="-1"]),.dd-menu li,#cats li,#items li[data-i],#sideList li[data-x]';
+const FOCUSABLE = 'button:not([disabled]):not(.star),a[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea,[tabindex]:not([tabindex="-1"]),.dd-menu li,#cats li,#items li[data-i],#sideList li[data-x],.eps li[data-e]';
 
 document.documentElement.classList.add('tv');
 
@@ -226,11 +226,13 @@ document.addEventListener('keydown', e => {
       const dir = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' }[e.key];
       if (dir && !(dir !== 'up' && dir !== 'down' && e.target.matches && e.target.matches('input[type=range]'))) { e.preventDefault(); e.stopImmediatePropagation(); playerArrow(dir); }
       else if (e.key === 'Enter' && inPlayerUi()) poke();
+      // OK com os controles escondidos (foco fora deles): pausa/retoma e mostra os controles.
+      else if (e.key === 'Enter' && $('side').hidden) { e.preventDefault(); e.stopImmediatePropagation(); $('cPlay').click(); poke(); }
     }
     return;
   }
   const t0 = e.target;
-  if (e.key === 'Enter' && t0.matches && t0.matches('#cats li,#items li[data-i],input[type=checkbox],input[type=radio]')) { e.preventDefault(); t0.click(); return; }
+  if (e.key === 'Enter' && t0.matches && t0.matches('#cats li,#items li[data-i],.eps li[data-e],input[type=checkbox],input[type=radio]')) { e.preventDefault(); t0.click(); return; }
   if (e.key === 'Enter' && isText(t0) && !(t0.matches('textarea') && t0.dataset.editing)) {
     // Em edição, o OK confirma: sai da edição e deixa o Enter seguir para o app (ex.: PIN).
     if (t0.dataset.editing) { stopEdit(t0); return; }
@@ -248,6 +250,17 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); e.stopImmediatePropagation();
   moveFocus(dir);
 }, true);
+
+/**
+ * Abas de temporada da série: o clique redesenha o diálogo e o botão focado some. Devolve o
+ * foco para a aba recém-criada da mesma temporada, para o usuário descer até os episódios.
+ */
+document.addEventListener('click', e => {
+  const b = e.target;
+  if (!b.matches || !b.matches('.stabs [data-s]') || b.isConnected) return;
+  const nb = document.querySelector('dialog[open] .stabs [data-s="' + b.dataset.s + '"]');
+  if (nb) focusEl(nb);
+});
 
 /** Mantém sempre um elemento focado quando a tela muda. */
 new MutationObserver(() => requestAnimationFrame(focusFirst)).observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['hidden', 'open'] });
