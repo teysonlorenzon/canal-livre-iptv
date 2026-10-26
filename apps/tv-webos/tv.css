@@ -19,3 +19,4 @@ html.tv .list li.rm .del{visibility:hidden;pointer-events:none}
 html.tv .list li.rm:focus .del{visibility:visible;font:500 13px var(--display);color:var(--muted);padding-left:20px;background:radial-gradient(circle,var(--tv-blue) 6px,transparent 7px) left center/14px 14px no-repeat}
 html.tv .list li.rm:focus .del .ico{display:none}
 html.tv .list li.rm:focus .del::after{content:"Remover"}
+html.tv .scroll-arrows{display:none!important}

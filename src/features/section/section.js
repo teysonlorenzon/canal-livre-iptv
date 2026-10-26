@@ -19,8 +19,10 @@ function renderCats(){
   categoryRows.push(...visibleCategories.map(category => ({ ...category, n:itemCountByCategory.get(category.id)||0 })));
   $('cats').innerHTML = categoryRows.map(categoryRow => `<li data-c="${esc(categoryRow.id)}" class="${categoryRow.id === currentCategory ? 'on' : ''}"><span>${esc(categoryRow.name)}</span>${userData.locked.includes(currentSection+':'+categoryRow.id) ? '<span class="lock" title="Bloqueada">🔒</span>' : ''}<small>${categoryRow.n}</small></li>`).join('');
   $('secTitle').textContent = SECTION_NAMES[currentSection];
+  updateScrollArrows($('cats'), $('catsArrows'));
   $('sort').querySelector('[value=new]').hidden = $('sort').querySelector('[value=rate]').hidden = currentSection === 'live';
 }
+bindScrollArrows($('cats'), $('catsArrows'));
 /**
  * Seleciona uma categoria (pedindo PIN se bloqueada).
  * @param {MouseEvent} clickEvent Evento de clique.

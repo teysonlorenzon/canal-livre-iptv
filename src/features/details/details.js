@@ -73,14 +73,17 @@ async function openSeries(series){
    * @returns {void}
    */
   const drawSeries = () => {
+    const previousSeasonTabs = detailBody.querySelector('.stabs'), seasonTabsScroll = previousSeasonTabs ? previousSeasonTabs.scrollLeft : 0;
     detailBody.innerHTML = `<div class="detail"><div class="poster">${initials(series.name)}${info.cover ? `<img src="${esc(info.cover)}" alt="" onerror="this.remove()">` : ''}</div>
       <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(series.name)}</h3>
       <div class="meta">${info.year ? `<span>${esc(info.year)}</span>` : ''}<span>${seasons.length} temporada${seasons.length === 1 ? '' : 's'}</span>${info.genre ? `<span>${esc(info.genre)}</span>` : ''}</div>
       ${info.plot ? `<p class="plot">${esc(info.plot)}</p>` : ''}
       <div class="row" style="justify-content:flex-start">${lastWatched ? `<button class="btn primary" id="sResume">Continuar T${lastWatched.season}E${lastWatched.num}</button>` : ''}<button class="btn" id="sFav">${isFav('series', series.k) ? '★ Favorito' : '☆ Favoritar'}</button><button class="btn" id="sClose">Fechar</button></div>
       </div></div>
-      ${seasons.length ? `<div class="stabs">${seasons.map(seasonNumber => `<button data-s="${seasonNumber}" class="${seasonNumber == selectedSeason ? 'on' : ''}">Temporada ${seasonNumber}</button>`).join('')}</div>
+      ${seasons.length ? `<div class="stabs-row"><div class="stabs">${seasons.map(seasonNumber => `<button data-s="${seasonNumber}" class="${seasonNumber == selectedSeason ? 'on' : ''}">Temporada ${seasonNumber}</button>`).join('')}</div>${scrollArrowsHtml()}</div>
       <ul class="eps">${(episodesBySeason[selectedSeason]||[]).map((episode, index) => { const historyEntry = userData.hist.find(entry => entry.ref === 'ep:' + episode.id); return `<li data-e="${index}"><span class="num">${episode.num}</span><span class="nm"><b>${esc(episode.title)}</b>${historyEntry && historyEntry.dur ? `<div class="pg"><i style="width:${Math.min(100, historyEntry.pos/historyEntry.dur*100)}%"></i></div>` : ''}</span><span class="hint">${esc(episode.dur || '')}</span></li>`; }).join('')}</ul>` : '<p class="empty">Nenhum episódio disponível.</p>'}`;
+    const seasonTabs = detailBody.querySelector('.stabs');
+    if (seasonTabs) { seasonTabs.scrollLeft = seasonTabsScroll; bindScrollArrows(seasonTabs, detailBody.querySelector('.stabs-row .scroll-arrows')); }
     detailBody.querySelectorAll('[data-s]').forEach(seasonButton => seasonButton.onclick = () => { selectedSeason = seasonButton.dataset.s; drawSeries(); });
     detailBody.querySelectorAll('[data-e]').forEach(episodeItem => episodeItem.onclick = () => { const episode = episodesBySeason[selectedSeason][+episodeItem.dataset.e]; $('dDetail').close(); playEpisode(series, info, episodeList, episodeList.indexOf(episode)); });
     if ($('sResume')) $('sResume').onclick = () => { const resumeIndex = episodeList.findIndex(episode => episode.id === lastWatched.epId); $('dDetail').close(); playEpisode(series, info, episodeList, Math.max(0, resumeIndex), lastWatched.pos); };

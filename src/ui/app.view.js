@@ -3,6 +3,7 @@ document.body.insertAdjacentHTML('beforeend', `
   <div id="home" class="gut"></div>
   <div id="section" hidden>
     <ul id="cats"></ul>
+    ${scrollArrowsHtml('cats-arrows', 'catsArrows')}
     <div class="main">
       <div class="toolbar gut">
         <h2 id="secTitle"></h2>

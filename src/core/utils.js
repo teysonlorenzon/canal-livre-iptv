@@ -69,20 +69,41 @@ document.querySelectorAll('dialog').forEach(dialog => onDialogClose(dialog, () =
 const toast = message => { const toastElement = $('toast'); placeToast(); toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(toastElement._h); toastElement._h = setTimeout(() => toastElement.classList.remove('show'), 3200); };
 /** @type {number} Momento (ms) em que a tela de carregamento atual apareceu. */
 let loadingStartedAt = 0;
-/** @type {number|undefined} Intervalo que atualiza o contador de segundos do carregamento. */
+/** @type {number|undefined} Intervalo que atualiza o tempo decorrido do carregamento. */
 let loadingTickTimer;
+/** @type {string[]} Etapas já concluídas no carregamento atual. */
+let completedLoadingSteps = [];
+/** @type {number} Segundos de espera a partir dos quais aparece a dica sobre servidores lentos. */
+const LOADING_HINT_AFTER_SECONDS = 15;
 /**
- * Mostra ou esconde a tela de carregamento, com contador de segundos.
- * @param {string|null} text Texto a exibir; valor falso esconde a tela.
+ * Atualiza o tempo decorrido do carregamento (ex.: "8 s", "1:05") e a dica de servidor lento.
+ * @returns {void}
+ */
+function renderLoadingTime(){
+  const elapsedSeconds = Math.floor((Date.now() - loadingStartedAt) / 1000);
+  $('loadingSec').textContent = elapsedSeconds < 2 ? '' : elapsedSeconds < 60 ? elapsedSeconds + ' s' : Math.floor(elapsedSeconds / 60) + ':' + String(elapsedSeconds % 60).padStart(2, '0');
+  $('loadingHint').hidden = elapsedSeconds < LOADING_HINT_AFTER_SECONDS;
+}
+/**
+ * Mostra ou esconde a tela de carregamento. Cada texto novo vira a etapa atual e a anterior
+ * entra na lista de etapas concluídas; o tempo conta desde que a tela apareceu. Um trecho final
+ * entre parênteses vira uma observação abaixo do título.
+ * @param {string|null} text Etapa atual (ex.: "Baixando lista… (pode levar até 1 minuto)"); valor falso esconde a tela.
  * @returns {void}
  */
 const loading = text => {
-  $('loading').hidden = !text;
   clearInterval(loadingTickTimer);
-  if (!text) return;
-  $('loadingTxt').textContent = text;
-  loadingStartedAt = Date.now(); $('loadingSec').textContent = '';
-  loadingTickTimer = setInterval(() => { $('loadingSec').textContent = Math.round((Date.now() - loadingStartedAt) / 1000) + ' s'; }, 1000);
+  if (!text) { $('loading').hidden = true; completedLoadingSteps = []; return; }
+  const noteMatch = text.match(/^(.*?)\s*\(([^)]+)\)$/), stepTitle = noteMatch ? noteMatch[1] : text;
+  const previousStep = $('loadingTxt').textContent;
+  if ($('loading').hidden) { loadingStartedAt = Date.now(); completedLoadingSteps = []; }
+  else if (previousStep !== stepTitle) completedLoadingSteps.push(previousStep);
+  $('loading').hidden = false;
+  $('loadingTxt').textContent = stepTitle;
+  $('loadingNote').textContent = noteMatch ? noteMatch[2].charAt(0).toUpperCase() + noteMatch[2].slice(1) : '';
+  $('loadingSteps').innerHTML = completedLoadingSteps.map(step => `<li>${icon('check')}<span>${esc(step.replace(/…$/, ''))}</span></li>`).join('');
+  renderLoadingTime();
+  loadingTickTimer = setInterval(renderLoadingTime, 1000);
 };
 /**
  * Formata segundos como `m:ss` ou `h:mm:ss`.
