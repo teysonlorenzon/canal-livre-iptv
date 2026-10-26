@@ -1,9 +1,7 @@
-/* Ajustes para celular: respeita o entalhe/ilha da tela e evita o destaque azul ao tocar. */
 html.mobile{-webkit-tap-highlight-color:transparent}
 html.mobile header{padding-top:max(10px,env(safe-area-inset-top,0px))}
 html.mobile #home{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 html.mobile .btn,html.mobile select,html.mobile .dd-btn{min-height:40px}
-/* Picture-in-picture: na janela flutuante só o vídeo, sem controles nem cartão do canal. */
 html.pip #player .pl-ui,html.pip #player .pl-msg,html.pip #player .numpad,html.pip #player .pl-side{display:none!important}
 html.pip #player{background:#000}
 html.pip #intro{display:none}

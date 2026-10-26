@@ -124,46 +124,55 @@
  */
 
 /** @type {Playlist} Lista padrão com canais brasileiros gratuitos, cadastrada na primeira execução. */
-const DEFAULT_PL = { id:'br-gratis', name:'Canais abertos BR', type:'m3u' };
+const DEFAULT_PLAYLIST = { id:'br-gratis', name:'Canais abertos BR', type:'m3u' };
 /** @type {Playlist[]} Listas cadastradas. */
-let pls = store.get('pls', null);
-if (pls === null) { pls = [DEFAULT_PL]; store.set('pls', pls); store.set('active', DEFAULT_PL.id); }
+let playlists = store.get('pls', null);
+if (playlists === null) { playlists = [DEFAULT_PLAYLIST]; store.set('pls', playlists); store.set('active', DEFAULT_PLAYLIST.id); }
 /** @type {{fmt: string, auto: string, pin: string}} Opções gerais (formato ao vivo, próximo episódio automático, PIN). */
-let opts = store.get('opts', { fmt:'m3u8', auto:'1', pin:'0000' });
+let options = store.get('opts', { fmt:'m3u8', auto:'1', pin:'0000' });
 /** @type {Playlist|null} Lista ativa. */
-let P = null;
+let activePlaylist = null;
 /** @type {DadosLista|null} Dados carregados da lista ativa. */
-let D = null;
+let catalog = null;
 /** @type {Ux|null} Preferências e histórico da lista ativa. */
-let ux = null;
-let sec = 'live', cat = '*', shown = 200, unlocked = new Set(), lastError = '';
+let userData = null;
+/** @type {Secao} Seção aberta na tela de seção. */
+let currentSection = 'live';
+/** @type {string} Categoria selecionada (`*` = todas). */
+let currentCategory = '*';
+/** @type {number} Quantidade de itens exibidos na grade (cresce ao rolar). */
+let visibleItemCount = 200;
+/** @type {Set<string>} Categorias desbloqueadas com o PIN nesta sessão. */
+let unlockedCategories = new Set();
+/** @type {string} Última mensagem de erro de carregamento. */
+let lastError = '';
 
 /**
  * Chave de armazenamento das preferências da lista ativa.
  * @returns {string} Chave no formato `ux_<id>`.
  */
-const uxKey = () => 'ux_' + P.id;
+const userDataKey = () => 'ux_' + activePlaylist.id;
 /**
- * Carrega as preferências e o histórico da lista ativa em `ux`.
+ * Carrega as preferências e o histórico da lista ativa em `userData`.
  * @returns {void}
  */
-function loadUx(){ ux = Object.assign({ fav:{live:[],vod:[],series:[]}, locked:[], hidden:[], hist:[], recentLive:[] }, store.get(uxKey(), {})); }
+function loadUserData(){ userData = Object.assign({ fav:{live:[],vod:[],series:[]}, locked:[], hidden:[], hist:[], recentLive:[] }, store.get(userDataKey(), {})); }
 /**
- * Salva `ux` no armazenamento local.
+ * Salva `userData` no armazenamento local.
  * @returns {boolean} `true` se salvou.
  */
-const saveUx = () => store.set(uxKey(), ux);
+const saveUserData = () => store.set(userDataKey(), userData);
 /**
  * Indica se um item é favorito.
- * @param {Secao} s Seção.
- * @param {string|number} k Chave do item.
+ * @param {Secao} section Seção.
+ * @param {string|number} itemKey Chave do item.
  * @returns {boolean} `true` se for favorito.
  */
-const isFav = (s, k) => ux.fav[s].includes(String(k));
+const isFav = (section, itemKey) => userData.fav[section].includes(String(itemKey));
 /**
  * Alterna o favorito de um item e salva.
- * @param {Secao} s Seção.
- * @param {string|number} k Chave do item.
+ * @param {Secao} section Seção.
+ * @param {string|number} itemKey Chave do item.
  * @returns {boolean} `true` se passou a ser favorito.
  */
-function toggleFav(s, k){ k = String(k); const a = ux.fav[s]; const i = a.indexOf(k); i < 0 ? a.unshift(k) : a.splice(i,1); saveUx(); return i < 0; }
+function toggleFav(section, itemKey){ const favoriteKey = String(itemKey); const favoriteKeys = userData.fav[section]; const favoriteIndex = favoriteKeys.indexOf(favoriteKey); favoriteIndex < 0 ? favoriteKeys.unshift(favoriteKey) : favoriteKeys.splice(favoriteIndex,1); saveUserData(); return favoriteIndex < 0; }

@@ -43,7 +43,8 @@ src/
   Depois, inclua o arquivo no `iptv-player.html` na posição certa.
 - **Ajustes de plataforma não entram aqui**: ficam em `apps/<plataforma>/` (`tv.js`/`tv.css`,
   `desktop.js`, `mobile.js`/`mobile.css`) e são acrescentados no build por `tools/bundle.mjs`.
-- **Estilo do código**: comentários e JSDoc em português, `'use strict'` no topo, nomes curtos
-  como no código existente, ícones via `icon()` e cores via variáveis CSS (`var(--accent)` etc.).
+- **Estilo do código**: `'use strict'` no topo, sem comentários `//` ou `/* */` — só JSDoc em
+  português; variáveis e funções com nomes autodeclarativos (sem abreviações como `e`, `el`,
+  `cur`), ícones via `icon()` e cores via variáveis CSS (`var(--accent)` etc.).
 - Layouts responsivos: regras de celular em `@media (max-width:600px)` e de pouca altura em
   `@media (max-height:500px)`; a TV usa 1280×720 (sem regra especial além de `tv.css`).

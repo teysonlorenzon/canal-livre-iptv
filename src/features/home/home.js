@@ -2,7 +2,7 @@
 /**
  * Atualiza os relógios do topo e do player a cada segundo.
  */
-setInterval(() => { const t = hm(new Date()); $('clock').textContent = t; $('plClock').textContent = t; }, 1000);
+setInterval(() => { const currentTimeText = formatHourMinute(new Date()); $('clock').textContent = currentTimeText; $('plClock').textContent = currentTimeText; }, 1000);
 
 /**
  * Alterna entre a tela inicial e a tela de seção.
@@ -30,78 +30,78 @@ $('themeBtn').onclick = () => toast('Tema: ' + THEME_INFO[cycleTheme()].label);
  * @returns {void}
  */
 function renderHome(){
-  const h = $('home');
-  if (!P || !D) {
-    const env = location.protocol === 'https:' ? '<p style="color:var(--accent)">Atenção: esta página está aberta em https. Listas e canais em http são bloqueados aqui. Baixe o arquivo e abra direto no navegador do computador.</p>' : '';
-    h.innerHTML = lastError && P
-      ? `<div class="welcome"><h2>Não foi possível abrir “${esc(P.name)}”</h2><p>${esc(lastError)}</p>${env}<div class="row" style="justify-content:center"><button class="btn primary" id="wRetry">Tentar de novo</button><button class="btn" id="wAdd">Configurações</button></div></div>`
-      : `<div class="welcome"><h2>${pls.length ? 'Escolha uma lista para começar' : 'Adicione sua lista IPTV'}</h2><p>Funciona com login Xtream Codes (servidor, usuário e senha), URL M3U ou arquivo .m3u. Tudo fica salvo neste navegador.</p>${env}<button class="btn primary" id="wAdd">${pls.length ? 'Gerenciar listas' : 'Adicionar lista'}</button></div>`;
+  const homeScreen = $('home');
+  if (!activePlaylist || !catalog) {
+    const httpsWarning = location.protocol === 'https:' ? '<p style="color:var(--accent)">Atenção: esta página está aberta em https. Listas e canais em http são bloqueados aqui. Baixe o arquivo e abra direto no navegador do computador.</p>' : '';
+    homeScreen.innerHTML = lastError && activePlaylist
+      ? `<div class="welcome"><h2>Não foi possível abrir “${esc(activePlaylist.name)}”</h2><p>${esc(lastError)}</p>${httpsWarning}<div class="row" style="justify-content:center"><button class="btn primary" id="wRetry">Tentar de novo</button><button class="btn" id="wAdd">Configurações</button></div></div>`
+      : `<div class="welcome"><h2>${playlists.length ? 'Escolha uma lista para começar' : 'Adicione sua lista IPTV'}</h2><p>Funciona com login Xtream Codes (servidor, usuário e senha), URL M3U ou arquivo .m3u. Tudo fica salvo neste navegador.</p>${httpsWarning}<button class="btn primary" id="wAdd">${playlists.length ? 'Gerenciar listas' : 'Adicionar lista'}</button></div>`;
     $('wAdd').onclick = openSettings;
-    if ($('wRetry')) $('wRetry').onclick = () => openPlaylist(P.id, true);
+    if ($('wRetry')) $('wRetry').onclick = () => openPlaylist(activePlaylist.id, true);
     return;
   }
   /**
    * Conta os itens visíveis (fora de categorias ocultas) de uma seção.
-   * @param {Secao} s Seção.
+   * @param {Secao} sectionName Seção.
    * @returns {number|null} Quantidade, ou `null` se ainda não carregada.
    */
-  const vis = s => D[s] ? D[s].items.filter(i => !ux.hidden.includes(s+':'+i.cat)).length : null;
+  const countVisibleItems = sectionName => catalog[sectionName] ? catalog[sectionName].items.filter(item => !userData.hidden.includes(sectionName+':'+item.cat)).length : null;
   /**
    * Texto de contagem do bloco de uma seção.
-   * @param {Secao} s Seção.
-   * @param {string} w Palavra da unidade (ex.: "títulos").
+   * @param {Secao} sectionName Seção.
+   * @param {string} unitWord Palavra da unidade (ex.: "títulos").
    * @returns {string} Texto exibido.
    */
-  const cnt = (s, w) => vis(s) == null ? (sectionJobs[s] ? 'Carregando…' : 'Toque para carregar') : `${vis(s)} ${w}`;
-  let acct = '';
-  if (D.info) {
-    const u = D.info.user_info, exp = +u.exp_date ? new Date(u.exp_date*1000).toLocaleDateString('pt-BR') : 'Ilimitado';
-    acct = `<div class="acct"><span>Status <b>${esc(u.status)}</b></span><span>Vence <b>${exp}</b></span><span>Conexões <b>${esc(u.active_cons)}/${esc(u.max_connections)}</b></span><span>Usuário <b>${esc(u.username)}</b></span></div>`;
+  const countLabel = (sectionName, unitWord) => countVisibleItems(sectionName) == null ? (sectionJobs[sectionName] ? 'Carregando…' : 'Toque para carregar') : `${countVisibleItems(sectionName)} ${unitWord}`;
+  let accountHtml = '';
+  if (catalog.info) {
+    const userInfo = catalog.info.user_info, expirationText = +userInfo.exp_date ? new Date(userInfo.exp_date*1000).toLocaleDateString('pt-BR') : 'Ilimitado';
+    accountHtml = `<div class="acct"><span>Status <b>${esc(userInfo.status)}</b></span><span>Vence <b>${expirationText}</b></span><span>Conexões <b>${esc(userInfo.active_cons)}/${esc(userInfo.max_connections)}</b></span><span>Usuário <b>${esc(userInfo.username)}</b></span></div>`;
   }
-  const cont = ux.hist.filter(x => !x.hidden && x.desc && x.dur && x.pos / x.dur < 0.95).slice(0, 20);
-  const favLive = ux.fav.live.map(k => D.live.items.find(i => i.k === k)).filter(Boolean).slice(0, 20);
-  const recLive = ux.recentLive.map(k => D.live.items.find(i => i.k === k)).filter(Boolean).slice(0, 20);
-  h.innerHTML = `
+  const continueWatching = userData.hist.filter(historyEntry => !historyEntry.hidden && historyEntry.desc && historyEntry.dur && historyEntry.pos / historyEntry.dur < 0.95).slice(0, 20);
+  const favoriteChannels = userData.fav.live.map(channelKey => catalog.live.items.find(item => item.k === channelKey)).filter(Boolean).slice(0, 20);
+  const recentChannels = userData.recentLive.map(channelKey => catalog.live.items.find(item => item.k === channelKey)).filter(Boolean).slice(0, 20);
+  homeScreen.innerHTML = `
     <div class="tiles">
-      <button class="tile live" data-sec="live"><em>● AO VIVO</em><b>TV ao vivo</b><span>${vis('live')} canais</span></button>
-      <button class="tile" data-sec="vod"><em>FILMES</em><b>Filmes</b><span>${cnt('vod','títulos')}</span></button>
-      <button class="tile" data-sec="series"><em>SÉRIES</em><b>Séries</b><span>${cnt('series','séries')}</span></button>
+      <button class="tile live" data-sec="live"><em>● AO VIVO</em><b>TV ao vivo</b><span>${countVisibleItems('live')} canais</span></button>
+      <button class="tile" data-sec="vod"><em>FILMES</em><b>Filmes</b><span>${countLabel('vod','títulos')}</span></button>
+      <button class="tile" data-sec="series"><em>SÉRIES</em><b>Séries</b><span>${countLabel('series','séries')}</span></button>
     </div>
-    ${acct}
+    ${accountHtml}
     <div class="shelves">
-      ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', cont.length, cont.map((x,i) => cardHtml({ name:x.title, logo:x.logo, pg:x.pos/x.dur }, 'data-cont="'+i+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
-      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recLive.length, recLive.map(c => chipHtml(c)).join(''), 'Os canais que você assistir aparecem aqui.')}
-      ${shelfHtml('fav', 'Canais favoritos', 'Seus canais marcados', favLive.length, favLive.map(c => chipHtml(c)).join(''), 'Toque na estrela ★ de um canal para favoritar.')}
+      ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', continueWatching.length, continueWatching.map((historyEntry, index) => cardHtml({ name:historyEntry.title, logo:historyEntry.logo, pg:historyEntry.pos/historyEntry.dur }, 'data-cont="'+index+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
+      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recentChannels.length, recentChannels.map(channel => chipHtml(channel)).join(''), 'Os canais que você assistir aparecem aqui.')}
+      ${shelfHtml('fav', 'Canais favoritos', 'Seus canais marcados', favoriteChannels.length, favoriteChannels.map(channel => chipHtml(channel)).join(''), 'Toque na estrela ★ de um canal para favoritar.')}
     </div>`;
-  h.querySelectorAll('[data-sec]').forEach(b => b.onclick = () => openSection(b.dataset.sec));
-  h.querySelectorAll('[data-cont]').forEach(b => b.onclick = () => { const x = cont[+b.dataset.cont]; playMedia(x.desc, x.pos); });
-  h.querySelectorAll('[data-live]').forEach(b => b.onclick = () => { const c = D.live.items.find(i => i.k === b.dataset.live); playLive(c, D.live.items); });
+  homeScreen.querySelectorAll('[data-sec]').forEach(sectionButton => sectionButton.onclick = () => openSection(sectionButton.dataset.sec));
+  homeScreen.querySelectorAll('[data-cont]').forEach(continueButton => continueButton.onclick = () => { const historyEntry = continueWatching[+continueButton.dataset.cont]; playMedia(historyEntry.desc, historyEntry.pos); });
+  homeScreen.querySelectorAll('[data-live]').forEach(channelButton => channelButton.onclick = () => { const channel = catalog.live.items.find(item => item.k === channelButton.dataset.live); playLive(channel, catalog.live.items); });
 }
 /**
  * HTML de uma prateleira da tela inicial: cabeçalho com ícone e contagem, e a faixa de
  * cartões (ou um estado vazio).
  * @param {'cont'|'recent'|'fav'} kind Tipo (define ícone e cor).
  * @param {string} title Título.
- * @param {string} sub Subtítulo.
- * @param {number} n Quantidade de itens.
- * @param {string} items HTML dos cartões.
- * @param {string} empty Texto do estado vazio.
+ * @param {string} subtitle Subtítulo.
+ * @param {number} itemCount Quantidade de itens.
+ * @param {string} itemsHtml HTML dos cartões.
+ * @param {string} emptyText Texto do estado vazio.
  * @returns {string} HTML.
  */
-const shelfHtml = (kind, title, sub, n, items, empty) => `<section class="shelf shelf-${kind}">
-  <div class="shelf-h"><span class="shelf-ico">${icon(kind === 'fav' ? 'star' : kind)}</span><div><h3>${title}</h3><small>${sub}</small></div>${n ? `<span class="shelf-n">${n}</span>` : ''}</div>
-  ${n ? `<div class="strip">${items}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${empty}</p></div>`}
+const shelfHtml = (kind, title, subtitle, itemCount, itemsHtml, emptyText) => `<section class="shelf shelf-${kind}">
+  <div class="shelf-h"><span class="shelf-ico">${icon(kind === 'fav' ? 'star' : kind)}</span><div><h3>${title}</h3><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>` : ''}</div>
+  ${itemCount ? `<div class="strip">${itemsHtml}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${emptyText}</p></div>`}
 </section>`;
 /**
  * HTML do cartão compacto de um canal.
- * @param {Item} c Canal.
+ * @param {Item} channel Canal.
  * @returns {string} HTML.
  */
-const chipHtml = c => `<button class="card" data-live="${esc(c.k)}" style="flex:0 0 130px"><div class="poster" style="aspect-ratio:16/10">${c.logo ? `<img loading="lazy" src="${esc(c.logo)}" alt="" style="object-fit:contain;padding:10px" onerror="this.remove()">` : ''}${initials(c.name)}</div><b>${esc(c.name)}</b></button>`;
+const chipHtml = channel => `<button class="card" data-live="${esc(channel.k)}" style="flex:0 0 130px"><div class="poster" style="aspect-ratio:16/10">${channel.logo ? `<img loading="lazy" src="${esc(channel.logo)}" alt="" style="object-fit:contain;padding:10px" onerror="this.remove()">` : ''}${initials(channel.name)}</div><b>${esc(channel.name)}</b></button>`;
 /**
  * HTML do cartão com pôster de um filme, série ou item do histórico.
- * @param {{name: string, logo?: string, rate?: number, pg?: number}} it Dados do cartão (`pg` = progresso de 0 a 1).
- * @param {string} attr Atributos extras do botão.
+ * @param {{name: string, logo?: string, rate?: number, pg?: number}} cardData Dados do cartão (`pg` = progresso de 0 a 1).
+ * @param {string} extraAttributes Atributos extras do botão.
  * @returns {string} HTML.
  */
-const cardHtml = (it, attr) => `<button class="card" ${attr}><div class="poster">${initials(it.name)}${it.logo ? `<img loading="lazy" src="${esc(it.logo)}" alt="" onerror="this.remove()">` : ''}${it.rate ? `<span class="rt">★ ${(+it.rate).toFixed(1)}</span>` : ''}${it.pg ? `<span class="pg" style="width:${Math.min(100, it.pg*100)}%"></span>` : ''}</div><b>${esc(it.name)}</b></button>`;
+const cardHtml = (cardData, extraAttributes) => `<button class="card" ${extraAttributes}><div class="poster">${initials(cardData.name)}${cardData.logo ? `<img loading="lazy" src="${esc(cardData.logo)}" alt="" onerror="this.remove()">` : ''}${cardData.rate ? `<span class="rt">★ ${(+cardData.rate).toFixed(1)}</span>` : ''}${cardData.pg ? `<span class="pg" style="width:${Math.min(100, cardData.pg*100)}%"></span>` : ''}</div><b>${esc(cardData.name)}</b></button>`;

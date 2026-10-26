@@ -11,10 +11,10 @@
 let introDone;
 introDone = new Promise(resolveIntro => {
   const COLORS = ['#ffb020', '#ff8a00', '#ff4d4d', '#ffd36b', '#ff6a3d'];
-  const streaks = Array.from({ length:14 }, (_, i) => {
-    const x = 50 + (Math.random() - .5) * 46, w = 0.4 + Math.random() * 2.2;
-    const c = COLORS[i % COLORS.length], d = (1.55 + Math.random() * .35).toFixed(2);
-    return `<i style="left:${x.toFixed(1)}%;width:${w.toFixed(2)}%;background:linear-gradient(${c}00,${c},${c}00);animation-delay:${d}s"></i>`;
+  const streaks = Array.from({ length:14 }, (_, index) => {
+    const leftPercent = 50 + (Math.random() - .5) * 46, widthPercent = 0.4 + Math.random() * 2.2;
+    const color = COLORS[index % COLORS.length], delaySeconds = (1.55 + Math.random() * .35).toFixed(2);
+    return `<i style="left:${leftPercent.toFixed(1)}%;width:${widthPercent.toFixed(2)}%;background:linear-gradient(${color}00,${color},${color}00);animation-delay:${delaySeconds}s"></i>`;
   }).join('');
   document.body.insertAdjacentHTML('afterbegin', `
 <div id="intro" aria-hidden="true">
@@ -29,30 +29,30 @@ introDone = new Promise(resolveIntro => {
   </div>
 </div>`);
 
-  const el = document.getElementById('intro');
-  const len = el.querySelector('.in-z').getTotalLength();
-  el.querySelectorAll('.in-z,.in-glow').forEach(p => { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; });
+  const introElement = document.getElementById('intro');
+  const strokeLength = introElement.querySelector('.in-z').getTotalLength();
+  introElement.querySelectorAll('.in-z,.in-glow').forEach(strokePath => { strokePath.style.strokeDasharray = strokeLength; strokePath.style.strokeDashoffset = strokeLength; });
 
-  let done = false;
+  let isFinished = false;
   /**
    * Encerra a abertura com um fade e remove o elemento.
    * @returns {void}
    */
   const end = () => {
-    if (done) return; done = true;
+    if (isFinished) return; isFinished = true;
     window.removeEventListener('keydown', skip, true);
-    el.classList.add('out');
-    setTimeout(() => { el.remove(); resolveIntro(); }, 450);
+    introElement.classList.add('out');
+    setTimeout(() => { introElement.remove(); resolveIntro(); }, 450);
   };
   /**
    * Pula a abertura sem deixar a tecla chegar ao app (o Voltar fecharia o aplicativo).
-   * @param {Event} e Evento de tecla ou clique.
+   * @param {Event} event Evento de tecla ou clique.
    */
-  const skip = e => { e.preventDefault(); e.stopImmediatePropagation(); end(); };
+  const skip = event => { event.preventDefault(); event.stopImmediatePropagation(); end(); };
   window.addEventListener('keydown', skip, true);
-  el.addEventListener('click', end);
+  introElement.addEventListener('click', end);
 
-  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduce) { el.classList.add('still'); setTimeout(end, 900); }
-  else { requestAnimationFrame(() => el.classList.add('go')); setTimeout(end, 3100); }
+  const prefersReducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReducedMotion) { introElement.classList.add('still'); setTimeout(end, 900); }
+  else { requestAnimationFrame(() => introElement.classList.add('go')); setTimeout(end, 3100); }
 });

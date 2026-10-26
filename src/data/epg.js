@@ -1,35 +1,41 @@
 'use strict';
 /**
+ * Converte data XMLTV (`AAAAMMDDhhmmss +zzzz`) em timestamp.
+ * @param {string} xmltvDate Data XMLTV.
+ * @returns {number} Timestamp em ms (0 se inválida).
+ */
+function parseXmltvDate(xmltvDate){
+  const dateMatch = xmltvDate.match(/(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\s*([+-]\d{4})?/);
+  if (!dateMatch) return 0;
+  const timezone = dateMatch[7] ? dateMatch[7].slice(0,3)+':'+dateMatch[7].slice(3) : 'Z';
+  return Date.parse(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}T${dateMatch[4]}:${dateMatch[5]}:${dateMatch[6]}${timezone}`);
+}
+/**
  * Baixa e lê um guia XMLTV (aceita `.gz`), mantendo de 3 dias atrás a 2 dias à frente.
  * @param {string} url URL do XMLTV.
  * @returns {Promise<Map<string, Programa[]>|null>} Programas por canal (id em minúsculas), ou `null` se falhar.
  */
 async function loadXmltv(url){
   try {
-    const r = await fetch(url); if (!r.ok) throw 0;
-    let txt;
-    if (/\.gz(\?|$)/i.test(url) && 'DecompressionStream' in window) txt = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text();
-    else txt = await r.text();
-    const doc = new DOMParser().parseFromString(txt, 'text/xml');
-    const map = new Map(), now = Date.now(), lo = now - 3*864e5, hi = now + 2*864e5;
-    /**
-     * Converte data XMLTV (`AAAAMMDDhhmmss +zzzz`) em timestamp.
-     * @param {string} s Data XMLTV.
-     * @returns {number} Timestamp em ms (0 se inválida).
-     */
-    const pd = s => { const m = s.match(/(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\s*([+-]\d{4})?/); if (!m) return 0; const tz = m[7] ? m[7].slice(0,3)+':'+m[7].slice(3) : 'Z'; return Date.parse(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}${tz}`); };
-    for (const p of doc.getElementsByTagName('programme')) {
-      const s = pd(p.getAttribute('start')||''), e = pd(p.getAttribute('stop')||'');
-      if (e < lo || s > hi) continue;
-      const ch = (p.getAttribute('channel')||'').toLowerCase();
-      if (!map.has(ch)) map.set(ch, []);
-      map.get(ch).push({ s, e, title: p.querySelector('title')?.textContent || '', desc: p.querySelector('desc')?.textContent || '' });
+    const response = await fetch(url); if (!response.ok) throw 0;
+    let xmlText;
+    if (/\.gz(\?|$)/i.test(url) && 'DecompressionStream' in window) xmlText = await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).text();
+    else xmlText = await response.text();
+    const xmlDocument = new DOMParser().parseFromString(xmlText, 'text/xml');
+    const programsByChannel = new Map(), now = Date.now(), oldestAllowed = now - 3*864e5, newestAllowed = now + 2*864e5;
+    for (const programmeElement of xmlDocument.getElementsByTagName('programme')) {
+      const start = parseXmltvDate(programmeElement.getAttribute('start')||''), end = parseXmltvDate(programmeElement.getAttribute('stop')||'');
+      if (end < oldestAllowed || start > newestAllowed) continue;
+      const channelId = (programmeElement.getAttribute('channel')||'').toLowerCase();
+      if (!programsByChannel.has(channelId)) programsByChannel.set(channelId, []);
+      programsByChannel.get(channelId).push({ s:start, e:end, title: programmeElement.querySelector('title')?.textContent || '', desc: programmeElement.querySelector('desc')?.textContent || '' });
     }
-    for (const a of map.values()) a.sort((x,y) => x.s - y.s);
-    return map;
+    for (const channelPrograms of programsByChannel.values()) channelPrograms.sort((first, second) => first.s - second.s);
+    return programsByChannel;
   } catch { return null; }
 }
 
+/** @type {Map<string, {t: number, l: Programa[]}>} Guia da API Xtream por canal, com o momento em que foi baixado. */
 const epgCache = new Map();
 /**
  * Obtém o guia de programação de um canal (API Xtream com cache de 10 min, ou XMLTV).
@@ -38,25 +44,25 @@ const epgCache = new Map();
  */
 async function getEpg(item){
   if (!item) return [];
-  if (P.type === 'xtream') {
-    const c = epgCache.get(item.k); if (c && Date.now() - c.t < 6e5) return c.l;
+  if (activePlaylist.type === 'xtream') {
+    const cachedEntry = epgCache.get(item.k); if (cachedEntry && Date.now() - cachedEntry.t < 6e5) return cachedEntry.l;
     try {
-      const r = await xApi(item.archive ? 'get_simple_data_table' : 'get_short_epg', `&stream_id=${item.k}${item.archive ? '' : '&limit=8'}`);
-      const l = (r.epg_listings || []).map(x => ({
-        s: (+x.start_timestamp || Date.parse(x.start.replace(' ','T'))) * (x.start_timestamp ? 1000 : 1),
-        e: (+x.stop_timestamp || Date.parse((x.end||x.stop).replace(' ','T'))) * (x.stop_timestamp ? 1000 : 1),
-        title: b64(x.title), desc: b64(x.description), start: x.start, archive: +x.has_archive === 1
-      })).sort((a,b) => a.s - b.s);
-      epgCache.set(item.k, { t:Date.now(), l });
-      return l;
+      const response = await xtreamApi(item.archive ? 'get_simple_data_table' : 'get_short_epg', `&stream_id=${item.k}${item.archive ? '' : '&limit=8'}`);
+      const programs = (response.epg_listings || []).map(listing => ({
+        s: (+listing.start_timestamp || Date.parse(listing.start.replace(' ','T'))) * (listing.start_timestamp ? 1000 : 1),
+        e: (+listing.stop_timestamp || Date.parse((listing.end||listing.stop).replace(' ','T'))) * (listing.stop_timestamp ? 1000 : 1),
+        title: decodeBase64(listing.title), desc: decodeBase64(listing.description), start: listing.start, archive: +listing.has_archive === 1
+      })).sort((first, second) => first.s - second.s);
+      epgCache.set(item.k, { t:Date.now(), l:programs });
+      return programs;
     } catch { return []; }
   }
-  if (!D.epg) return [];
-  return D.epg.get(String(item.epg||'').toLowerCase()) || D.epg.get(item.name.toLowerCase()) || [];
+  if (!catalog.epg) return [];
+  return catalog.epg.get(String(item.epg||'').toLowerCase()) || catalog.epg.get(item.name.toLowerCase()) || [];
 }
 /**
  * Encontra o programa atual e o próximo.
- * @param {Programa[]} l Programas ordenados.
+ * @param {Programa[]} programs Programas ordenados.
  * @returns {[Programa|null, Programa|null]} Programa atual e próximo.
  */
-const nowNext = l => { const t = Date.now(); const i = l.findIndex(p => p.s <= t && p.e > t); return i < 0 ? [null, l.find(p => p.s > t) || null] : [l[i], l[i+1] || null]; };
+const nowNext = programs => { const now = Date.now(); const currentIndex = programs.findIndex(program => program.s <= now && program.e > now); return currentIndex < 0 ? [null, programs.find(program => program.s > now) || null] : [programs[currentIndex], programs[currentIndex+1] || null]; };

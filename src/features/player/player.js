@@ -1,6 +1,6 @@
 'use strict';
-const v = $('v'), player = $('player');
-let hls = null, mts = null, token = 0, playing = null, liveList = [], saveT = 0;
+const video = $('v'), playerScreen = $('player');
+let hlsPlayer = null, mpegtsPlayer = null, playbackToken = 0, currentMedia = null, liveChannelList = [], lastProgressSaveAt = 0;
 
 /**
  * Etapa da cadeia de reprodução em uso, com os controles usados pelo guardião da TV ao vivo.
@@ -22,16 +22,16 @@ let engine = null;
  * @returns {void}
  */
 function stopEngines(){
-  if (hls) { hls.destroy(); hls = null; }
-  if (mts) { try { mts.pause(); mts.unload(); mts.detachMediaElement(); mts.destroy(); } catch {} mts = null; }
-  v.onerror = null; v.removeAttribute('src'); v.load();
+  if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+  if (mpegtsPlayer) { try { mpegtsPlayer.pause(); mpegtsPlayer.unload(); mpegtsPlayer.detachMediaElement(); mpegtsPlayer.destroy(); } catch {} mpegtsPlayer = null; }
+  video.onerror = null; video.removeAttribute('src'); video.load();
 }
 /**
  * Mostra uma mensagem sobre o vídeo.
  * @param {string} html HTML da mensagem; vazio remove.
  * @returns {void}
  */
-const msg = html => { $('plMsg').innerHTML = html ? `<div>${html}</div>` : ''; };
+const showPlayerMessage = html => { $('plMsg').innerHTML = html ? `<div>${html}</div>` : ''; };
 
 /**
  * Tenta tocar usando cada etapa da cadeia até uma funcionar.
@@ -42,87 +42,88 @@ const msg = html => { $('plMsg').innerHTML = html ? `<div>${html}</div>` : ''; }
  * @returns {void}
  */
 function runChain(chain, live){
-  const my = ++token; let watchdog;
+  const chainToken = ++playbackToken; let watchdog;
   const reasons = [];
   lastChain = { chain, live };
-  nativeErr = null;
+  nativeError = null;
   /**
-   * Inicia a etapa `i` da cadeia.
-   * @param {number} i Índice da etapa.
-   * @param {string} [why] Motivo da falha da etapa anterior.
+   * Inicia a etapa `stageIndex` da cadeia.
+   * @param {number} stageIndex Índice da etapa.
+   * @param {string} [previousFailure] Motivo da falha da etapa anterior.
+   * @param {boolean} [retrying=false] Se é uma reconexão da mesma etapa.
    * @returns {void}
    */
-  const next = (i, why, retrying = false) => {
+  const startStage = (stageIndex, previousFailure, retrying = false) => {
     clearTimeout(watchdog);
-    if (my !== token) return;
-    if (i >= chain.length) { engine = null; return fail(reasons); }
+    if (chainToken !== playbackToken) return;
+    if (stageIndex >= chain.length) { engine = null; return showPlaybackFailure(reasons); }
     stopEngines();
-    const { eng, url } = chain[i];
-    const step = engine = { my, eng, live, started:false, retrying,
-      restart: () => next(i, why, true),
-      giveUp: w => { reasons.push(`${eng.toUpperCase()}: ${w}`); next(i + 1, w); } };
+    const { eng:engineName, url } = chain[stageIndex];
+    const currentStage = engine = { my:chainToken, eng:engineName, live, started:false, retrying,
+      restart: () => startStage(stageIndex, previousFailure, true),
+      giveUp: reason => { reasons.push(`${engineName.toUpperCase()}: ${reason}`); startStage(stageIndex + 1, reason); } };
     /**
      * Marca a etapa atual como falha. No ao vivo, depois que o canal já tocou
      * (ou durante uma reconexão), tenta reconectar no mesmo motor antes de desistir.
-     * @param {string} w Motivo da falha.
+     * @param {string} reason Motivo da falha.
      * @returns {void}
      */
-    const bad = w => {
-      if (my !== token || engine !== step) return;
-      if (live && (step.started || step.retrying)) return liveRecover(w);
-      step.giveUp(w);
+    const failStage = reason => {
+      if (chainToken !== playbackToken || engine !== currentStage) return;
+      if (live && (currentStage.started || currentStage.retrying)) return liveRecover(reason);
+      currentStage.giveUp(reason);
     };
-    let lastLoaded = 0, waited = 0;
+    let lastLoadedBytes = 0, extraWaitMs = 0;
     /**
      * Verifica se o vídeo começou. Se não, mas o pedaço de vídeo ainda está baixando,
      * dá mais tempo (servidor lento) em vez de desistir.
      * @returns {void}
      */
-    const check = () => {
-      if (my !== token || engine !== step || v.readyState >= 2) return;
-      const loaded = step.frag ? step.frag.stats.loaded : 0;
-      if (loaded > lastLoaded && waited < 40000) {
-        lastLoaded = loaded; waited += 10000;
-        slowMsg();
-        watchdog = step.wd = setTimeout(check, 10000);
+    const checkStarted = () => {
+      if (chainToken !== playbackToken || engine !== currentStage || video.readyState >= 2) return;
+      const loadedBytes = currentStage.frag ? currentStage.frag.stats.loaded : 0;
+      if (loadedBytes > lastLoadedBytes && extraWaitMs < 40000) {
+        lastLoadedBytes = loadedBytes; extraWaitMs += 10000;
+        showSlowServerMessage();
+        watchdog = currentStage.wd = setTimeout(checkStarted, 10000);
         return;
       }
-      bad('tempo esgotado');
+      failStage('tempo esgotado');
     };
-    watchdog = step.wd = setTimeout(check, 20000);
-    if (!retrying) msg('<div class="spinner"></div>');
-    if (eng === 'hls') {
+    watchdog = currentStage.wd = setTimeout(checkStarted, 20000);
+    if (!retrying) showPlayerMessage('<div class="spinner"></div>');
+    if (engineName === 'hls') {
       if (window.Hls && Hls.isSupported()) {
-        hls = new Hls(live ? {
+        hlsPlayer = new Hls(live ? {
           enableWorker:true, lowLatencyMode:false, backBufferLength:30,
           maxBufferLength:30, maxMaxBufferLength:60, liveSyncDurationCount:3, liveMaxLatencyDurationCount:10, maxLiveSyncPlaybackRate:1.1,
           manifestLoadingMaxRetry:3, levelLoadingMaxRetry:4, fragLoadingMaxRetry:6, nudgeMaxRetry:6
         } : { enableWorker:true, backBufferLength:30, maxBufferLength:60, fragLoadingMaxRetry:6 });
-        let r = 0;
-        hls.on(Hls.Events.MANIFEST_PARSED, (_, d) => { setupTracks(d); v.play().catch(tapToPlay); });
-        hls.on(Hls.Events.FRAG_LOADING, (_, d) => { step.frag = d.frag; });
-        hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => setupTracks());
-        hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => setupTracks());
-        hls.on(Hls.Events.ERROR, (_, d) => {
-          if (!d.fatal) return;
-          if (d.type === Hls.ErrorTypes.MEDIA_ERROR && r++ < 2) return hls.recoverMediaError();
-          if (d.type === Hls.ErrorTypes.NETWORK_ERROR && r++ < 1 && d.details !== 'manifestLoadError') return hls.startLoad();
-          bad(d.details);
+        let recoveryAttempts = 0;
+        hlsPlayer.on(Hls.Events.MANIFEST_PARSED, (_eventName, eventData) => { setupTracks(eventData); video.play().catch(tapToPlay); });
+        hlsPlayer.on(Hls.Events.FRAG_LOADING, (_eventName, eventData) => { currentStage.frag = eventData.frag; });
+        hlsPlayer.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => setupTracks());
+        hlsPlayer.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => setupTracks());
+        hlsPlayer.on(Hls.Events.ERROR, (_eventName, errorData) => {
+          if (!errorData.fatal) return;
+          if (errorData.type === Hls.ErrorTypes.MEDIA_ERROR && recoveryAttempts++ < 2) return hlsPlayer.recoverMediaError();
+          if (errorData.type === Hls.ErrorTypes.NETWORK_ERROR && recoveryAttempts++ < 1 && errorData.details !== 'manifestLoadError') return hlsPlayer.startLoad();
+          failStage(errorData.details);
         });
-        hls.loadSource(url); hls.attachMedia(v);
-      } else if (v.canPlayType('application/vnd.apple.mpegurl')) native(url, bad);
-      else bad('HLS não suportado');
-    } else if (eng === 'ts') {
-      if (!(window.mpegts && mpegts.isSupported())) return bad('MPEG-TS não suportado');
-      mts = mpegts.createPlayer({ type:'mpegts', isLive:live, url }, live ? {
+        hlsPlayer.loadSource(url); hlsPlayer.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) playNative(url, failStage);
+      else failStage('HLS não suportado');
+    } else if (engineName === 'ts') {
+      if (!(window.mpegts && mpegts.isSupported())) return failStage('MPEG-TS não suportado');
+      mpegtsPlayer = mpegts.createPlayer({ type:'mpegts', isLive:live, url }, live ? {
         enableWorker:true, lazyLoad:false, enableStashBuffer:true, stashInitialSize:384 * 1024, autoCleanupSourceBuffer:true,
         liveBufferLatencyChasing:true, liveBufferLatencyMaxLatency:8, liveBufferLatencyMinRemain:3
       } : { enableWorker:true, lazyLoad:true });
-      mts.on(mpegts.Events.ERROR, (t, d) => bad(d || t));
-      mts.attachMediaElement(v); mts.load(); const p = mts.play(); if (p && p.catch) p.catch(tapToPlay);
-    } else native(url, bad);
+      mpegtsPlayer.on(mpegts.Events.ERROR, (errorType, errorDetail) => failStage(errorDetail || errorType));
+      mpegtsPlayer.attachMediaElement(video); mpegtsPlayer.load(); const playPromise = mpegtsPlayer.play(); if (playPromise && playPromise.catch) playPromise.catch(tapToPlay);
+    } else playNative(url, failStage);
   };
-  next(0);
+  startStage(0);
 }
 /**
  * Versão mais leve do canal atual na lista (mesmo nome, qualidade menor),
@@ -130,14 +131,14 @@ function runChain(chain, live){
  * @returns {Item|null} Canal mais leve, ou `null` se não houver.
  */
 function lighterChannel(){
-  const c = playing && playing.kind === 'live' && playing.item; if (!c) return null;
-  const QUAL = /\s*\b(4K|UHD|FHD|HD|SD)\b(\s*\[[^\]]*\])?\s*$/i;
-  const m = c.name.match(QUAL); if (!m) return null;
-  const base = c.name.replace(QUAL, '').trim().toUpperCase(), order = ['4K', 'UHD', 'FHD', 'HD', 'SD'];
-  const cur = order.indexOf(m[1].toUpperCase());
-  for (const q of order.slice(cur + 1)) {
-    const alt = liveList.find(i => i !== c && !/\[/.test(i.name) && i.name.replace(QUAL, '').trim().toUpperCase() === base && (i.name.match(QUAL) || [])[1] && i.name.match(QUAL)[1].toUpperCase() === q);
-    if (alt) return alt;
+  const currentChannel = currentMedia && currentMedia.kind === 'live' && currentMedia.item; if (!currentChannel) return null;
+  const QUALITY_SUFFIX = /\s*\b(4K|UHD|FHD|HD|SD)\b(\s*\[[^\]]*\])?\s*$/i;
+  const qualityMatch = currentChannel.name.match(QUALITY_SUFFIX); if (!qualityMatch) return null;
+  const baseName = currentChannel.name.replace(QUALITY_SUFFIX, '').trim().toUpperCase(), qualityOrder = ['4K', 'UHD', 'FHD', 'HD', 'SD'];
+  const currentQualityIndex = qualityOrder.indexOf(qualityMatch[1].toUpperCase());
+  for (const quality of qualityOrder.slice(currentQualityIndex + 1)) {
+    const lighterAlternative = liveChannelList.find(candidate => candidate !== currentChannel && !/\[/.test(candidate.name) && candidate.name.replace(QUALITY_SUFFIX, '').trim().toUpperCase() === baseName && (candidate.name.match(QUALITY_SUFFIX) || [])[1] && candidate.name.match(QUALITY_SUFFIX)[1].toUpperCase() === quality);
+    if (lighterAlternative) return lighterAlternative;
   }
   return null;
 }
@@ -146,54 +147,54 @@ function lighterChannel(){
  * Avisa que o servidor está lento e, se existir, oferece a versão mais leve do canal.
  * @returns {void}
  */
-function slowMsg(){
-  const alt = lighterChannel();
-  msg(`<div class="spinner"></div><p style="margin-top:14px">O servidor está enviando este canal devagar. Aguardando o vídeo…</p>${alt ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn primary" id="fLighter">Assistir ${esc(alt.name)}</button></div>` : ''}`);
-  if (alt) { $('fLighter').onclick = () => playLive(alt, liveList); if (document.documentElement.classList.contains('tv')) $('fLighter').focus(); }
+function showSlowServerMessage(){
+  const lighterAlternative = lighterChannel();
+  showPlayerMessage(`<div class="spinner"></div><p style="margin-top:14px">O servidor está enviando este canal devagar. Aguardando o vídeo…</p>${lighterAlternative ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn primary" id="fLighter">Assistir ${esc(lighterAlternative.name)}</button></div>` : ''}`);
+  if (lighterAlternative) { $('fLighter').onclick = () => playLive(lighterAlternative, liveChannelList); if (document.documentElement.classList.contains('tv')) $('fLighter').focus(); }
 }
 
 /**
  * Toca pelo elemento `<video>` nativo.
  * @param {string} url URL do conteúdo.
- * @param {function(string): void} bad Callback de falha.
+ * @param {function(string): void} onFailure Callback de falha.
  * @returns {void}
  */
-function native(url, bad){ v.onerror = () => { nativeErr = v.error; bad(mediaErrText(v.error)); }; v.src = url; v.play().catch(tapToPlay); }
+function playNative(url, onFailure){ video.onerror = () => { nativeError = video.error; onFailure(describeMediaError(video.error)); }; video.src = url; video.play().catch(tapToPlay); }
 
 /**
  * Descreve um erro do elemento `<video>` (código e detalhe do navegador).
- * @param {MediaError|null} e Erro do vídeo.
+ * @param {MediaError|null} mediaError Erro do vídeo.
  * @returns {string} Descrição curta.
  */
-function mediaErrText(e){
-  if (!e) return 'erro desconhecido';
-  const name = { 1:'interrompido', 2:'erro de rede', 3:'falha ao decodificar', 4:'formato não suportado' }[e.code] || 'erro ' + e.code;
-  return e.message ? `${name} (${e.message})` : name;
+function describeMediaError(mediaError){
+  if (!mediaError) return 'erro desconhecido';
+  const name = { 1:'interrompido', 2:'erro de rede', 3:'falha ao decodificar', 4:'formato não suportado' }[mediaError.code] || 'erro ' + mediaError.code;
+  return mediaError.message ? `${name} (${mediaError.message})` : name;
 }
 /**
  * Pede um toque do usuário quando o navegador bloqueia o autoplay.
- * @param {Error} [e] Erro de `play()`.
+ * @param {Error} [playError] Erro de `play()`.
  * @returns {void}
  */
-function tapToPlay(e){ if (e && e.name === 'NotAllowedError') msg('<h2>Toque para assistir</h2><p>O navegador pede um toque antes de tocar com som.</p>'); }
+function tapToPlay(playError){ if (playError && playError.name === 'NotAllowedError') showPlayerMessage('<h2>Toque para assistir</h2><p>O navegador pede um toque antes de tocar com som.</p>'); }
 /** @type {{chain: EtapaReproducao[], live: boolean}|null} Última cadeia tentada, para "Tentar de novo". */
 let lastChain = null;
 /** @type {MediaError|null} Último erro do player nativo. */
-let nativeErr = null;
+let nativeError = null;
 
 /**
  * Explica em linguagem simples por que o conteúdo não tocou.
  * @returns {string} Texto da explicação.
  */
 function failReason(){
-  const u = (playing && playing.url || '').toLowerCase();
-  if (location.protocol === 'https:' && /^http:/.test(u)) return 'Este conteúdo usa http e a página está em https; o navegador bloqueia. Abra o player pelo arquivo salvo no computador.';
-  if (/\.(mp4|m4v|mov)(\?|$)/.test(u) && !v.canPlayType('video/mp4; codecs="avc1.42E01E"')) return 'Este navegador não toca vídeos MP4 (H.264). Use Chrome, Edge ou Safari.';
-  const code = nativeErr && nativeErr.code;
-  if (code === 2) return 'A conexão com o servidor caiu enquanto o vídeo carregava. Tente de novo.';
-  if (code === 3) return 'O navegador não consegue decodificar este vídeo. Geralmente é vídeo HEVC/H.265 ou áudio AC3/DTS. Abra o link em um player como o VLC.';
-  if (code === 4 && /\.mkv(\?|$)/.test(u)) return 'Arquivos .mkv costumam usar codecs que o navegador não abre. Abra o link em um player como o VLC.';
-  if (code === 4) return 'O servidor não entregou um vídeo que o navegador abre: o formato não é suportado, o link expirou ou a conta não tem acesso a este conteúdo.';
+  const lowerCaseUrl = (currentMedia && currentMedia.url || '').toLowerCase();
+  if (location.protocol === 'https:' && /^http:/.test(lowerCaseUrl)) return 'Este conteúdo usa http e a página está em https; o navegador bloqueia. Abra o player pelo arquivo salvo no computador.';
+  if (/\.(mp4|m4v|mov)(\?|$)/.test(lowerCaseUrl) && !video.canPlayType('video/mp4; codecs="avc1.42E01E"')) return 'Este navegador não toca vídeos MP4 (H.264). Use Chrome, Edge ou Safari.';
+  const errorCode = nativeError && nativeError.code;
+  if (errorCode === 2) return 'A conexão com o servidor caiu enquanto o vídeo carregava. Tente de novo.';
+  if (errorCode === 3) return 'O navegador não consegue decodificar este vídeo. Geralmente é vídeo HEVC/H.265 ou áudio AC3/DTS. Abra o link em um player como o VLC.';
+  if (errorCode === 4 && /\.mkv(\?|$)/.test(lowerCaseUrl)) return 'Arquivos .mkv costumam usar codecs que o navegador não abre. Abra o link em um player como o VLC.';
+  if (errorCode === 4) return 'O servidor não entregou um vídeo que o navegador abre: o formato não é suportado, o link expirou ou a conta não tem acesso a este conteúdo.';
   return 'O conteúdo pode estar fora do ar, usar um formato que o navegador não abre ou o servidor bloqueou o acesso.';
 }
 
@@ -204,10 +205,10 @@ function failReason(){
  * @returns {Promise<boolean>} `true` se o servidor respondeu em até 8 s.
  */
 async function probeUrl(url){
-  const c = new AbortController(), t = setTimeout(() => c.abort(), 8000);
-  try { await fetch(url, { mode:'no-cors', signal:c.signal, cache:'no-store' }); return true; }
+  const probeController = new AbortController(), probeTimeout = setTimeout(() => probeController.abort(), 8000);
+  try { await fetch(url, { mode:'no-cors', signal:probeController.signal, cache:'no-store' }); return true; }
   catch { return false; }
-  finally { clearTimeout(t); c.abort(); }
+  finally { clearTimeout(probeTimeout); probeController.abort(); }
 }
 
 /**
@@ -216,21 +217,21 @@ async function probeUrl(url){
  * @param {string[]} [reasons] Motivos técnicos de cada tentativa.
  * @returns {void}
  */
-function fail(reasons = []){
-  const url = playing && playing.url || '';
-  msg(`<h2>Não foi possível tocar</h2><p id="fWhy">${esc(failReason())}</p>
+function showPlaybackFailure(reasons = []){
+  const url = currentMedia && currentMedia.url || '';
+  showPlayerMessage(`<h2>Não foi possível tocar</h2><p id="fWhy">${esc(failReason())}</p>
     <div class="row" style="justify-content:center;margin-top:14px">
       <button class="btn" id="fRetry">Tentar de novo</button>
       ${url ? `<button class="btn" id="fCopy">Copiar link</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Abrir em nova aba</a>` : ''}
     </div>
     ${reasons.length ? `<p class="hint" style="margin-top:10px">${reasons.map(esc).join('<br>')}</p>` : ''}`);
   $('fRetry').onclick = () => { if (lastChain) runChain(lastChain.chain, lastChain.live); };
-  if (url && nativeErr && nativeErr.code === 4 && !(location.protocol === 'https:' && /^http:/i.test(url))) {
-    const my = token;
+  if (url && nativeError && nativeError.code === 4 && !(location.protocol === 'https:' && /^http:/i.test(url))) {
+    const failureToken = playbackToken;
     $('fWhy').textContent = 'Verificando a conexão com o servidor do vídeo…';
-    probeUrl(url).then(ok => {
-      if (my !== token || !$('fWhy')) return;
-      $('fWhy').textContent = ok
+    probeUrl(url).then(serverResponded => {
+      if (failureToken !== playbackToken || !$('fWhy')) return;
+      $('fWhy').textContent = serverResponded
         ? 'O servidor respondeu, mas não entregou um vídeo que o navegador abre. Pode ser formato não suportado (.mkv, HEVC/H.265, áudio AC3/DTS) ou link sem acesso. Tente abrir o link no VLC.'
         : 'Não foi possível conectar ao servidor do vídeo. Ele pode estar fora do ar, o link expirou ou a sua rede bloqueou o acesso.';
     });
@@ -248,10 +249,10 @@ function fail(reasons = []){
  * @returns {EtapaReproducao[]} Cadeia de tentativas.
  */
 function chainFor(url, live){
-  const u = url.toLowerCase();
-  if (/\.m3u8(\?|$)/.test(u)) return [{ eng:'hls', url }, { eng:'native', url }];
-  if (/\.ts(\?|$)/.test(u)) return live && P.type === 'xtream' ? [{ eng:'hls', url:url.replace(/\.ts(\?|$)/i,'.m3u8$1') }, { eng:'ts', url }] : [{ eng:'ts', url }, { eng:'native', url }];
-  if (/\.(mp4|m4v|webm|mov|mkv|avi)(\?|$)/.test(u)) return !live && P.type === 'xtream' ? [{ eng:'native', url }, { eng:'hls', url:url.replace(/\.\w+(\?|$)/, '.m3u8$1') }] : [{ eng:'native', url }];
+  const lowerCaseUrl = url.toLowerCase();
+  if (/\.m3u8(\?|$)/.test(lowerCaseUrl)) return [{ eng:'hls', url }, { eng:'native', url }];
+  if (/\.ts(\?|$)/.test(lowerCaseUrl)) return live && activePlaylist.type === 'xtream' ? [{ eng:'hls', url:url.replace(/\.ts(\?|$)/i,'.m3u8$1') }, { eng:'ts', url }] : [{ eng:'ts', url }, { eng:'native', url }];
+  if (/\.(mp4|m4v|webm|mov|mkv|avi)(\?|$)/.test(lowerCaseUrl)) return !live && activePlaylist.type === 'xtream' ? [{ eng:'native', url }, { eng:'hls', url:url.replace(/\.\w+(\?|$)/, '.m3u8$1') }] : [{ eng:'native', url }];
   return live ? [{ eng:'hls', url }, { eng:'ts', url }, { eng:'native', url }] : [{ eng:'native', url }, { eng:'hls', url }];
 }
 
@@ -259,58 +260,58 @@ function chainFor(url, live){
  * Exibe o player e mantém a tela ligada.
  * @returns {void}
  */
-function openPlayer(){ player.hidden = false; wake(); poke(); }
+function openPlayer(){ playerScreen.hidden = false; requestWakeLock(); poke(); }
 /**
  * Fecha o player, salva o progresso e volta à tela anterior.
  * @returns {void}
  */
-function closePlayer(){ ++token; engine = null; liveGuardReset(); saveProgress(true); stopEngines(); player.hidden = true; $('side').hidden = true; playing = null; clearInterval(epgTimer); if (!$('section').hidden) renderItems(); else renderHome(); try { if (document.fullscreenElement) document.exitFullscreen(); } catch {} }
+function closePlayer(){ ++playbackToken; engine = null; liveGuardReset(); saveProgress(true); stopEngines(); playerScreen.hidden = true; $('side').hidden = true; currentMedia = null; clearInterval(epgTimer); if (!$('section').hidden) renderItems(); else renderHome(); try { if (document.fullscreenElement) document.exitFullscreen(); } catch {} }
 $('plBack').onclick = closePlayer;
 
 /**
  * URL de um canal ao vivo no formato configurado.
- * @param {Item} c Canal.
+ * @param {Item} channel Canal.
  * @returns {string} URL do stream.
  */
-function liveUrl(c){ return c.url || xUrl('live', c.k, opts.fmt === 'ts' ? 'ts' : 'm3u8'); }
+function liveUrl(channel){ return channel.url || xtreamStreamUrl('live', channel.k, options.fmt === 'ts' ? 'ts' : 'm3u8'); }
 /**
  * Toca um canal ao vivo.
- * @param {Item} c Canal.
- * @param {Item[]} [list] Lista usada para trocar de canal (padrão: todos os canais).
+ * @param {Item} channel Canal.
+ * @param {Item[]} [channelList] Lista usada para trocar de canal (padrão: todos os canais).
  * @returns {void}
  */
-function playLive(c, list){
-  if (!c) return;
-  liveList = list && list.length ? list : D.live.items;
-  playing = { kind:'live', item:c, url:liveUrl(c) };
-  ux.recentLive = [c.k, ...ux.recentLive.filter(k => k !== c.k)].slice(0, 30); saveUx();
+function playLive(channel, channelList){
+  if (!channel) return;
+  liveChannelList = channelList && channelList.length ? channelList : catalog.live.items;
+  currentMedia = { kind:'live', item:channel, url:liveUrl(channel) };
+  userData.recentLive = [channel.k, ...userData.recentLive.filter(recentKey => recentKey !== channel.k)].slice(0, 30); saveUserData();
   openPlayer();
-  $('plTitle').textContent = `${c.num}  ${c.name}`;
-  $('osdName').textContent = `${c.num}  ${c.name}`;
-  $('osdLogo').innerHTML = c.logo ? `<img src="${esc(c.logo)}" alt="" onerror="this.outerHTML='${initials(c.name)}'">` : initials(c.name);
+  $('plTitle').textContent = `${channel.num}  ${channel.name}`;
+  $('osdName').textContent = `${channel.num}  ${channel.name}`;
+  $('osdLogo').innerHTML = channel.logo ? `<img src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='${initials(channel.name)}'">` : initials(channel.name);
   $('epgNow').hidden = false; $('epgT').textContent = 'Carregando programação…'; $('epgTime').textContent = $('epgLeft').textContent = $('epgN').textContent = ''; $('epgP').style.width = '0';
   $('seekRow').hidden = true; $('cBack10').hidden = $('cFwd10').hidden = true;
   $('cList').hidden = false; $('cEpg').hidden = false; $('cFav').hidden = false;
-  $('cFav').innerHTML = icon('star', isFav('live', c.k) ? 'on' : '');
+  $('cFav').innerHTML = icon('star', isFav('live', channel.k) ? 'on' : '');
   resetTracks();
   liveGuardReset();
-  runChain(chainFor(playing.url, true), true);
+  runChain(chainFor(currentMedia.url, true), true);
   updateEpg();
   if (!$('side').hidden) $('side').dataset.mode === 'epg' ? showEpgSide() : showChannelSide();
 }
 /**
  * Toca um filme ou episódio.
  * @param {MidiaDesc} desc Descrição da mídia.
- * @param {number} [pos=0] Posição inicial em segundos.
- * @param {CtxSerie|null} [ctx=null] Contexto da série, para navegar entre episódios.
+ * @param {number} [startPosition=0] Posição inicial em segundos.
+ * @param {CtxSerie|null} [seriesContext=null] Contexto da série, para navegar entre episódios.
  * @returns {void}
  */
-function playMedia(desc, pos=0, ctx=null){
-  playing = { kind:desc.kind, desc, url:desc.url, ctx, resume:pos };
+function playMedia(desc, startPosition=0, seriesContext=null){
+  currentMedia = { kind:desc.kind, desc, url:desc.url, ctx:seriesContext, resume:startPosition };
   openPlayer();
   $('plTitle').textContent = desc.title;
   $('epgNow').hidden = true; $('seekRow').hidden = false; $('cBack10').hidden = $('cFwd10').hidden = false;
-  $('cList').hidden = !ctx; $('cList').textContent = ctx ? 'Episódios' : 'Canais';
+  $('cList').hidden = !seriesContext; $('cList').textContent = seriesContext ? 'Episódios' : 'Canais';
   $('cEpg').hidden = true; $('cFav').hidden = true;
   resetTracks();
   liveGuardReset();
@@ -318,17 +319,28 @@ function playMedia(desc, pos=0, ctx=null){
 }
 
 /**
+ * Formata o início de um programa como no timeshift do Xtream (`AAAA-MM-DD:HH-MM`).
+ * @param {number} startTimestamp Início do programa em milissegundos.
+ * @returns {string} Data e hora formatadas.
+ */
+function formatTimeshiftStart(startTimestamp){
+  const startDate = new Date(startTimestamp);
+  const padTwoDigits = value => String(value).padStart(2,'0');
+  return `${startDate.getFullYear()}-${padTwoDigits(startDate.getMonth()+1)}-${padTwoDigits(startDate.getDate())}:${padTwoDigits(startDate.getHours())}-${padTwoDigits(startDate.getMinutes())}`;
+}
+
+/**
  * Toca um programa já exibido (catch-up / timeshift).
- * @param {Item} c Canal.
- * @param {Programa} p Programa.
+ * @param {Item} channel Canal.
+ * @param {Programa} programme Programa.
  * @returns {void}
  */
-function playCatchup(c, p){
-  const st = p.start ? p.start.replace(' ', ':').replace(/:(\d\d):(\d\d)$/, '-$1').slice(0, 16) : (() => { const d = new Date(p.s); const z = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}:${z(d.getHours())}-${z(d.getMinutes())}`; })();
-  const dur = Math.ceil((p.e - p.s) / 60000);
-  const url = c.url && P.type !== 'xtream' ? c.url : `${xBase()}/timeshift/${encodeURIComponent(P.user)}/${encodeURIComponent(P.pass)}/${dur}/${st}/${c.k}.ts`;
-  playing = { kind:'catchup', item:c, url, desc:{ title:`${c.name} · ${p.title}` } };
-  $('plTitle').textContent = `${c.name} · ${p.title} (${hm(new Date(p.s))})`;
+function playCatchup(channel, programme){
+  const timeshiftStart = programme.start ? programme.start.replace(' ', ':').replace(/:(\d\d):(\d\d)$/, '-$1').slice(0, 16) : formatTimeshiftStart(programme.s);
+  const durationMinutes = Math.ceil((programme.e - programme.s) / 60000);
+  const url = channel.url && activePlaylist.type !== 'xtream' ? channel.url : `${xtreamBaseUrl()}/timeshift/${encodeURIComponent(activePlaylist.user)}/${encodeURIComponent(activePlaylist.pass)}/${durationMinutes}/${timeshiftStart}/${channel.k}.ts`;
+  currentMedia = { kind:'catchup', item:channel, url, desc:{ title:`${channel.name} · ${programme.title}` } };
+  $('plTitle').textContent = `${channel.name} · ${programme.title} (${formatHourMinute(new Date(programme.s))})`;
   $('seekRow').hidden = false; $('cBack10').hidden = $('cFwd10').hidden = false; $('epgNow').hidden = true;
   resetTracks();
   runChain([{ eng:'ts', url }, { eng:'hls', url:url.replace(/\.ts$/, '.m3u8') }, { eng:'native', url }], false);
@@ -342,23 +354,23 @@ let epgTimer;
  */
 async function updateEpg(){
   clearInterval(epgTimer);
-  const c = playing && playing.item; if (!c) return;
-  const l = await getEpg(c);
-  if (!playing || playing.item !== c) return;
+  const channel = currentMedia && currentMedia.item; if (!channel) return;
+  const programmeList = await getEpg(channel);
+  if (!currentMedia || currentMedia.item !== channel) return;
   /**
    * Desenha o bloco "agora / a seguir".
    * @returns {void}
    */
   const draw = () => {
-    const [n, x] = nowNext(l);
+    const [nowProgramme, nextProgramme] = nowNext(programmeList);
     $('epgNow').hidden = false;
-    $('epgNow').classList.toggle('none', !n);
-    $('epgT').textContent = n ? n.title : 'Programação não disponível para este canal';
-    $('epgTime').textContent = n ? `${hm(new Date(n.s))} – ${hm(new Date(n.e))}` : '';
-    $('epgP').style.width = n ? Math.min(100, (Date.now() - n.s) / (n.e - n.s) * 100) + '%' : '0';
-    const left = n ? Math.max(0, Math.round((n.e - Date.now()) / 60000)) : 0;
-    $('epgLeft').textContent = n ? (left >= 60 ? `faltam ${Math.floor(left / 60)}h${String(left % 60).padStart(2, '0')}` : `faltam ${left} min`) : '';
-    $('epgN').innerHTML = x ? `<span>A seguir</span> ${hm(new Date(x.s))} · ${esc(x.title)}` : '';
+    $('epgNow').classList.toggle('none', !nowProgramme);
+    $('epgT').textContent = nowProgramme ? nowProgramme.title : 'Programação não disponível para este canal';
+    $('epgTime').textContent = nowProgramme ? `${formatHourMinute(new Date(nowProgramme.s))} – ${formatHourMinute(new Date(nowProgramme.e))}` : '';
+    $('epgP').style.width = nowProgramme ? Math.min(100, (Date.now() - nowProgramme.s) / (nowProgramme.e - nowProgramme.s) * 100) + '%' : '0';
+    const minutesLeft = nowProgramme ? Math.max(0, Math.round((nowProgramme.e - Date.now()) / 60000)) : 0;
+    $('epgLeft').textContent = nowProgramme ? (minutesLeft >= 60 ? `faltam ${Math.floor(minutesLeft / 60)}h${String(minutesLeft % 60).padStart(2, '0')}` : `faltam ${minutesLeft} min`) : '';
+    $('epgN').innerHTML = nextProgramme ? `<span>A seguir</span> ${formatHourMinute(new Date(nextProgramme.s))} · ${esc(nextProgramme.title)}` : '';
   };
   draw(); epgTimer = setInterval(draw, 30000);
 }
@@ -367,90 +379,90 @@ async function updateEpg(){
  * Esconde e limpa os seletores de áudio, legenda e qualidade.
  * @returns {void}
  */
-function resetTracks(){ ['cAudio','cSub','cQual'].forEach(id => { $(id).hidden = true; $(id).innerHTML = ''; }); }
+function resetTracks(){ ['cAudio','cSub','cQual'].forEach(selectId => { $(selectId).hidden = true; $(selectId).innerHTML = ''; }); }
 /**
  * Preenche os seletores de qualidade, áudio e legenda a partir do hls.js.
  * @returns {void}
  */
 function setupTracks(){
-  if (!hls) return;
-  const lv = hls.levels || [];
-  if (lv.length > 1) { $('cQual').innerHTML = '<option value="-1">Auto</option>' + lv.map((l,i) => `<option value="${i}">${l.height ? l.height+'p' : Math.round(l.bitrate/1000)+' kbps'}</option>`).join(''); $('cQual').value = hls.autoLevelEnabled ? -1 : hls.currentLevel; $('cQual').hidden = false; }
-  const at = hls.audioTracks || [];
-  if (at.length > 1) { $('cAudio').innerHTML = at.map((t,i) => `<option value="${i}">🔈 ${esc(t.name || t.lang || 'Áudio '+(i+1))}</option>`).join(''); $('cAudio').value = hls.audioTrack; $('cAudio').hidden = false; }
-  const st = hls.subtitleTracks || [];
-  if (st.length) { $('cSub').innerHTML = '<option value="-1">Sem legenda</option>' + st.map((t,i) => `<option value="${i}">CC ${esc(t.name || t.lang || 'Legenda '+(i+1))}</option>`).join(''); $('cSub').value = hls.subtitleTrack; $('cSub').hidden = false; }
+  if (!hlsPlayer) return;
+  const qualityLevels = hlsPlayer.levels || [];
+  if (qualityLevels.length > 1) { $('cQual').innerHTML = '<option value="-1">Auto</option>' + qualityLevels.map((level, index) => `<option value="${index}">${level.height ? level.height+'p' : Math.round(level.bitrate/1000)+' kbps'}</option>`).join(''); $('cQual').value = hlsPlayer.autoLevelEnabled ? -1 : hlsPlayer.currentLevel; $('cQual').hidden = false; }
+  const audioTracks = hlsPlayer.audioTracks || [];
+  if (audioTracks.length > 1) { $('cAudio').innerHTML = audioTracks.map((track, index) => `<option value="${index}">🔈 ${esc(track.name || track.lang || 'Áudio '+(index+1))}</option>`).join(''); $('cAudio').value = hlsPlayer.audioTrack; $('cAudio').hidden = false; }
+  const subtitleTracks = hlsPlayer.subtitleTracks || [];
+  if (subtitleTracks.length) { $('cSub').innerHTML = '<option value="-1">Sem legenda</option>' + subtitleTracks.map((track, index) => `<option value="${index}">CC ${esc(track.name || track.lang || 'Legenda '+(index+1))}</option>`).join(''); $('cSub').value = hlsPlayer.subtitleTrack; $('cSub').hidden = false; }
 }
 /**
  * Preenche os seletores de áudio e legenda na reprodução nativa.
  */
-v.addEventListener('loadedmetadata', () => {
-  if (hls) return;
-  const at = v.audioTracks;
-  if (at && at.length > 1) { $('cAudio').innerHTML = [...at].map((t,i) => `<option value="${i}">🔈 ${esc(t.label || t.language || 'Áudio '+(i+1))}</option>`).join(''); $('cAudio').hidden = false; }
-  const tt = v.textTracks;
-  if (tt && tt.length) { $('cSub').innerHTML = '<option value="-1">Sem legenda</option>' + [...tt].map((t,i) => `<option value="${i}">CC ${esc(t.label || t.language || 'Legenda '+(i+1))}</option>`).join(''); $('cSub').hidden = false; }
+video.addEventListener('loadedmetadata', () => {
+  if (hlsPlayer) return;
+  const audioTracks = video.audioTracks;
+  if (audioTracks && audioTracks.length > 1) { $('cAudio').innerHTML = [...audioTracks].map((track, index) => `<option value="${index}">🔈 ${esc(track.label || track.language || 'Áudio '+(index+1))}</option>`).join(''); $('cAudio').hidden = false; }
+  const textTracks = video.textTracks;
+  if (textTracks && textTracks.length) { $('cSub').innerHTML = '<option value="-1">Sem legenda</option>' + [...textTracks].map((track, index) => `<option value="${index}">CC ${esc(track.label || track.language || 'Legenda '+(index+1))}</option>`).join(''); $('cSub').hidden = false; }
 });
 /**
  * Troca a qualidade (hls.js).
- * @param {Event} e Evento de mudança.
+ * @param {Event} changeEvent Evento de mudança.
  */
-$('cQual').onchange = e => { if (hls) hls.currentLevel = +e.target.value; };
+$('cQual').onchange = changeEvent => { if (hlsPlayer) hlsPlayer.currentLevel = +changeEvent.target.value; };
 /**
  * Troca a faixa de áudio.
- * @param {Event} e Evento de mudança.
+ * @param {Event} changeEvent Evento de mudança.
  */
-$('cAudio').onchange = e => { const i = +e.target.value; if (hls) hls.audioTrack = i; else if (v.audioTracks) [...v.audioTracks].forEach((t,j) => t.enabled = j === i); };
+$('cAudio').onchange = changeEvent => { const selectedIndex = +changeEvent.target.value; if (hlsPlayer) hlsPlayer.audioTrack = selectedIndex; else if (video.audioTracks) [...video.audioTracks].forEach((track, index) => track.enabled = index === selectedIndex); };
 /**
  * Troca ou desativa a legenda.
- * @param {Event} e Evento de mudança.
+ * @param {Event} changeEvent Evento de mudança.
  */
-$('cSub').onchange = e => { const i = +e.target.value; if (hls) { hls.subtitleTrack = i; hls.subtitleDisplay = i >= 0; } else [...v.textTracks].forEach((t,j) => t.mode = j === i ? 'showing' : 'disabled'); };
+$('cSub').onchange = changeEvent => { const selectedIndex = +changeEvent.target.value; if (hlsPlayer) { hlsPlayer.subtitleTrack = selectedIndex; hlsPlayer.subtitleDisplay = selectedIndex >= 0; } else [...video.textTracks].forEach((track, index) => track.mode = index === selectedIndex ? 'showing' : 'disabled'); };
 /**
  * Troca o formato da tela e salva a preferência.
- * @param {Event} e Evento de mudança.
+ * @param {Event} changeEvent Evento de mudança.
  */
-$('cRatio').onchange = e => { v.style.objectFit = e.target.value; store.set('ratio', e.target.value); };
-v.style.objectFit = $('cRatio').value = store.get('ratio', 'contain');
+$('cRatio').onchange = changeEvent => { video.style.objectFit = changeEvent.target.value; store.set('ratio', changeEvent.target.value); };
+video.style.objectFit = $('cRatio').value = store.get('ratio', 'contain');
 
 /**
  * Remove mensagens quando o vídeo começa a tocar.
  */
-v.addEventListener('playing', () => msg(''));
+video.addEventListener('playing', () => showPlayerMessage(''));
 /**
  * Mostra o indicador de carregamento durante o buffer.
  */
-v.addEventListener('waiting', () => { if (!player.hidden) msg('<div class="spinner"></div>'); });
+video.addEventListener('waiting', () => { if (!playerScreen.hidden) showPlayerMessage('<div class="spinner"></div>'); });
 /**
  * Retoma da posição salva quando o vídeo fica pronto.
  */
-v.addEventListener('canplay', () => { if (playing && playing.resume > 5 && v.duration > playing.resume + 30) { v.currentTime = playing.resume; playing.resume = 0; } });
+video.addEventListener('canplay', () => { if (currentMedia && currentMedia.resume > 5 && video.duration > currentMedia.resume + 30) { video.currentTime = currentMedia.resume; currentMedia.resume = 0; } });
 /**
  * Atualiza a barra de progresso e salva o progresso a cada 5 s.
  */
-v.addEventListener('timeupdate', () => {
-  if (!playing || playing.kind === 'live') return;
-  const d = v.duration;
-  if (isFinite(d) && d > 0 && !$('seek')._drag) { $('seek').value = v.currentTime / d * 1000; $('tCur').textContent = fmtT(v.currentTime); $('tDur').textContent = fmtT(d); }
-  if (Date.now() - saveT > 5000) saveProgress();
+video.addEventListener('timeupdate', () => {
+  if (!currentMedia || currentMedia.kind === 'live') return;
+  const duration = video.duration;
+  if (isFinite(duration) && duration > 0 && !$('seek')._drag) { $('seek').value = video.currentTime / duration * 1000; $('tCur').textContent = formatTime(video.currentTime); $('tDur').textContent = formatTime(duration); }
+  if (Date.now() - lastProgressSaveAt > 5000) saveProgress();
 });
 /**
  * Ao terminar, salva o progresso e toca o próximo episódio se ativado.
  */
-v.addEventListener('ended', () => {
-  if (!playing) return;
+video.addEventListener('ended', () => {
+  if (!currentMedia) return;
   saveProgress(true);
-  const c = playing.ctx;
-  if (c && opts.auto === '1' && c.i + 1 < c.flat.length) { toast('Próximo episódio'); playEpisode(c.s, c.info, c.flat, c.i + 1); }
+  const seriesContext = currentMedia.ctx;
+  if (seriesContext && options.auto === '1' && seriesContext.i + 1 < seriesContext.flat.length) { toast('Próximo episódio'); playEpisode(seriesContext.s, seriesContext.info, seriesContext.flat, seriesContext.i + 1); }
 });
 /**
  * Mostra o tempo enquanto a barra de progresso é arrastada.
  */
-$('seek').addEventListener('input', () => { $('seek')._drag = true; $('tCur').textContent = fmtT($('seek').value / 1000 * v.duration); });
+$('seek').addEventListener('input', () => { $('seek')._drag = true; $('tCur').textContent = formatTime($('seek').value / 1000 * video.duration); });
 /**
  * Pula para a posição escolhida na barra de progresso.
  */
-$('seek').addEventListener('change', () => { $('seek')._drag = false; if (isFinite(v.duration)) v.currentTime = $('seek').value / 1000 * v.duration; });
+$('seek').addEventListener('change', () => { $('seek')._drag = false; if (isFinite(video.duration)) video.currentTime = $('seek').value / 1000 * video.duration; });
 
 /**
  * Salva a posição atual no histórico (filmes e episódios com mais de 1 min).
@@ -458,115 +470,115 @@ $('seek').addEventListener('change', () => { $('seek')._drag = false; if (isFini
  * @returns {void}
  */
 function saveProgress(force){
-  if (!playing || !playing.desc || playing.kind === 'catchup' || !ux) return;
-  const d = v.duration; if (!isFinite(d) || d < 60 || v.currentTime < 5) return;
-  saveT = Date.now();
-  const rec = { ...playing.desc, desc:playing.desc, pos:v.currentTime, dur:d, t:Date.now() };
-  ux.hist = [rec, ...ux.hist.filter(x => x.ref !== rec.ref && !(rec.series && x.series === rec.series))].slice(0, 60);
-  if (rec.series) ux.hist.push({ ref:rec.ref, pos:rec.pos, dur:d, t:rec.t, hidden:true });
-  ux.hist = ux.hist.filter((x, i, a) => !x.hidden || a.findIndex(y => y.hidden && y.ref === x.ref) === i).slice(0, 200);
-  saveUx();
+  if (!currentMedia || !currentMedia.desc || currentMedia.kind === 'catchup' || !userData) return;
+  const duration = video.duration; if (!isFinite(duration) || duration < 60 || video.currentTime < 5) return;
+  lastProgressSaveAt = Date.now();
+  const historyRecord = { ...currentMedia.desc, desc:currentMedia.desc, pos:video.currentTime, dur:duration, t:Date.now() };
+  userData.hist = [historyRecord, ...userData.hist.filter(entry => entry.ref !== historyRecord.ref && !(historyRecord.series && entry.series === historyRecord.series))].slice(0, 60);
+  if (historyRecord.series) userData.hist.push({ ref:historyRecord.ref, pos:historyRecord.pos, dur:duration, t:historyRecord.t, hidden:true });
+  userData.hist = userData.hist.filter((entry, index, entries) => !entry.hidden || entries.findIndex(otherEntry => otherEntry.hidden && otherEntry.ref === entry.ref) === index).slice(0, 200);
+  saveUserData();
 }
 
 /**
  * Vai para o canal ou episódio anterior/próximo.
- * @param {number} d Direção: -1 anterior, 1 próximo.
+ * @param {number} direction Direção: -1 anterior, 1 próximo.
  * @returns {void}
  */
-const step = d => {
-  if (!playing) return;
-  if (playing.kind === 'live' || playing.kind === 'catchup') {
-    const l = liveList; let i = l.indexOf(playing.item); i = (i + d + l.length) % l.length; playLive(l[i], l);
-  } else if (playing.ctx) { const c = playing.ctx, i = c.i + d; if (i >= 0 && i < c.flat.length) playEpisode(c.s, c.info, c.flat, i); }
+const stepChannel = direction => {
+  if (!currentMedia) return;
+  if (currentMedia.kind === 'live' || currentMedia.kind === 'catchup') {
+    const channelList = liveChannelList; let channelIndex = channelList.indexOf(currentMedia.item); channelIndex = (channelIndex + direction + channelList.length) % channelList.length; playLive(channelList[channelIndex], channelList);
+  } else if (currentMedia.ctx) { const seriesContext = currentMedia.ctx, episodeIndex = seriesContext.i + direction; if (episodeIndex >= 0 && episodeIndex < seriesContext.flat.length) playEpisode(seriesContext.s, seriesContext.info, seriesContext.flat, episodeIndex); }
 };
 /**
  * Canal ou episódio anterior.
  */
-$('cPrev').onclick = () => step(-1);
+$('cPrev').onclick = () => stepChannel(-1);
 /**
  * Próximo canal ou episódio.
  */
-$('cNext').onclick = () => step(1);
+$('cNext').onclick = () => stepChannel(1);
 /**
  * Alterna entre tocar e pausar.
  */
-$('cPlay').onclick = () => v.paused ? v.play().catch(()=>{}) : v.pause();
+$('cPlay').onclick = () => video.paused ? video.play().catch(()=>{}) : video.pause();
 /**
  * Mostra no botão a ação disponível: pausar enquanto toca, tocar quando pausado.
  */
-const syncPlayIcon = () => { $('cPlay').innerHTML = icon(v.paused ? 'play' : 'pause'); };
-v.addEventListener('play', syncPlayIcon);
-v.addEventListener('pause', syncPlayIcon);
+const syncPlayIcon = () => { $('cPlay').innerHTML = icon(video.paused ? 'play' : 'pause'); };
+video.addEventListener('play', syncPlayIcon);
+video.addEventListener('pause', syncPlayIcon);
 /**
  * Volta 10 segundos.
  */
-$('cBack10').onclick = () => { v.currentTime = Math.max(0, v.currentTime - 10); };
+$('cBack10').onclick = () => { video.currentTime = Math.max(0, video.currentTime - 10); };
 /**
  * Avança 10 segundos.
  */
-$('cFwd10').onclick = () => { v.currentTime += 10; };
+$('cFwd10').onclick = () => { video.currentTime += 10; };
 /**
  * Liga ou desliga o som.
  */
-$('cMute').onclick = () => { v.muted = !v.muted; $('cMute').innerHTML = icon(v.muted ? 'mute' : 'vol'); };
+$('cMute').onclick = () => { video.muted = !video.muted; $('cMute').innerHTML = icon(video.muted ? 'mute' : 'vol'); };
 /**
  * Alterna o favorito do canal em reprodução.
  */
-$('cFav').onclick = () => { if (playing && playing.item) $('cFav').innerHTML = icon('star', toggleFav('live', playing.item.k) ? 'on' : ''); };
+$('cFav').onclick = () => { if (currentMedia && currentMedia.item) $('cFav').innerHTML = icon('star', toggleFav('live', currentMedia.item.k) ? 'on' : ''); };
 /**
  * Entra ou sai da tela cheia (travando em paisagem quando possível).
  */
 $('cFs').onclick = () => {
   if (document.fullscreenElement) return document.exitFullscreen().catch(()=>{});
-  if (player.requestFullscreen) player.requestFullscreen().then(() => { try { screen.orientation.lock('landscape').catch(()=>{}); } catch {} }).catch(() => v.webkitEnterFullscreen && v.webkitEnterFullscreen());
-  else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+  if (playerScreen.requestFullscreen) playerScreen.requestFullscreen().then(() => { try { screen.orientation.lock('landscape').catch(()=>{}); } catch {} }).catch(() => video.webkitEnterFullscreen && video.webkitEnterFullscreen());
+  else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
 };
 /**
  * Entra ou sai do Picture-in-Picture.
  * @returns {Promise<void>}
  */
-$('cPip').onclick = async () => { try { document.pictureInPictureElement ? await document.exitPictureInPicture() : await v.requestPictureInPicture(); } catch { toast('Picture-in-Picture indisponível neste navegador.'); } };
+$('cPip').onclick = async () => { try { document.pictureInPictureElement ? await document.exitPictureInPicture() : await video.requestPictureInPicture(); } catch { toast('Picture-in-Picture indisponível neste navegador.'); } };
 
 /**
  * Abre o painel lateral com os episódios da série ou a lista de canais.
  * @returns {void}
  */
 function showChannelSide(){
-  const side = $('side'); side.hidden = false; side.dataset.mode = 'list';
-  if (playing && playing.ctx) {
-    const c = playing.ctx; $('sideTitle').textContent = c.s.name;
-    $('sideList').innerHTML = c.flat.map((e,i) => `<li data-x="${i}" class="${i === c.i ? 'on' : ''}"><span class="tm">T${e.season}E${e.num}</span><span>${esc(e.title)}</span></li>`).join('');
-    $('sideList').onclick = ev => { const li = ev.target.closest('li'); if (li) playEpisode(c.s, c.info, c.flat, +li.dataset.x); };
+  const sidePanel = $('side'); sidePanel.hidden = false; sidePanel.dataset.mode = 'list';
+  if (currentMedia && currentMedia.ctx) {
+    const seriesContext = currentMedia.ctx; $('sideTitle').textContent = seriesContext.s.name;
+    $('sideList').innerHTML = seriesContext.flat.map((episode, index) => `<li data-x="${index}" class="${index === seriesContext.i ? 'on' : ''}"><span class="tm">T${episode.season}E${episode.num}</span><span>${esc(episode.title)}</span></li>`).join('');
+    $('sideList').onclick = clickEvent => { const listItem = clickEvent.target.closest('li'); if (listItem) playEpisode(seriesContext.s, seriesContext.info, seriesContext.flat, +listItem.dataset.x); };
   } else {
     $('sideTitle').textContent = 'Canais';
-    const l = liveList, cur = playing && playing.item;
-    $('sideList').innerHTML = l.slice(0, 1500).map((c,i) => `<li data-x="${i}" class="${c === cur ? 'on' : ''}"><span class="tm">${esc(c.num)}</span><span>${esc(c.name)}</span></li>`).join('');
-    $('sideList').onclick = ev => { const li = ev.target.closest('li'); if (li) playLive(l[+li.dataset.x], l); };
+    const channelList = liveChannelList, currentChannel = currentMedia && currentMedia.item;
+    $('sideList').innerHTML = channelList.slice(0, 1500).map((channel, index) => `<li data-x="${index}" class="${channel === currentChannel ? 'on' : ''}"><span class="tm">${esc(channel.num)}</span><span>${esc(channel.name)}</span></li>`).join('');
+    $('sideList').onclick = clickEvent => { const listItem = clickEvent.target.closest('li'); if (listItem) playLive(channelList[+listItem.dataset.x], channelList); };
   }
-  const on = $('sideList').querySelector('.on'); if (on) on.scrollIntoView({ block:'center' });
+  const selectedItem = $('sideList').querySelector('.on'); if (selectedItem) selectedItem.scrollIntoView({ block:'center' });
 }
 /**
  * Abre o painel lateral com o guia do canal, permitindo catch-up.
  * @returns {Promise<void>}
  */
 async function showEpgSide(){
-  const side = $('side'), c = playing && playing.item; if (!c) return;
-  side.hidden = false; side.dataset.mode = 'epg'; $('sideTitle').textContent = 'Guia · ' + c.name;
+  const sidePanel = $('side'), channel = currentMedia && currentMedia.item; if (!channel) return;
+  sidePanel.hidden = false; sidePanel.dataset.mode = 'epg'; $('sideTitle').textContent = 'Guia · ' + channel.name;
   $('sideList').innerHTML = '<li><span></span><span class="hint">Carregando guia…</span></li>';
-  const l = await getEpg(c), t = Date.now();
-  if (!l.length) { $('sideList').innerHTML = '<li><span></span><span class="hint">Sem guia de programação para este canal.</span></li>'; return; }
-  $('sideList').innerHTML = l.map((p,i) => {
-    const past = p.e < t, cur = p.s <= t && p.e > t, can = past && (p.archive || c.archive);
-    const day = new Date(p.s).toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit' });
-    return `<li data-x="${i}" class="${past ? 'past' : ''} ${cur ? 'cur' : ''}"><span class="tm">${day}<br>${hm(new Date(p.s))}</span><span><b style="font-weight:500">${esc(p.title)}</b>${cur ? ' <span class="badge" style="color:var(--live);border-color:var(--live)">AGORA</span>' : ''}${can ? ' <span class="badge">▶ CATCH-UP</span>' : ''}${p.desc ? `<br><small class="hint">${esc(p.desc.slice(0, 140))}</small>` : ''}</span></li>`;
+  const programmeList = await getEpg(channel), now = Date.now();
+  if (!programmeList.length) { $('sideList').innerHTML = '<li><span></span><span class="hint">Sem guia de programação para este canal.</span></li>'; return; }
+  $('sideList').innerHTML = programmeList.map((programme, index) => {
+    const isPast = programme.e < now, isCurrent = programme.s <= now && programme.e > now, hasCatchup = isPast && (programme.archive || channel.archive);
+    const dayLabel = new Date(programme.s).toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit' });
+    return `<li data-x="${index}" class="${isPast ? 'past' : ''} ${isCurrent ? 'cur' : ''}"><span class="tm">${dayLabel}<br>${formatHourMinute(new Date(programme.s))}</span><span><b style="font-weight:500">${esc(programme.title)}</b>${isCurrent ? ' <span class="badge" style="color:var(--live);border-color:var(--live)">AGORA</span>' : ''}${hasCatchup ? ' <span class="badge">▶ CATCH-UP</span>' : ''}${programme.desc ? `<br><small class="hint">${esc(programme.desc.slice(0, 140))}</small>` : ''}</span></li>`;
   }).join('');
-  $('sideList').onclick = ev => {
-    const li = ev.target.closest('li[data-x]'); if (!li) return; const p = l[+li.dataset.x];
-    if (p.s <= Date.now() && p.e > Date.now()) return playLive(c, liveList);
-    if (p.e < Date.now() && (p.archive || c.archive)) playCatchup(c, p);
-    else toast(p.e < Date.now() ? 'Este canal não tem catch-up para esse programa.' : 'Programa ainda não começou.');
+  $('sideList').onclick = clickEvent => {
+    const listItem = clickEvent.target.closest('li[data-x]'); if (!listItem) return; const programme = programmeList[+listItem.dataset.x];
+    if (programme.s <= Date.now() && programme.e > Date.now()) return playLive(channel, liveChannelList);
+    if (programme.e < Date.now() && (programme.archive || channel.archive)) playCatchup(channel, programme);
+    else toast(programme.e < Date.now() ? 'Este canal não tem catch-up para esse programa.' : 'Programa ainda não começou.');
   };
-  const on = $('sideList').querySelector('.cur'); if (on) on.scrollIntoView({ block:'center' });
+  const currentItem = $('sideList').querySelector('.cur'); if (currentItem) currentItem.scrollIntoView({ block:'center' });
 }
 /**
  * Abre ou fecha o painel de canais/episódios.
@@ -581,59 +593,59 @@ $('cEpg').onclick = () => !$('side').hidden && $('side').dataset.mode === 'epg' 
  */
 $('sideClose').onclick = () => { $('side').hidden = true; };
 
-let idleT;
+let idleTimer;
 /**
  * Mostra os controles e agenda escondê-los após 5 s parado. Se nesse momento o vídeo
  * estiver pausado ou a lista lateral aberta, verifica de novo a cada 5 s.
  * @returns {void}
  */
 function poke(){
-  player.classList.remove('idle'); clearTimeout(idleT);
-  const hide = () => { if (!v.paused && $('side').hidden) player.classList.add('idle'); else idleT = setTimeout(hide, 5000); };
-  idleT = setTimeout(hide, 5000);
+  playerScreen.classList.remove('idle'); clearTimeout(idleTimer);
+  const hideControls = () => { if (!video.paused && $('side').hidden) playerScreen.classList.add('idle'); else idleTimer = setTimeout(hideControls, 5000); };
+  idleTimer = setTimeout(hideControls, 5000);
 }
-['mousemove','touchstart','click'].forEach(e => player.addEventListener(e, poke, { passive:true }));
+['mousemove','touchstart','click'].forEach(eventName => playerScreen.addEventListener(eventName, poke, { passive:true }));
 /**
  * Clique no vídeo (sem ação além de reexibir os controles).
  */
-v.addEventListener('click', () => { if (player.classList.contains('idle')) return; });
-let wl;
+video.addEventListener('click', () => { if (playerScreen.classList.contains('idle')) return; });
+let wakeLock;
 /**
  * Pede para manter a tela ligada (Wake Lock), quando suportado.
  * @returns {Promise<void>}
  */
-async function wake(){ try { wl = await navigator.wakeLock.request('screen'); } catch {} }
+async function requestWakeLock(){ try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
 
-let numBuf = '', numT;
+let typedChannelNumber = '', typedChannelTimer;
 /**
  * Atalhos de teclado e controle remoto: troca de canal, busca, play/pause,
  * tela cheia, mudo, painéis e digitação do número do canal.
- * @param {KeyboardEvent} e Evento de tecla.
+ * @param {KeyboardEvent} keyEvent Evento de tecla.
  */
-document.addEventListener('keydown', e => {
-  if (e.target.matches('input,textarea,select') || document.querySelector('dialog[open]')) return;
-  if (player.hidden) { if (e.key === '/' && !$('section').hidden) { e.preventDefault(); $('q').focus(); } return; }
+document.addEventListener('keydown', keyEvent => {
+  if (keyEvent.target.matches('input,textarea,select') || document.querySelector('dialog[open]')) return;
+  if (playerScreen.hidden) { if (keyEvent.key === '/' && !$('section').hidden) { keyEvent.preventDefault(); $('q').focus(); } return; }
   poke();
-  const live = playing && playing.kind === 'live';
-  switch (e.key) {
-    case 'ArrowUp': case 'PageUp': case 'ChannelUp': e.preventDefault(); step(-1); break;
-    case 'ArrowDown': case 'PageDown': case 'ChannelDown': e.preventDefault(); step(1); break;
-    case 'ArrowLeft': if (!live) { v.currentTime -= 10; } break;
-    case 'ArrowRight': if (!live) { v.currentTime += 10; } break;
-    case ' ': case 'MediaPlayPause': e.preventDefault(); $('cPlay').click(); break;
+  const isLive = currentMedia && currentMedia.kind === 'live';
+  switch (keyEvent.key) {
+    case 'ArrowUp': case 'PageUp': case 'ChannelUp': keyEvent.preventDefault(); stepChannel(-1); break;
+    case 'ArrowDown': case 'PageDown': case 'ChannelDown': keyEvent.preventDefault(); stepChannel(1); break;
+    case 'ArrowLeft': if (!isLive) { video.currentTime -= 10; } break;
+    case 'ArrowRight': if (!isLive) { video.currentTime += 10; } break;
+    case ' ': case 'MediaPlayPause': keyEvent.preventDefault(); $('cPlay').click(); break;
     case 'f': case 'F': $('cFs').click(); break;
     case 'm': case 'M': $('cMute').click(); break;
     case 'l': case 'L': $('cList').click(); break;
-    case 'g': case 'G': if (live) $('cEpg').click(); break;
+    case 'g': case 'G': if (isLive) $('cEpg').click(); break;
     case 'Escape': case 'Backspace': case 'BrowserBack': if (!$('side').hidden) $('side').hidden = true; else if (!document.fullscreenElement) closePlayer(); break;
     default:
-      if (live && /^\d$/.test(e.key)) {
-        numBuf = (numBuf + e.key).slice(-4); $('numpad').hidden = false; $('numpad').textContent = numBuf;
-        clearTimeout(numT); numT = setTimeout(() => {
-          const c = D.live.items.find(i => String(i.num) === numBuf && !ux.hidden.includes('live:'+i.cat));
+      if (isLive && /^\d$/.test(keyEvent.key)) {
+        typedChannelNumber = (typedChannelNumber + keyEvent.key).slice(-4); $('numpad').hidden = false; $('numpad').textContent = typedChannelNumber;
+        clearTimeout(typedChannelTimer); typedChannelTimer = setTimeout(() => {
+          const typedChannel = catalog.live.items.find(channel => String(channel.num) === typedChannelNumber && !userData.hidden.includes('live:'+channel.cat));
           $('numpad').hidden = true;
-          if (c) withPin('live:'+c.cat, () => playLive(c, D.live.items)); else toast('Canal ' + numBuf + ' não existe.');
-          numBuf = '';
+          if (typedChannel) withPin('live:'+typedChannel.cat, () => playLive(typedChannel, catalog.live.items)); else toast('Canal ' + typedChannelNumber + ' não existe.');
+          typedChannelNumber = '';
         }, 1500);
       }
   }

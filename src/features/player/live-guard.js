@@ -3,7 +3,7 @@
  * Estado do guardião contra travamentos.
  * @type {{fails: number, last: number, at: number, stableAt: number, timer: number|undefined}}
  */
-const guard = { fails:0, last:-1, at:0, stableAt:0, timer:undefined };
+const liveGuard = { fails:0, last:-1, at:0, stableAt:0, timer:undefined };
 
 /** Falhas seguidas toleradas antes de trocar de motor. */
 const GUARD_MAX_FAILS = 6;
@@ -13,45 +13,45 @@ const GUARD_MAX_FAILS = 6;
  * @returns {void}
  */
 function liveGuardReset(){
-  clearTimeout(guard.timer);
-  Object.assign(guard, { fails:0, last:-1, at:Date.now(), stableAt:0 });
+  clearTimeout(liveGuard.timer);
+  Object.assign(liveGuard, { fails:0, last:-1, at:Date.now(), stableAt:0 });
 }
 
 /**
  * Reconecta a etapa atual com espera crescente (1, 2, 4, 8 e 10 s).
  * Depois de {@link GUARD_MAX_FAILS} falhas seguidas, desiste e passa para o próximo motor.
- * @param {string} why Motivo da falha.
+ * @param {string} failureReason Motivo da falha.
  * @returns {void}
  */
-function liveRecover(why){
-  const s = engine;
-  if (!s || s.my !== token) return;
-  clearTimeout(guard.timer);
-  if (++guard.fails > GUARD_MAX_FAILS) { liveGuardReset(); s.giveUp(why); return; }
-  const delay = Math.min(10000, 1000 * 2 ** (guard.fails - 1));
-  msg(`<div class="spinner"></div><p style="margin-top:12px">Reconectando… (tentativa ${guard.fails} de ${GUARD_MAX_FAILS})</p>`);
-  guard.timer = setTimeout(() => { if (engine === s) s.restart(); }, delay);
+function liveRecover(failureReason){
+  const currentStage = engine;
+  if (!currentStage || currentStage.my !== playbackToken) return;
+  clearTimeout(liveGuard.timer);
+  if (++liveGuard.fails > GUARD_MAX_FAILS) { liveGuardReset(); currentStage.giveUp(failureReason); return; }
+  const delay = Math.min(10000, 1000 * 2 ** (liveGuard.fails - 1));
+  showPlayerMessage(`<div class="spinner"></div><p style="margin-top:12px">Reconectando… (tentativa ${liveGuard.fails} de ${GUARD_MAX_FAILS})</p>`);
+  liveGuard.timer = setTimeout(() => { if (engine === currentStage) currentStage.restart(); }, delay);
 }
 
 /**
  * Procura buffer logo à frente da posição atual (buraco no fluxo).
- * @param {number} t Posição atual em segundos.
+ * @param {number} position Posição atual em segundos.
  * @returns {number|null} Início do trecho seguinte, ou `null` se não houver.
  */
-function nextBufferedStart(t){
-  const b = v.buffered;
-  for (let i = 0; i < b.length; i++) if (b.start(i) > t && b.start(i) - t < 5) return b.start(i);
+function nextBufferedStart(position){
+  const bufferedRanges = video.buffered;
+  for (let index = 0; index < bufferedRanges.length; index++) if (bufferedRanges.start(index) > position && bufferedRanges.start(index) - position < 5) return bufferedRanges.start(index);
   return null;
 }
 
 /**
  * Segundos já baixados à frente da posição atual.
- * @param {number} t Posição atual em segundos.
+ * @param {number} position Posição atual em segundos.
  * @returns {number} Segundos em buffer.
  */
-function bufferAhead(t){
-  const b = v.buffered;
-  for (let i = 0; i < b.length; i++) if (b.start(i) <= t + 0.1 && b.end(i) > t) return b.end(i) - t;
+function bufferAhead(position){
+  const bufferedRanges = video.buffered;
+  for (let index = 0; index < bufferedRanges.length; index++) if (bufferedRanges.start(index) <= position + 0.1 && bufferedRanges.end(index) > position) return bufferedRanges.end(index) - position;
   return 0;
 }
 
@@ -62,26 +62,26 @@ function bufferAhead(t){
  * @returns {void}
  */
 function guardTick(){
-  const s = engine, now = Date.now(), t = v.currentTime;
-  if (!s || s.my !== token || player.hidden || !s.started || v.paused || v.seeking) { guard.last = t; guard.at = now; return; }
-  if (t !== guard.last) {
-    guard.last = t; guard.at = now;
-    if (!guard.stableAt) guard.stableAt = now;
-    if (guard.fails && now - guard.stableAt > 20000) guard.fails = 0;
-    if (s.live && !hls && v.buffered.length) {
-      const end = v.buffered.end(v.buffered.length - 1);
-      if (end - t > 20) v.currentTime = end - 4;
+  const currentStage = engine, now = Date.now(), position = video.currentTime;
+  if (!currentStage || currentStage.my !== playbackToken || playerScreen.hidden || !currentStage.started || video.paused || video.seeking) { liveGuard.last = position; liveGuard.at = now; return; }
+  if (position !== liveGuard.last) {
+    liveGuard.last = position; liveGuard.at = now;
+    if (!liveGuard.stableAt) liveGuard.stableAt = now;
+    if (liveGuard.fails && now - liveGuard.stableAt > 20000) liveGuard.fails = 0;
+    if (currentStage.live && !hlsPlayer && video.buffered.length) {
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+      if (bufferedEnd - position > 20) video.currentTime = bufferedEnd - 4;
     }
     return;
   }
-  guard.stableAt = 0;
-  const stalled = now - guard.at;
-  if (stalled >= 2000 && stalled < 3000) {
-    const gap = nextBufferedStart(t);
-    if (gap != null) v.currentTime = gap + 0.05;
-    else if (bufferAhead(t) > 1) v.currentTime = t + 0.1;
+  liveGuard.stableAt = 0;
+  const stalledMs = now - liveGuard.at;
+  if (stalledMs >= 2000 && stalledMs < 3000) {
+    const nextRangeStart = nextBufferedStart(position);
+    if (nextRangeStart != null) video.currentTime = nextRangeStart + 0.05;
+    else if (bufferAhead(position) > 1) video.currentTime = position + 0.1;
   }
-  if (s.live && stalled >= 8000) { guard.at = now; liveRecover('travou'); }
+  if (currentStage.live && stalledMs >= 8000) { liveGuard.at = now; liveRecover('travou'); }
 }
 setInterval(guardTick, 1000);
 
@@ -89,28 +89,28 @@ setInterval(guardTick, 1000);
  * Marca a etapa como funcionando quando o vídeo começa a tocar
  * e cancela o limite de tempo para começar.
  */
-v.addEventListener('playing', () => {
-  const s = engine;
-  if (!s || s.my !== token) return;
-  s.started = true; s.retrying = false;
-  clearTimeout(s.wd);
-  guard.at = Date.now();
+video.addEventListener('playing', () => {
+  const currentStage = engine;
+  if (!currentStage || currentStage.my !== playbackToken) return;
+  currentStage.started = true; currentStage.retrying = false;
+  clearTimeout(currentStage.wd);
+  liveGuard.at = Date.now();
 });
 
 /**
  * Avisa quando a internet cai durante a TV ao vivo.
  */
 window.addEventListener('offline', () => {
-  if (engine && engine.live && !player.hidden) msg('<h2>Sem internet</h2><p>A transmissão volta sozinha quando a conexão retornar.</p>');
+  if (engine && engine.live && !playerScreen.hidden) showPlayerMessage('<h2>Sem internet</h2><p>A transmissão volta sozinha quando a conexão retornar.</p>');
 });
 
 /**
  * Reconecta a TV ao vivo assim que a internet volta.
  */
 window.addEventListener('online', () => {
-  const s = engine;
-  if (!s || !s.live || player.hidden) return;
+  const currentStage = engine;
+  if (!currentStage || !currentStage.live || playerScreen.hidden) return;
   liveGuardReset();
-  msg('<div class="spinner"></div><p style="margin-top:12px">Conexão de volta, reconectando…</p>');
-  s.restart();
+  showPlayerMessage('<div class="spinner"></div><p style="margin-top:12px">Conexão de volta, reconectando…</p>');
+  currentStage.restart();
 });

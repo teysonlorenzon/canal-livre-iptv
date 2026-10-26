@@ -3,13 +3,13 @@
  * Atualiza o seletor de lista do topo e a lista de listas nas configurações.
  * @returns {void}
  */
-function renderPlSel(){
-  $('plSelTxt').textContent = P ? P.name : pls.length ? 'Escolha uma lista' : 'Nenhuma lista';
+function renderPlaylistSelect(){
+  $('plSelTxt').textContent = activePlaylist ? activePlaylist.name : playlists.length ? 'Escolha uma lista' : 'Nenhuma lista';
   $('plSel').title = 'Lista: ' + $('plSelTxt').textContent;
-  $('plMenu').innerHTML = pls.map(p => `<li role="option" tabindex="-1" data-id="${esc(p.id)}" aria-selected="${P && P.id === p.id}"><b>${esc(p.name)}</b><small>${p.type === 'xtream' ? 'Xtream' : p.url ? 'M3U' : 'Arquivo M3U'}</small></li>`).join('')
-    + `<li class="dd-act" tabindex="-1" data-manage="1">${pls.length ? 'Gerenciar listas…' : 'Adicionar lista…'}</li>`;
-  $('plList').innerHTML = pls.length ? pls.map(p => `<div class="plrow"><div><b>${esc(p.name)}</b><small>${p.type === 'xtream' ? 'Xtream · ' + esc(p.server) + ' · ' + esc(p.user) : p.url ? 'M3U · ' + esc(p.url) : 'M3U · arquivo local'}</small></div>
-    <button class="btn sm" data-open="${p.id}">Abrir</button><button class="btn sm" data-reload="${p.id}">Atualizar</button><button class="btn sm danger" data-del="${p.id}">Remover</button></div>`).join('') : '<p class="hint">Nenhuma lista ainda. Adicione abaixo.</p>';
+  $('plMenu').innerHTML = playlists.map(playlist => `<li role="option" tabindex="-1" data-id="${esc(playlist.id)}" aria-selected="${activePlaylist && activePlaylist.id === playlist.id}"><b>${esc(playlist.name)}</b><small>${playlist.type === 'xtream' ? 'Xtream' : playlist.url ? 'M3U' : 'Arquivo M3U'}</small></li>`).join('')
+    + `<li class="dd-act" tabindex="-1" data-manage="1">${playlists.length ? 'Gerenciar listas…' : 'Adicionar lista…'}</li>`;
+  $('plList').innerHTML = playlists.length ? playlists.map(playlist => `<div class="plrow"><div><b>${esc(playlist.name)}</b><small>${playlist.type === 'xtream' ? 'Xtream · ' + esc(playlist.server) + ' · ' + esc(playlist.user) : playlist.url ? 'M3U · ' + esc(playlist.url) : 'M3U · arquivo local'}</small></div>
+    <button class="btn sm" data-open="${playlist.id}">Abrir</button><button class="btn sm" data-reload="${playlist.id}">Atualizar</button><button class="btn sm danger" data-del="${playlist.id}">Remover</button></div>`).join('') : '<p class="hint">Nenhuma lista ainda. Adicione abaixo.</p>';
 }
 /**
  * Abre ou fecha o menu de listas do topo.
@@ -17,7 +17,7 @@ function renderPlSel(){
  * @param {boolean} [focus] Ao abrir, focar a lista ativa (navegação por teclado).
  * @returns {void}
  */
-function togglePlMenu(open, focus){
+function togglePlaylistMenu(open, focus){
   $('plMenu').hidden = !open;
   $('plSel').setAttribute('aria-expanded', open);
   if (open && focus) ($('plMenu').querySelector('[aria-selected=true]') || $('plMenu').firstElementChild).focus();
@@ -25,69 +25,74 @@ function togglePlMenu(open, focus){
 
 /**
  * Executa a opção escolhida no menu de listas: abre a lista ou as configurações.
- * @param {HTMLLIElement} li Item escolhido.
+ * @param {HTMLLIElement} menuItem Item escolhido.
  * @returns {void}
  */
-function pickPlMenu(li){
-  togglePlMenu(false);
+function pickPlaylistMenuItem(menuItem){
+  togglePlaylistMenu(false);
   $('plSel').focus();
-  if (li.dataset.manage) return openSettings();
-  if (!P || P.id !== li.dataset.id) openPlaylist(li.dataset.id);
+  if (menuItem.dataset.manage) return openSettings();
+  if (!activePlaylist || activePlaylist.id !== menuItem.dataset.id) openPlaylist(menuItem.dataset.id);
 }
 
 /**
  * Abre ou fecha o menu de listas.
  */
-$('plSel').onclick = () => togglePlMenu($('plMenu').hidden);
+$('plSel').onclick = () => togglePlaylistMenu($('plMenu').hidden);
 
 /**
  * Abre o menu pelo teclado (setas, Enter ou Espaço) já com foco na lista ativa.
- * @param {KeyboardEvent} e Evento de tecla.
+ * @param {KeyboardEvent} keyEvent Evento de tecla.
  */
-$('plSel').onkeydown = e => {
-  if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); togglePlMenu(true, true); }
+$('plSel').onkeydown = keyEvent => {
+  if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(keyEvent.key)) { keyEvent.preventDefault(); togglePlaylistMenu(true, true); }
 };
 
 /**
  * Escolhe uma opção do menu com o mouse.
- * @param {MouseEvent} e Evento de clique.
+ * @param {MouseEvent} clickEvent Evento de clique.
  */
-$('plMenu').onclick = e => { const li = e.target.closest('li'); if (li) pickPlMenu(li); };
+$('plMenu').onclick = clickEvent => { const menuItem = clickEvent.target.closest('li'); if (menuItem) pickPlaylistMenuItem(menuItem); };
 
 /**
  * Navegação por teclado no menu: setas, Home/End, Enter/Espaço escolhem, Esc/Tab fecham.
- * @param {KeyboardEvent} e Evento de tecla.
+ * @param {KeyboardEvent} keyEvent Evento de tecla.
  */
-$('plMenu').onkeydown = e => {
-  const items = [...$('plMenu').children], i = items.indexOf(document.activeElement);
-  const go = j => { e.preventDefault(); items[(j + items.length) % items.length].focus(); };
-  if (e.key === 'ArrowDown') go(i + 1);
-  else if (e.key === 'ArrowUp') go(i - 1);
-  else if (e.key === 'Home') go(0);
-  else if (e.key === 'End') go(items.length - 1);
-  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (i >= 0) pickPlMenu(items[i]); }
-  else if (e.key === 'Escape') { e.preventDefault(); togglePlMenu(false); $('plSel').focus(); }
-  else if (e.key === 'Tab') togglePlMenu(false);
+$('plMenu').onkeydown = keyEvent => {
+  const menuItems = [...$('plMenu').children], focusedIndex = menuItems.indexOf(document.activeElement);
+  /**
+   * Foca o item do menu no índice dado, circulando nas pontas.
+   * @param {number} targetIndex Índice desejado (pode passar das pontas).
+   * @returns {void}
+   */
+  const focusMenuItem = targetIndex => { keyEvent.preventDefault(); menuItems[(targetIndex + menuItems.length) % menuItems.length].focus(); };
+  if (keyEvent.key === 'ArrowDown') focusMenuItem(focusedIndex + 1);
+  else if (keyEvent.key === 'ArrowUp') focusMenuItem(focusedIndex - 1);
+  else if (keyEvent.key === 'Home') focusMenuItem(0);
+  else if (keyEvent.key === 'End') focusMenuItem(menuItems.length - 1);
+  else if (keyEvent.key === 'Enter' || keyEvent.key === ' ') { keyEvent.preventDefault(); if (focusedIndex >= 0) pickPlaylistMenuItem(menuItems[focusedIndex]); }
+  else if (keyEvent.key === 'Escape') { keyEvent.preventDefault(); togglePlaylistMenu(false); $('plSel').focus(); }
+  else if (keyEvent.key === 'Tab') togglePlaylistMenu(false);
 };
 
 /**
  * Fecha o menu de listas ao clicar fora dele.
- * @param {MouseEvent} e Evento de clique.
+ * @param {MouseEvent} clickEvent Evento de clique.
  */
-document.addEventListener('click', e => { if (!$('plMenu').hidden && !$('plDd').contains(e.target)) togglePlMenu(false); });
+document.addEventListener('click', clickEvent => { if (!$('plMenu').hidden && !$('plDd').contains(clickEvent.target)) togglePlaylistMenu(false); });
 /**
  * Trata os botões Abrir, Atualizar e Remover (com confirmação) das listas.
- * @param {MouseEvent} e Evento de clique.
+ * @param {MouseEvent} clickEvent Evento de clique.
  */
-$('plList').onclick = e => {
-  const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.open) { $('dSettings').close(); openPlaylist(b.dataset.open); }
-  if (b.dataset.reload) { $('dSettings').close(); openPlaylist(b.dataset.reload, true); }
-  if (b.dataset.del) {
-    if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'Confirmar'; return; }
-    const id = b.dataset.del; pls = pls.filter(p => p.id !== id); store.set('pls', pls); store.del('ux_'+id); store.del('m3u_'+id);
-    if (P && P.id === id) { P = null; D = null; store.del('active'); }
-    renderPlSel(); renderHome();
+$('plList').onclick = clickEvent => {
+  const actionButton = clickEvent.target.closest('button'); if (!actionButton) return;
+  if (actionButton.dataset.open) { $('dSettings').close(); openPlaylist(actionButton.dataset.open); }
+  if (actionButton.dataset.reload) { $('dSettings').close(); openPlaylist(actionButton.dataset.reload, true); }
+  if (actionButton.dataset.del) {
+    if (actionButton.dataset.confirm !== '1') { actionButton.dataset.confirm = '1'; actionButton.textContent = 'Confirmar'; return; }
+    const playlistId = actionButton.dataset.del; playlists = playlists.filter(playlist => playlist.id !== playlistId); store.set('pls', playlists); store.del('ux_'+playlistId); store.del('m3u_'+playlistId);
+    if (activePlaylist && activePlaylist.id === playlistId) { activePlaylist = null; catalog = null; store.del('active'); }
+    renderPlaylistSelect(); renderHome();
   }
 };
 
@@ -98,25 +103,25 @@ $('plList').onclick = e => {
  * @returns {Promise<void>}
  */
 async function openPlaylist(id, force){
-  const p = pls.find(x => x.id === id); if (!p) return;
-  P = p; store.set('active', id); loadUx(); unlocked.clear(); epgCache.clear(); lastError = ''; D = null; sectionJobs = {};
-  renderPlSel();
+  const playlist = playlists.find(candidate => candidate.id === id); if (!playlist) return;
+  activePlaylist = playlist; store.set('active', id); loadUserData(); unlockedCategories.clear(); epgCache.clear(); lastError = ''; catalog = null; sectionJobs = {};
+  renderPlaylistSelect();
   try {
-    if (p.type === 'xtream') { D = await loadXtream(); preloadSections(); }
+    if (playlist.type === 'xtream') { catalog = await loadXtream(); preloadSections(); }
     else {
-      let text = p.id === DEFAULT_PL.id ? DEFAULT_M3U : (!force || !p.url) ? store.get('m3u_' + p.id, null) : null;
-      if (!text && p.url) { loading('Baixando lista…'); const r = await fetchT(p.url, 120000); text = await r.text(); store.set('m3u_' + p.id, text); }
-      if (!text) throw new Error('Conteúdo da lista não encontrado. Adicione de novo.');
+      let m3uText = playlist.id === DEFAULT_PLAYLIST.id ? DEFAULT_M3U : (!force || !playlist.url) ? store.get('m3u_' + playlist.id, null) : null;
+      if (!m3uText && playlist.url) { loading('Baixando lista…'); const response = await fetchWithTimeout(playlist.url, 120000); m3uText = await response.text(); store.set('m3u_' + playlist.id, m3uText); }
+      if (!m3uText) throw new Error('Conteúdo da lista não encontrado. Adicione de novo.');
       loading('Organizando canais…');
-      D = buildFromM3U(text);
-      const eu = p.epg || D.epgUrl;
-      if (eu) { loadXmltv(eu).then(m => { if (m && D) { D.epg = m; if (!$('section').hidden && sec === 'live') renderItems(); } }); }
+      catalog = buildFromM3U(m3uText);
+      const epgUrl = playlist.epg || catalog.epgUrl;
+      if (epgUrl) { loadXmltv(epgUrl).then(epgMap => { if (epgMap && catalog) { catalog.epg = epgMap; if (!$('section').hidden && currentSection === 'live') renderItems(); } }); }
     }
     loading(null);
     show('home');
-  } catch (err) {
-    loading(null); D = null;
-    lastError = errText(err);
+  } catch (error) {
+    loading(null); catalog = null;
+    lastError = errText(error);
     renderHome();
   }
 }

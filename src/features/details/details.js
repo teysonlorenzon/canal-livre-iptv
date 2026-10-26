@@ -1,93 +1,94 @@
 'use strict';
 /**
  * Abre o diálogo de detalhes de um filme (busca informações extras no Xtream).
- * @param {Item} it Filme.
+ * @param {Item} movie Filme.
  * @returns {Promise<void>}
  */
-async function openMovie(it){
-  const body = $('detailBody');
+async function openMovie(movie){
+  const detailBody = $('detailBody');
   /**
    * Desenha o conteúdo do diálogo do filme.
    * @param {Object} info Informações extras (nome, sinopse, capa, ano, duração, gênero, elenco, trailer).
    * @returns {void}
    */
-  const draw = info => {
-    const h = ux.hist.find(x => x.ref === 'vod:' + it.k);
-    body.innerHTML = `<div class="detail"><div class="poster">${initials(it.name)}${(info.cover || it.logo) ? `<img src="${esc(info.cover || it.logo)}" alt="" onerror="this.remove()">` : ''}</div>
-      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(info.name || it.name)}</h3>
-      <div class="meta">${info.year ? `<span>${esc(info.year)}</span>` : ''}${info.dur ? `<span>${esc(info.dur)}</span>` : ''}${it.rate ? `<span>★ ${(+it.rate).toFixed(1)}</span>` : ''}${info.genre ? `<span>${esc(info.genre)}</span>` : ''}</div>
+  const drawMovie = info => {
+    const historyEntry = userData.hist.find(entry => entry.ref === 'vod:' + movie.k);
+    detailBody.innerHTML = `<div class="detail"><div class="poster">${initials(movie.name)}${(info.cover || movie.logo) ? `<img src="${esc(info.cover || movie.logo)}" alt="" onerror="this.remove()">` : ''}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(info.name || movie.name)}</h3>
+      <div class="meta">${info.year ? `<span>${esc(info.year)}</span>` : ''}${info.dur ? `<span>${esc(info.dur)}</span>` : ''}${movie.rate ? `<span>★ ${(+movie.rate).toFixed(1)}</span>` : ''}${info.genre ? `<span>${esc(info.genre)}</span>` : ''}</div>
       ${info.plot ? `<p class="plot">${esc(info.plot)}</p>` : ''}${info.cast ? `<p class="hint">Elenco: ${esc(info.cast)}</p>` : ''}
       <div class="row" style="justify-content:flex-start">
-        ${h && h.pos > 30 ? `<button class="btn primary" id="mResume">Continuar de ${fmtT(h.pos)}</button><button class="btn" id="mPlay">Do início</button>` : `<button class="btn primary" id="mPlay">Assistir</button>`}
-        <button class="btn" id="mFav">${isFav('vod', it.k) ? '★ Favorito' : '☆ Favoritar'}</button>
+        ${historyEntry && historyEntry.pos > 30 ? `<button class="btn primary" id="mResume">Continuar de ${formatTime(historyEntry.pos)}</button><button class="btn" id="mPlay">Do início</button>` : `<button class="btn primary" id="mPlay">Assistir</button>`}
+        <button class="btn" id="mFav">${isFav('vod', movie.k) ? '★ Favorito' : '☆ Favoritar'}</button>
         ${info.trailer ? `<a class="btn" href="https://www.youtube.com/watch?v=${esc(info.trailer)}" target="_blank" rel="noopener">Trailer</a>` : ''}
         <button class="btn" id="mClose">Fechar</button>
       </div></div></div>`;
-    const desc = { kind:'vod', ref:'vod:'+it.k, title:it.name, logo:info.cover || it.logo, url: it.url || xUrl('movie', it.k, it.ext) };
-    $('mPlay').onclick = () => { $('dDetail').close(); playMedia(desc, 0); };
-    if ($('mResume')) $('mResume').onclick = () => { $('dDetail').close(); playMedia(desc, h.pos); };
-    $('mFav').onclick = e => { e.target.textContent = toggleFav('vod', it.k) ? '★ Favorito' : '☆ Favoritar'; };
+    const mediaDescriptor = { kind:'vod', ref:'vod:'+movie.k, title:movie.name, logo:info.cover || movie.logo, url: movie.url || xtreamStreamUrl('movie', movie.k, movie.ext) };
+    $('mPlay').onclick = () => { $('dDetail').close(); playMedia(mediaDescriptor, 0); };
+    if ($('mResume')) $('mResume').onclick = () => { $('dDetail').close(); playMedia(mediaDescriptor, historyEntry.pos); };
+    $('mFav').onclick = clickEvent => { clickEvent.target.textContent = toggleFav('vod', movie.k) ? '★ Favorito' : '☆ Favoritar'; };
     $('mClose').onclick = () => $('dDetail').close();
   };
-  draw({}); $('dDetail').showModal();
-  if (P.type === 'xtream') {
-    try { const r = await xApi('get_vod_info', '&vod_id=' + it.k); const i = r.info || {};
-      draw({ name:i.name, plot:i.plot || i.description, cover:i.movie_image || i.cover_big, year:(i.releasedate||'').slice(0,4), dur:i.duration, genre:i.genre, cast:i.cast, trailer:i.youtube_trailer });
+  drawMovie({}); $('dDetail').showModal();
+  if (activePlaylist.type === 'xtream') {
+    try { const response = await xtreamApi('get_vod_info', '&vod_id=' + movie.k); const vodInfo = response.info || {};
+      drawMovie({ name:vodInfo.name, plot:vodInfo.plot || vodInfo.description, cover:vodInfo.movie_image || vodInfo.cover_big, year:(vodInfo.releasedate||'').slice(0,4), dur:vodInfo.duration, genre:vodInfo.genre, cast:vodInfo.cast, trailer:vodInfo.youtube_trailer });
     } catch {}
   }
 }
 
 /**
  * Abre o diálogo de detalhes de uma série com temporadas e episódios.
- * @param {Item} it Série.
+ * @param {Item} series Série.
  * @returns {Promise<void>}
  */
-async function openSeries(it){
-  const body = $('detailBody');
-  body.innerHTML = '<div class="spinner"></div>'; $('dDetail').showModal();
-  let info = { plot:it.plot, cover:it.logo }, eps = {};
-  if (P.type === 'xtream') {
-    try { const r = await xApi('get_series_info', '&series_id=' + it.k); const i = r.info || {};
-      info = { plot:i.plot, cover:i.cover || it.logo, genre:i.genre, year:(i.releaseDate||i.release_date||'').slice(0,4), cast:i.cast };
-      for (const [s, list] of Object.entries(r.episodes || {})) eps[s] = list.map(e => ({ id:String(e.id), title:e.title, num:+e.episode_num, season:+s, url:xUrl('series', e.id, e.container_extension || 'mp4'), img:e.info && e.info.movie_image, dur:e.info && e.info.duration }));
+async function openSeries(series){
+  const detailBody = $('detailBody');
+  detailBody.innerHTML = '<div class="spinner"></div>'; $('dDetail').showModal();
+  let info = { plot:series.plot, cover:series.logo }, episodesBySeason = {};
+  if (activePlaylist.type === 'xtream') {
+    try { const response = await xtreamApi('get_series_info', '&series_id=' + series.k); const seriesInfo = response.info || {};
+      info = { plot:seriesInfo.plot, cover:seriesInfo.cover || series.logo, genre:seriesInfo.genre, year:(seriesInfo.releaseDate||seriesInfo.release_date||'').slice(0,4), cast:seriesInfo.cast };
+      for (const [seasonNumber, apiEpisodes] of Object.entries(response.episodes || {})) episodesBySeason[seasonNumber] = apiEpisodes.map(apiEpisode => ({ id:String(apiEpisode.id), title:apiEpisode.title, num:+apiEpisode.episode_num, season:+seasonNumber, url:xtreamStreamUrl('series', apiEpisode.id, apiEpisode.container_extension || 'mp4'), img:apiEpisode.info && apiEpisode.info.movie_image, dur:apiEpisode.info && apiEpisode.info.duration }));
     } catch { toast('Não consegui carregar os episódios.'); }
-  } else for (const e of it.eps) (eps[e.season] = eps[e.season] || []).push(e);
-  const seasons = Object.keys(eps).sort((a,b) => a-b);
-  seasons.forEach(s => eps[s].sort((a,b) => a.num - b.num));
-  const flat = seasons.flatMap(s => eps[s]);
-  const last = ux.hist.find(x => !x.hidden && x.series === 'series:' + it.k);
-  let cur = last ? String(last.season) : seasons[0];
+  } else for (const episode of series.eps) (episodesBySeason[episode.season] = episodesBySeason[episode.season] || []).push(episode);
+  const seasons = Object.keys(episodesBySeason).sort((firstSeason, secondSeason) => firstSeason-secondSeason);
+  seasons.forEach(seasonNumber => episodesBySeason[seasonNumber].sort((firstEpisode, secondEpisode) => firstEpisode.num - secondEpisode.num));
+  const episodeList = seasons.flatMap(seasonNumber => episodesBySeason[seasonNumber]);
+  const lastWatched = userData.hist.find(entry => !entry.hidden && entry.series === 'series:' + series.k);
+  let selectedSeason = lastWatched ? String(lastWatched.season) : seasons[0];
   /**
    * Desenha o conteúdo do diálogo da série para a temporada selecionada.
    * @returns {void}
    */
-  const draw = () => {
-    body.innerHTML = `<div class="detail"><div class="poster">${initials(it.name)}${info.cover ? `<img src="${esc(info.cover)}" alt="" onerror="this.remove()">` : ''}</div>
-      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(it.name)}</h3>
+  const drawSeries = () => {
+    detailBody.innerHTML = `<div class="detail"><div class="poster">${initials(series.name)}${info.cover ? `<img src="${esc(info.cover)}" alt="" onerror="this.remove()">` : ''}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(series.name)}</h3>
       <div class="meta">${info.year ? `<span>${esc(info.year)}</span>` : ''}<span>${seasons.length} temporada${seasons.length === 1 ? '' : 's'}</span>${info.genre ? `<span>${esc(info.genre)}</span>` : ''}</div>
       ${info.plot ? `<p class="plot">${esc(info.plot)}</p>` : ''}
-      <div class="row" style="justify-content:flex-start">${last ? `<button class="btn primary" id="sResume">Continuar T${last.season}E${last.num}</button>` : ''}<button class="btn" id="sFav">${isFav('series', it.k) ? '★ Favorito' : '☆ Favoritar'}</button><button class="btn" id="sClose">Fechar</button></div>
+      <div class="row" style="justify-content:flex-start">${lastWatched ? `<button class="btn primary" id="sResume">Continuar T${lastWatched.season}E${lastWatched.num}</button>` : ''}<button class="btn" id="sFav">${isFav('series', series.k) ? '★ Favorito' : '☆ Favoritar'}</button><button class="btn" id="sClose">Fechar</button></div>
       </div></div>
-      ${seasons.length ? `<div class="stabs">${seasons.map(s => `<button data-s="${s}" class="${s == cur ? 'on' : ''}">Temporada ${s}</button>`).join('')}</div>
-      <ul class="eps">${(eps[cur]||[]).map((e,i) => { const h = ux.hist.find(x => x.ref === 'ep:' + e.id); return `<li data-e="${i}"><span class="num">${e.num}</span><span class="nm"><b>${esc(e.title)}</b>${h && h.dur ? `<div class="pg"><i style="width:${Math.min(100, h.pos/h.dur*100)}%"></i></div>` : ''}</span><span class="hint">${esc(e.dur || '')}</span></li>`; }).join('')}</ul>` : '<p class="empty">Nenhum episódio disponível.</p>'}`;
-    body.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { cur = b.dataset.s; draw(); });
-    body.querySelectorAll('[data-e]').forEach(li => li.onclick = () => { const e = eps[cur][+li.dataset.e]; $('dDetail').close(); playEpisode(it, info, flat, flat.indexOf(e)); });
-    if ($('sResume')) $('sResume').onclick = () => { const i = flat.findIndex(e => e.id === last.epId); $('dDetail').close(); playEpisode(it, info, flat, Math.max(0, i), last.pos); };
-    $('sFav').onclick = e => { e.target.textContent = toggleFav('series', it.k) ? '★ Favorito' : '☆ Favoritar'; };
+      ${seasons.length ? `<div class="stabs">${seasons.map(seasonNumber => `<button data-s="${seasonNumber}" class="${seasonNumber == selectedSeason ? 'on' : ''}">Temporada ${seasonNumber}</button>`).join('')}</div>
+      <ul class="eps">${(episodesBySeason[selectedSeason]||[]).map((episode, index) => { const historyEntry = userData.hist.find(entry => entry.ref === 'ep:' + episode.id); return `<li data-e="${index}"><span class="num">${episode.num}</span><span class="nm"><b>${esc(episode.title)}</b>${historyEntry && historyEntry.dur ? `<div class="pg"><i style="width:${Math.min(100, historyEntry.pos/historyEntry.dur*100)}%"></i></div>` : ''}</span><span class="hint">${esc(episode.dur || '')}</span></li>`; }).join('')}</ul>` : '<p class="empty">Nenhum episódio disponível.</p>'}`;
+    detailBody.querySelectorAll('[data-s]').forEach(seasonButton => seasonButton.onclick = () => { selectedSeason = seasonButton.dataset.s; drawSeries(); });
+    detailBody.querySelectorAll('[data-e]').forEach(episodeItem => episodeItem.onclick = () => { const episode = episodesBySeason[selectedSeason][+episodeItem.dataset.e]; $('dDetail').close(); playEpisode(series, info, episodeList, episodeList.indexOf(episode)); });
+    if ($('sResume')) $('sResume').onclick = () => { const resumeIndex = episodeList.findIndex(episode => episode.id === lastWatched.epId); $('dDetail').close(); playEpisode(series, info, episodeList, Math.max(0, resumeIndex), lastWatched.pos); };
+    $('sFav').onclick = clickEvent => { clickEvent.target.textContent = toggleFav('series', series.k) ? '★ Favorito' : '☆ Favoritar'; };
     $('sClose').onclick = () => $('dDetail').close();
   };
-  draw();
+  drawSeries();
 }
 /**
- * Toca um episódio de uma série.
- * @param {Item} s Série.
+ * Toca um episódio de uma série. O contexto passado ao player mantém as propriedades
+ * `s`, `info`, `flat` e `i`, lidas pelo player para avançar episódios.
+ * @param {Item} series Série.
  * @param {Object} info Informações da série.
- * @param {Episodio[]} flat Todos os episódios em ordem.
- * @param {number} i Índice do episódio em `flat`.
- * @param {number} [pos=0] Posição inicial em segundos.
+ * @param {Episodio[]} episodeList Todos os episódios em ordem.
+ * @param {number} episodeIndex Índice do episódio em `episodeList`.
+ * @param {number} [startPosition=0] Posição inicial em segundos.
  * @returns {void}
  */
-function playEpisode(s, info, flat, i, pos=0){
-  const e = flat[i];
-  playMedia({ kind:'series', ref:'ep:'+e.id, series:'series:'+s.k, season:e.season, num:e.num, epId:e.id, title:`${s.name} · T${e.season}E${e.num}`, logo:info.cover || s.logo, url:e.url }, pos, { s, info, flat, i });
+function playEpisode(series, info, episodeList, episodeIndex, startPosition=0){
+  const episode = episodeList[episodeIndex];
+  playMedia({ kind:'series', ref:'ep:'+episode.id, series:'series:'+series.k, season:episode.season, num:episode.num, epId:episode.id, title:`${series.name} · T${episode.season}E${episode.num}`, logo:info.cover || series.logo, url:episode.url }, startPosition, { s: series, info, flat: episodeList, i: episodeIndex });
 }

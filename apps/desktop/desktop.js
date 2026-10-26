@@ -3,6 +3,10 @@
  * Ajustes do app desktop (Electron): F11 alterna tela cheia da janela e Esc sai dela.
  */
 document.documentElement.classList.add('desktop');
-document.addEventListener('keydown', e => {
-  if (e.key === 'F11') { e.preventDefault(); document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+/**
+ * F11 alterna a tela cheia da janela.
+ * @param {KeyboardEvent} event Evento de tecla.
+ */
+document.addEventListener('keydown', event => {
+  if (event.key === 'F11') { event.preventDefault(); document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
 });

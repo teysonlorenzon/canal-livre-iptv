@@ -7,10 +7,10 @@
 const $ = id => document.getElementById(id);
 /**
  * Escapa caracteres especiais de HTML.
- * @param {*} s Valor a escapar (null/undefined viram string vazia).
+ * @param {*} value Valor a escapar (null/undefined viram string vazia).
  * @returns {string} Texto seguro para inserir em HTML.
  */
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 /**
  * Acesso ao `localStorage` com prefixo `cl_` e serialização JSON.
  * Todas as operações ignoram erros de armazenamento.
@@ -18,68 +18,73 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const store = {
   /**
    * Lê um valor salvo.
-   * @param {string} k Chave (sem prefixo).
-   * @param {*} d Valor padrão caso não exista ou seja inválido.
+   * @param {string} key Chave (sem prefixo).
+   * @param {*} defaultValue Valor padrão caso não exista ou seja inválido.
    * @returns {*} Valor salvo ou o padrão.
    */
-  get(k, d){ try{ const x = localStorage.getItem('cl_'+k); return x == null ? d : JSON.parse(x); }catch{ return d; } },
+  get(key, defaultValue){ try{ const rawValue = localStorage.getItem('cl_'+key); return rawValue == null ? defaultValue : JSON.parse(rawValue); }catch{ return defaultValue; } },
   /**
    * Salva um valor.
-   * @param {string} k Chave (sem prefixo).
-   * @param {*} v Valor serializável em JSON.
+   * @param {string} key Chave (sem prefixo).
+   * @param {*} value Valor serializável em JSON.
    * @returns {boolean} `true` se salvou, `false` se falhou (ex.: cota cheia).
    */
-  set(k, v){ try{ localStorage.setItem('cl_'+k, JSON.stringify(v)); return true; }catch{ return false; } },
+  set(key, value){ try{ localStorage.setItem('cl_'+key, JSON.stringify(value)); return true; }catch{ return false; } },
   /**
    * Remove um valor salvo.
-   * @param {string} k Chave (sem prefixo).
+   * @param {string} key Chave (sem prefixo).
    * @returns {void}
    */
-  del(k){ try{ localStorage.removeItem('cl_'+k); }catch{} }
+  del(key){ try{ localStorage.removeItem('cl_'+key); }catch{} }
 };
 /**
  * Mostra uma mensagem temporária (3,2 s) no rodapé da tela.
- * @param {string} m Mensagem.
+ * @param {string} message Mensagem.
  * @returns {void}
  */
-const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); };
-let loadT0 = 0, loadTick;
+const toast = message => { const toastElement = $('toast'); toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(toastElement._h); toastElement._h = setTimeout(() => toastElement.classList.remove('show'), 3200); };
+/** @type {number} Momento (ms) em que a tela de carregamento atual apareceu. */
+let loadingStartedAt = 0;
+/** @type {number|undefined} Intervalo que atualiza o contador de segundos do carregamento. */
+let loadingTickTimer;
 /**
  * Mostra ou esconde a tela de carregamento, com contador de segundos.
- * @param {string|null} txt Texto a exibir; valor falso esconde a tela.
+ * @param {string|null} text Texto a exibir; valor falso esconde a tela.
  * @returns {void}
  */
-const loading = txt => {
-  $('loading').hidden = !txt;
-  clearInterval(loadTick);
-  if (!txt) return;
-  $('loadingTxt').textContent = txt;
-  loadT0 = Date.now(); $('loadingSec').textContent = '';
-  loadTick = setInterval(() => { $('loadingSec').textContent = Math.round((Date.now() - loadT0) / 1000) + ' s'; }, 1000);
+const loading = text => {
+  $('loading').hidden = !text;
+  clearInterval(loadingTickTimer);
+  if (!text) return;
+  $('loadingTxt').textContent = text;
+  loadingStartedAt = Date.now(); $('loadingSec').textContent = '';
+  loadingTickTimer = setInterval(() => { $('loadingSec').textContent = Math.round((Date.now() - loadingStartedAt) / 1000) + ' s'; }, 1000);
 };
 /**
  * Formata segundos como `m:ss` ou `h:mm:ss`.
- * @param {number} s Tempo em segundos.
+ * @param {number} totalSeconds Tempo em segundos.
  * @returns {string} Tempo formatado (`0:00` se não for finito).
  */
-const fmtT = s => { if (!isFinite(s)) return '0:00'; s = Math.floor(s); const h = s/3600|0, m = (s%3600)/60|0, x = s%60; return (h ? h+':'+String(m).padStart(2,'0') : m) + ':' + String(x).padStart(2,'0'); };
+const formatTime = totalSeconds => { if (!isFinite(totalSeconds)) return '0:00'; const wholeSeconds = Math.floor(totalSeconds); const hours = wholeSeconds/3600|0, minutes = (wholeSeconds%3600)/60|0, seconds = wholeSeconds%60; return (hours ? hours+':'+String(minutes).padStart(2,'0') : minutes) + ':' + String(seconds).padStart(2,'0'); };
 /**
  * Formata a hora como `HH:MM` (pt-BR).
- * @param {Date} d Data.
+ * @param {Date} date Data.
  * @returns {string} Hora formatada.
  */
-const hm = d => d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+const formatHourMinute = date => date.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
 /**
  * Gera até duas iniciais de um nome, já escapadas para HTML.
- * @param {string} n Nome.
+ * @param {string} name Nome.
  * @returns {string} Iniciais em maiúsculas, ou `•` se não houver.
  */
-const initials = n => esc(String(n).replace(/[^\p{L}\p{N} ]/gu,'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '•');
+const initials = name => esc(String(name).replace(/[^\p{L}\p{N} ]/gu,'').split(' ').filter(Boolean).slice(0,2).map(word => word[0]).join('').toUpperCase() || '•');
 /**
  * Decodifica Base64 em UTF-8.
- * @param {string} s Texto em Base64.
+ * @param {string} base64Text Texto em Base64.
  * @returns {string} Texto decodificado, ou o original se falhar.
  */
-const b64 = s => { try { return decodeURIComponent(escape(atob(s))); } catch { return s || ''; } };
-const SEC = { live:'TV ao vivo', vod:'Filmes', series:'Séries' };
-const ADULT = /adult|xxx|18\s*\+|\+\s*18|adulto|porn|erotic/i;
+const decodeBase64 = base64Text => { try { return decodeURIComponent(escape(atob(base64Text))); } catch { return base64Text || ''; } };
+/** @type {Record<Secao, string>} Nome exibido de cada seção. */
+const SECTION_NAMES = { live:'TV ao vivo', vod:'Filmes', series:'Séries' };
+/** @type {RegExp} Reconhece nomes de categorias de conteúdo adulto. */
+const ADULT_PATTERN = /adult|xxx|18\s*\+|\+\s*18|adulto|porn|erotic/i;

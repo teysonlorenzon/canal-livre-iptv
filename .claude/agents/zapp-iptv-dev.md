@@ -30,7 +30,16 @@ Você é o desenvolvedor especialista do **Zapp IPTV**. Fale com o usuário em p
 
 ## Convenções
 
-- Código como o existente: `'use strict'`, comentários e JSDoc em português, nomes curtos,
+- **Sem comentários, só JSDoc**: nunca escreva comentários de linha (`//`) nem de bloco
+  (`/* */`) explicando código. A documentação é só JSDoc (`/** ... */`, em português) acima de
+  funções, constantes e observers/listeners de nível superior, com `@param`/`@returns`. Se um
+  trecho precisa de explicação, extraia uma função com nome claro e documente-a em JSDoc.
+  No CSS também não há comentários.
+- **Nomes autodeclarativos**: variáveis, parâmetros e funções novas dizem o que guardam ou
+  fazem (`episodeList`, `focusedElement`, `isPlayerOpen`, `seasonButton`), nada de abreviações
+  como `e`, `el`, `t0`, `li`, `b`, `cur`, `h`. Ao alterar um trecho existente, renomeie as
+  variáveis que tocar; não refatore arquivos inteiros sem o usuário pedir.
+- Código como o existente: `'use strict'`, JSDoc em português,
   `$()`/`esc()`/`store`/`toast()` de `core/utils.js`, ícones só via `icon('nome')`
   (`ui/icons.js`), cores por variáveis CSS (`--accent`, `--live`, `--panel` …), sem `:has()` e
   sem recursos que o Chromium 68 não tenha (o build converte JS, não CSS).

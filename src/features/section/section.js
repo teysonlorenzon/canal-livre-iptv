@@ -1,54 +1,54 @@
 'use strict';
 /**
  * Abre uma seção (carregando-a se preciso) e reinicia filtros.
- * @param {Secao} s Seção.
+ * @param {Secao} sectionName Seção.
  * @returns {Promise<void>}
  */
-async function openSection(s){ if (!(await ensureSection(s))) return; renderHome(); sec = s; cat = '*'; shown = 200; $('q').value = ''; $('sort').value = ''; show('section'); renderCats(); renderItems(); }
+async function openSection(sectionName){ if (!(await ensureSection(sectionName))) return; renderHome(); currentSection = sectionName; currentCategory = '*'; visibleItemCount = 200; $('q').value = ''; $('sort').value = ''; show('section'); renderCats(); renderItems(); }
 
 /**
  * Desenha a lista de categorias da seção atual com contagens.
  * @returns {void}
  */
 function renderCats(){
-  const cs = D[sec].cats.filter(c => !ux.hidden.includes(sec+':'+c.id));
-  const cnt = new Map(); for (const i of D[sec].items) cnt.set(i.cat, (cnt.get(i.cat)||0) + 1);
-  const total = D[sec].items.filter(i => !ux.hidden.includes(sec+':'+i.cat)).length;
-  const rows = [{ id:'*', name:'Todos', n:total }, { id:'fav', name:'★ Favoritos', n:ux.fav[sec].length }];
-  if (sec === 'live') rows.push({ id:'recent', name:'Recentes', n:ux.recentLive.length });
-  rows.push(...cs.map(c => ({ ...c, n:cnt.get(c.id)||0 })));
-  $('cats').innerHTML = rows.map(c => `<li data-c="${esc(c.id)}" class="${c.id === cat ? 'on' : ''}"><span>${esc(c.name)}</span>${ux.locked.includes(sec+':'+c.id) ? '<span class="lock" title="Bloqueada">🔒</span>' : ''}<small>${c.n}</small></li>`).join('');
-  $('secTitle').textContent = SEC[sec];
-  $('sort').querySelector('[value=new]').hidden = $('sort').querySelector('[value=rate]').hidden = sec === 'live';
+  const visibleCategories = catalog[currentSection].cats.filter(category => !userData.hidden.includes(currentSection+':'+category.id));
+  const itemCountByCategory = new Map(); for (const item of catalog[currentSection].items) itemCountByCategory.set(item.cat, (itemCountByCategory.get(item.cat)||0) + 1);
+  const totalVisible = catalog[currentSection].items.filter(item => !userData.hidden.includes(currentSection+':'+item.cat)).length;
+  const categoryRows = [{ id:'*', name:'Todos', n:totalVisible }, { id:'fav', name:'★ Favoritos', n:userData.fav[currentSection].length }];
+  if (currentSection === 'live') categoryRows.push({ id:'recent', name:'Recentes', n:userData.recentLive.length });
+  categoryRows.push(...visibleCategories.map(category => ({ ...category, n:itemCountByCategory.get(category.id)||0 })));
+  $('cats').innerHTML = categoryRows.map(categoryRow => `<li data-c="${esc(categoryRow.id)}" class="${categoryRow.id === currentCategory ? 'on' : ''}"><span>${esc(categoryRow.name)}</span>${userData.locked.includes(currentSection+':'+categoryRow.id) ? '<span class="lock" title="Bloqueada">🔒</span>' : ''}<small>${categoryRow.n}</small></li>`).join('');
+  $('secTitle').textContent = SECTION_NAMES[currentSection];
+  $('sort').querySelector('[value=new]').hidden = $('sort').querySelector('[value=rate]').hidden = currentSection === 'live';
 }
 /**
  * Seleciona uma categoria (pedindo PIN se bloqueada).
- * @param {MouseEvent} e Evento de clique.
+ * @param {MouseEvent} clickEvent Evento de clique.
  */
-$('cats').onclick = e => {
-  const li = e.target.closest('li'); if (!li) return;
-  const c = li.dataset.c;
-  withPin(sec+':'+c, () => { cat = c; shown = 200; renderCats(); renderItems(); $('items').scrollTop = 0; });
+$('cats').onclick = clickEvent => {
+  const categoryItem = clickEvent.target.closest('li'); if (!categoryItem) return;
+  const categoryId = categoryItem.dataset.c;
+  withPin(currentSection+':'+categoryId, () => { currentCategory = categoryId; visibleItemCount = 200; renderCats(); renderItems(); $('items').scrollTop = 0; });
 };
 
 /**
  * Executa uma ação, pedindo o PIN do controle parental quando a chave estiver bloqueada.
  * @param {string} key Chave bloqueável (`secao:categoria`).
- * @param {Function} fn Ação a executar após liberar.
+ * @param {Function} action Ação a executar após liberar.
  * @param {boolean} [force] Exigir o PIN mesmo sem bloqueio.
- * @returns {*} Retorno de `fn` quando executada sem PIN.
+ * @returns {*} Retorno de `action` quando executada sem PIN.
  */
-function withPin(key, fn, force){
-  if (!force && (!ux.locked.includes(key) || unlocked.has(key))) return fn();
+function withPin(key, action, force){
+  if (!force && (!userData.locked.includes(key) || unlockedCategories.has(key))) return action();
   $('pinIn').value = ''; $('dPin').showModal(); $('pinIn').focus();
   /**
    * Confere o PIN digitado e libera a ação se estiver correto.
    * @returns {void}
    */
-  const check = () => { if ($('pinIn').value === (opts.pin || '0000')) { unlocked.add(key); $('dPin').close(); fn(); } else { $('pinIn').value = ''; toast('PIN incorreto.'); } };
-  $('pinOk').onclick = check;
-  $('pinIn').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); check(); } };
-  $('pinForm').onsubmit = e => e.preventDefault();
+  const checkPin = () => { if ($('pinIn').value === (options.pin || '0000')) { unlockedCategories.add(key); $('dPin').close(); action(); } else { $('pinIn').value = ''; toast('PIN incorreto.'); } };
+  $('pinOk').onclick = checkPin;
+  $('pinIn').onkeydown = keyEvent => { if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); checkPin(); } };
+  $('pinForm').onsubmit = submitEvent => submitEvent.preventDefault();
 }
 /**
  * Fecha o diálogo de PIN.
@@ -60,15 +60,15 @@ $('pinCancel').onclick = () => $('dPin').close();
  * @returns {Item[]} Itens filtrados.
  */
 function currentItems(){
-  const q = $('q').value.trim().toLowerCase(), so = $('sort').value;
-  let a = D[sec].items;
-  if (cat === 'fav') a = ux.fav[sec].map(k => a.find(i => i.k === k)).filter(Boolean);
-  else if (cat === 'recent') a = ux.recentLive.map(k => a.find(i => i.k === k)).filter(Boolean);
-  else if (cat !== '*') a = a.filter(i => i.cat === cat);
-  a = a.filter(i => !ux.hidden.includes(sec+':'+i.cat) && (cat === i.cat || !ux.locked.includes(sec+':'+i.cat) || unlocked.has(sec+':'+i.cat)));
-  if (q) a = a.filter(i => i.name.toLowerCase().includes(q));
-  if (so) { a = a.slice(); const f = { az:(x,y)=>x.name.localeCompare(y.name,'pt-BR'), za:(x,y)=>y.name.localeCompare(x.name,'pt-BR'), new:(x,y)=>(y.added||0)-(x.added||0), rate:(x,y)=>(y.rate||0)-(x.rate||0) }[so]; a.sort(f); }
-  return a;
+  const searchText = $('q').value.trim().toLowerCase(), sortOrder = $('sort').value;
+  let filteredItems = catalog[currentSection].items;
+  if (currentCategory === 'fav') filteredItems = userData.fav[currentSection].map(itemKey => filteredItems.find(item => item.k === itemKey)).filter(Boolean);
+  else if (currentCategory === 'recent') filteredItems = userData.recentLive.map(itemKey => filteredItems.find(item => item.k === itemKey)).filter(Boolean);
+  else if (currentCategory !== '*') filteredItems = filteredItems.filter(item => item.cat === currentCategory);
+  filteredItems = filteredItems.filter(item => !userData.hidden.includes(currentSection+':'+item.cat) && (currentCategory === item.cat || !userData.locked.includes(currentSection+':'+item.cat) || unlockedCategories.has(currentSection+':'+item.cat)));
+  if (searchText) filteredItems = filteredItems.filter(item => item.name.toLowerCase().includes(searchText));
+  if (sortOrder) { filteredItems = filteredItems.slice(); const compareItems = { az:(firstItem,secondItem)=>firstItem.name.localeCompare(secondItem.name,'pt-BR'), za:(firstItem,secondItem)=>secondItem.name.localeCompare(firstItem.name,'pt-BR'), new:(firstItem,secondItem)=>(secondItem.added||0)-(firstItem.added||0), rate:(firstItem,secondItem)=>(secondItem.rate||0)-(firstItem.rate||0) }[sortOrder]; filteredItems.sort(compareItems); }
+  return filteredItems;
 }
 
 /**
@@ -76,54 +76,54 @@ function currentItems(){
  * @returns {void}
  */
 function renderItems(){
-  const a = currentItems(), box = $('items'), part = a.slice(0, shown);
-  if (!a.length) { box.innerHTML = `<div class="empty">${cat === 'fav' ? 'Nenhum favorito nesta seção.' : 'Nada encontrado.'}</div>`; return; }
-  if (sec === 'live') {
-    const cur = playing && playing.kind === 'live' ? playing.item.k : null;
-    box.innerHTML = `<ul class="list">${part.map((c,i) => {
-      let sub = esc(catName('live', c.cat));
-      if (D.epg) { const [n] = nowNext(D.epg.get(String(c.epg||'').toLowerCase()) || []); if (n) sub = `<span style="color:var(--fg)">${esc(n.title)}</span> · ${hm(new Date(n.s))}–${hm(new Date(n.e))}`; }
-      return `<li data-i="${i}" class="${c.k === cur ? 'on' : ''}"><span class="num">${esc(c.num)}</span>${c.logo ? `<img class="logo" loading="lazy" src="${esc(c.logo)}" alt="" onerror="this.outerHTML='<span class=logo>${initials(c.name)}</span>'">` : `<span class="logo">${initials(c.name)}</span>`}<span class="nm"><b>${esc(c.name)}${c.archive ? '<span class="badge">CATCH-UP</span>' : ''}</b><small>${sub}</small></span><button class="star ${isFav('live', c.k) ? 'on' : ''}" aria-label="Favoritar">★</button></li>`;
+  const allItems = currentItems(), itemsBox = $('items'), visibleItems = allItems.slice(0, visibleItemCount);
+  if (!allItems.length) { itemsBox.innerHTML = `<div class="empty">${currentCategory === 'fav' ? 'Nenhum favorito nesta seção.' : 'Nada encontrado.'}</div>`; return; }
+  if (currentSection === 'live') {
+    const playingChannelKey = currentMedia && currentMedia.kind === 'live' ? currentMedia.item.k : null;
+    itemsBox.innerHTML = `<ul class="list">${visibleItems.map((channel, index) => {
+      let subtitleHtml = esc(catName('live', channel.cat));
+      if (catalog.epg) { const [currentProgram] = nowNext(catalog.epg.get(String(channel.epg||'').toLowerCase()) || []); if (currentProgram) subtitleHtml = `<span style="color:var(--fg)">${esc(currentProgram.title)}</span> · ${formatHourMinute(new Date(currentProgram.s))}–${formatHourMinute(new Date(currentProgram.e))}`; }
+      return `<li data-i="${index}" class="${channel.k === playingChannelKey ? 'on' : ''}"><span class="num">${esc(channel.num)}</span>${channel.logo ? `<img class="logo" loading="lazy" src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='<span class=logo>${initials(channel.name)}</span>'">` : `<span class="logo">${initials(channel.name)}</span>`}<span class="nm"><b>${esc(channel.name)}${channel.archive ? '<span class="badge">CATCH-UP</span>' : ''}</b><small>${subtitleHtml}</small></span><button class="star ${isFav('live', channel.k) ? 'on' : ''}" aria-label="Favoritar">★</button></li>`;
     }).join('')}</ul>`;
   } else {
-    box.innerHTML = `<div class="grid">${part.map((it,i) => cardHtml({ ...it, pg: progressOf(sec, it) }, `data-i="${i}"`)).join('')}</div>`;
+    itemsBox.innerHTML = `<div class="grid">${visibleItems.map((item, index) => cardHtml({ ...item, pg: progressOf(currentSection, item) }, `data-i="${index}"`)).join('')}</div>`;
   }
-  if (a.length > shown) box.insertAdjacentHTML('beforeend', `<div class="more"><button class="btn" id="moreBtn">Mostrar mais (${a.length - shown} restantes)</button></div>`);
-  const mb = $('moreBtn'); if (mb) mb.onclick = () => { shown += 300; renderItems(); };
-  box._a = a;
+  if (allItems.length > visibleItemCount) itemsBox.insertAdjacentHTML('beforeend', `<div class="more"><button class="btn" id="moreBtn">Mostrar mais (${allItems.length - visibleItemCount} restantes)</button></div>`);
+  const moreButton = $('moreBtn'); if (moreButton) moreButton.onclick = () => { visibleItemCount += 300; renderItems(); };
+  itemsBox._a = allItems;
 }
 /**
  * Nome de uma categoria.
- * @param {Secao} s Seção.
+ * @param {Secao} sectionName Seção.
  * @param {string} id Id da categoria.
  * @returns {string} Nome, ou vazio se não existir.
  */
-const catName = (s, id) => (D[s].cats.find(c => c.id === id) || {}).name || '';
+const catName = (sectionName, id) => (catalog[sectionName].cats.find(category => category.id === id) || {}).name || '';
 /**
  * Progresso assistido de um item.
- * @param {Secao} s Seção.
- * @param {Item} it Item.
+ * @param {Secao} sectionName Seção.
+ * @param {Item} item Item.
  * @returns {number} Fração de 0 a 1.
  */
-const progressOf = (s, it) => { const h = ux.hist.find(x => x.ref === s + ':' + it.k); return h && h.dur ? h.pos / h.dur : 0; };
+const progressOf = (sectionName, item) => { const historyEntry = userData.hist.find(entry => entry.ref === sectionName + ':' + item.k); return historyEntry && historyEntry.dur ? historyEntry.pos / historyEntry.dur : 0; };
 
 /**
  * Abre um item ou alterna seu favorito.
- * @param {MouseEvent} e Evento de clique.
+ * @param {MouseEvent} clickEvent Evento de clique.
  */
-$('items').onclick = e => {
-  const el = e.target.closest('[data-i]'); if (!el) return;
-  const it = $('items')._a[+el.dataset.i];
-  if (e.target.classList.contains('star')) { e.target.classList.toggle('on', toggleFav(sec, it.k)); if (cat === 'fav') renderItems(); renderCats(); return; }
-  const go = () => sec === 'live' ? playLive(it, $('items')._a) : sec === 'vod' ? openMovie(it) : openSeries(it);
-  withPin(sec+':'+it.cat, go);
+$('items').onclick = clickEvent => {
+  const itemElement = clickEvent.target.closest('[data-i]'); if (!itemElement) return;
+  const item = $('items')._a[+itemElement.dataset.i];
+  if (clickEvent.target.classList.contains('star')) { clickEvent.target.classList.toggle('on', toggleFav(currentSection, item.k)); if (currentCategory === 'fav') renderItems(); renderCats(); return; }
+  const openItem = () => currentSection === 'live' ? playLive(item, $('items')._a) : currentSection === 'vod' ? openMovie(item) : openSeries(item);
+  withPin(currentSection+':'+item.cat, openItem);
 };
-let qT;
+let searchDebounceTimer;
 /**
  * Refaz a busca 150 ms após o usuário parar de digitar.
  */
-$('q').oninput = () => { clearTimeout(qT); qT = setTimeout(() => { shown = 200; renderItems(); }, 150); };
+$('q').oninput = () => { clearTimeout(searchDebounceTimer); searchDebounceTimer = setTimeout(() => { visibleItemCount = 200; renderItems(); }, 150); };
 /**
  * Reordena os itens.
  */
-$('sort').onchange = () => { shown = 200; renderItems(); };
+$('sort').onchange = () => { visibleItemCount = 200; renderItems(); };

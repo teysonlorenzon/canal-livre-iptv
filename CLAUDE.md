@@ -33,7 +33,8 @@ Android precisa de `JAVA_HOME=~/.jdks/jdk-21` e `ANDROID_HOME=~/Android/Sdk`.
 ## Regras do código
 
 - Scripts clássicos com escopo global: **a ordem das tags no `iptv-player.html` importa**.
-- Estilo do código existente: `'use strict'`, comentários/JSDoc em português, `icon('nome')`
+- Estilo do código: `'use strict'`, sem comentários `//` ou `/* */` — só JSDoc em português;
+  nomes de variáveis e funções autodeclarativos (sem abreviações); `icon('nome')`
   para ícones, variáveis CSS para cores, nada que o Chromium 68 (TVs LG de 2020) não suporte
   em CSS (`:has()`, `aspect-ratio`, `color-mix`). Nunca use CSS `zoom` na TV.
 - Ajustes de plataforma ficam em `apps/<plataforma>/`, não em `src/`.

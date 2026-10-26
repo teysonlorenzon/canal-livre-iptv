@@ -1,7 +1,4 @@
-/* Ajustes para TV: foco bem visível para o controle remoto. A ampliação da interface vem do
-   `resolution: 1280x720` do appinfo.json (o webOS renderiza em 720p e estica para a tela). */
 html.tv :focus{outline:3px solid var(--accent);outline-offset:3px}
-/* Cards e blocos não mudam de tamanho no foco (para não desalinhar a grade): ganham borda e brilho. */
 html.tv .tile:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 10px 28px rgba(255,176,32,.22)}
 html.tv .tile.live:focus{border-color:var(--live);box-shadow:0 0 0 2px var(--live),0 10px 28px rgba(255,77,77,.22)}
 html.tv .card:focus{outline:none}

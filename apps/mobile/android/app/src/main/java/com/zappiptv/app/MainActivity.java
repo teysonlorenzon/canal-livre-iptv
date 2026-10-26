@@ -4,8 +4,13 @@ import android.content.res.Configuration;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 
+/**
+ * Atividade principal do app Android: registra o plugin ZappPlayer e repassa ao plugin os
+ * eventos de picture-in-picture.
+ */
 public class MainActivity extends BridgeActivity {
 
+    /** Registra o plugin nativo do player antes de iniciar o Capacitor. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ZappPlayerPlugin.class);
@@ -19,6 +24,7 @@ public class MainActivity extends BridgeActivity {
         if (ZappPlayerPlugin.autoPip) ZappPlayerPlugin.enter(this);
     }
 
+    /** Avisa o app web quando entra ou sai do picture-in-picture. */
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);

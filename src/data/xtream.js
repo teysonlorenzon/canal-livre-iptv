@@ -3,45 +3,48 @@
  * URL base do servidor Xtream da lista ativa, sem barra final.
  * @returns {string} URL base.
  */
-const xBase = () => P.server.replace(/\/+$/,'');
-let abortCtl = null, cancelled = false;
+const xtreamBaseUrl = () => activePlaylist.server.replace(/\/+$/,'');
+/** @type {{abort: function(): void}|null} Cancela o carregamento exibido na tela (botão "Cancelar"). */
+let abortController = null;
+/** @type {boolean} Se o usuário cancelou o carregamento atual. */
+let cancelled = false;
 /**
  * `fetch` com tempo limite e cancelamento pelo botão "Cancelar"
  * (sem depender de `AbortSignal`).
  * @param {string} url URL a buscar.
- * @param {number} [ms=30000] Tempo limite em milissegundos.
- * @param {boolean} [bg] Download em segundo plano: não pode ser cancelado pelo botão
+ * @param {number} [timeoutMs=30000] Tempo limite em milissegundos.
+ * @param {boolean} [isBackground] Download em segundo plano: não pode ser cancelado pelo botão
  * e não interfere no carregamento exibido na tela.
  * @returns {Promise<Response>} Resposta com status de sucesso.
  * @throws {Error} Em caso de tempo esgotado, cancelamento ou status de erro.
  */
-async function fetchT(url, ms = 30000, bg = false){
-  let t, rejectCancel;
-  const cancel = new Promise((_, rej) => { rejectCancel = rej; });
-  if (!bg) {
+async function fetchWithTimeout(url, timeoutMs = 30000, isBackground = false){
+  let timeoutTimer, rejectCancel;
+  const cancelPromise = new Promise((_, reject) => { rejectCancel = reject; });
+  if (!isBackground) {
     cancelled = false;
-    abortCtl = { abort: () => { const e = new Error('Carregamento cancelado.'); e.name = 'AbortError'; rejectCancel(e); } };
+    abortController = { abort: () => { const abortError = new Error('Carregamento cancelado.'); abortError.name = 'AbortError'; rejectCancel(abortError); } };
   }
-  const timeout = new Promise((_, rej) => { t = setTimeout(() => rej(new Error(`O servidor não respondeu em ${Math.round(ms/1000)} segundos`)), ms); });
+  const timeoutPromise = new Promise((_, reject) => { timeoutTimer = setTimeout(() => reject(new Error(`O servidor não respondeu em ${Math.round(timeoutMs/1000)} segundos`)), timeoutMs); });
   try {
-    const r = await Promise.race([fetch(url), timeout, cancel]);
-    if (!r.ok) throw new Error('O servidor respondeu com erro ' + r.status);
-    return r;
-  } finally { clearTimeout(t); }
+    const response = await Promise.race([fetch(url), timeoutPromise, cancelPromise]);
+    if (!response.ok) throw new Error('O servidor respondeu com erro ' + response.status);
+    return response;
+  } finally { clearTimeout(timeoutTimer); }
 }
 /**
  * Chama a API `player_api.php` do Xtream.
  * @param {string} action Ação da API (vazio para login/informações).
- * @param {string} [extra=''] Parâmetros extras já codificados (`&chave=valor`).
- * @param {number} [ms] Tempo limite em milissegundos.
- * @param {boolean} [bg] Download em segundo plano (ver {@link fetchT}).
+ * @param {string} [extraParams=''] Parâmetros extras já codificados (`&chave=valor`).
+ * @param {number} [timeoutMs] Tempo limite em milissegundos.
+ * @param {boolean} [isBackground] Download em segundo plano (ver {@link fetchWithTimeout}).
  * @returns {Promise<*>} JSON da resposta.
  * @throws {Error} Se a resposta não for JSON válido.
  */
-const xApi = async (action, extra='', ms, bg) => {
-  const r = await fetchT(`${xBase()}/player_api.php?username=${encodeURIComponent(P.user)}&password=${encodeURIComponent(P.pass)}${action ? '&action='+action : ''}${extra}`, ms, bg);
-  const txt = await r.text();
-  try { return JSON.parse(txt); } catch { throw new Error('O servidor não respondeu no formato Xtream esperado'); }
+const xtreamApi = async (action, extraParams='', timeoutMs, isBackground) => {
+  const response = await fetchWithTimeout(`${xtreamBaseUrl()}/player_api.php?username=${encodeURIComponent(activePlaylist.user)}&password=${encodeURIComponent(activePlaylist.pass)}${action ? '&action='+action : ''}${extraParams}`, timeoutMs, isBackground);
+  const responseText = await response.text();
+  try { return JSON.parse(responseText); } catch { throw new Error('O servidor não respondeu no formato Xtream esperado'); }
 };
 /**
  * Converte um erro de carregamento em mensagem amigável.
@@ -62,20 +65,20 @@ function errText(err){
  * @param {string} ext Extensão do arquivo.
  * @returns {string} URL do stream.
  */
-const xUrl = (kind, id, ext) => `${xBase()}/${kind}/${encodeURIComponent(P.user)}/${encodeURIComponent(P.pass)}/${id}.${ext}`;
+const xtreamStreamUrl = (kind, id, ext) => `${xtreamBaseUrl()}/${kind}/${encodeURIComponent(activePlaylist.user)}/${encodeURIComponent(activePlaylist.pass)}/${id}.${ext}`;
 
 /**
  * Normaliza categorias vindas da API Xtream.
- * @param {*} a Resposta da API.
+ * @param {*} apiCategories Resposta da API.
  * @returns {Categoria[]} Categorias.
  */
-const xCats = a => (Array.isArray(a) ? a : []).map(c => ({ id:String(c.category_id), name:c.category_name }));
+const xtreamCategories = apiCategories => (Array.isArray(apiCategories) ? apiCategories : []).map(apiCategory => ({ id:String(apiCategory.category_id), name:apiCategory.category_name }));
 /**
  * Garante um array (a API às vezes devolve objeto ou nulo).
- * @param {*} a Valor qualquer.
+ * @param {*} value Valor qualquer.
  * @returns {Array} O próprio array ou um array vazio.
  */
-const xArr = a => Array.isArray(a) ? a : [];
+const asArray = value => Array.isArray(value) ? value : [];
 /**
  * Faz login no Xtream e baixa os canais ao vivo da lista ativa.
  * Filmes e séries ficam `null` e são baixados depois por {@link preloadSections}.
@@ -84,16 +87,16 @@ const xArr = a => Array.isArray(a) ? a : [];
  */
 async function loadXtream(){
   loading('Verificando login no servidor…');
-  const info = await xApi('', '', 25000);
+  const info = await xtreamApi('', '', 25000);
   if (!info || !info.user_info || info.user_info.auth == 0) throw new Error('Usuário ou senha inválidos');
   if (info.user_info.status && !/active/i.test(info.user_info.status)) throw new Error('Conta ' + info.user_info.status + ' no servidor');
   loading('Baixando categorias de canais…');
-  const lc = await xApi('get_live_categories', '', 30000);
+  const liveCategories = await xtreamApi('get_live_categories', '', 30000);
   loading('Baixando lista de canais… (pode levar até 1 minuto)');
-  const ls = await xApi('get_live_streams', '', 90000);
+  const liveStreams = await xtreamApi('get_live_streams', '', 90000);
   return {
     info,
-    live:{ cats:xCats(lc), items:xArr(ls).map((s,i) => ({ k:String(s.stream_id), name:s.name, logo:s.stream_icon, cat:String(s.category_id), num:s.num || i+1, epg:s.epg_channel_id, archive:+s.tv_archive ? +s.tv_archive_duration || 1 : 0 })) },
+    live:{ cats:xtreamCategories(liveCategories), items:asArray(liveStreams).map((stream, index) => ({ k:String(stream.stream_id), name:stream.name, logo:stream.stream_icon, cat:String(stream.category_id), num:stream.num || index+1, epg:stream.epg_channel_id, archive:+stream.tv_archive ? +stream.tv_archive_duration || 1 : 0 })) },
     vod:null, series:null
   };
 }
@@ -102,21 +105,21 @@ let sectionJobs = {};
 
 /**
  * Baixa as categorias e os itens de filmes ou séries do Xtream.
- * @param {'vod'|'series'} s Seção.
- * @param {boolean} [bg] Baixar em segundo plano, sem a tela de carregamento.
+ * @param {'vod'|'series'} section Seção.
+ * @param {boolean} [isBackground] Baixar em segundo plano, sem a tela de carregamento.
  * @returns {Promise<DadosSecao>} Dados da seção.
  * @throws {Error} Se o servidor falhar.
  */
-async function fetchSection(s, bg = false){
-  const step = bg ? () => {} : loading;
-  if (s === 'vod') {
-    step('Baixando categorias de filmes…'); const vc = await xApi('get_vod_categories', '', 30000, bg);
-    step('Baixando filmes… (listas grandes levam até 2 minutos)'); const vs = await xApi('get_vod_streams', '', 150000, bg);
-    return { cats:xCats(vc), items:xArr(vs).map(s => ({ k:String(s.stream_id), name:s.name, logo:s.stream_icon, cat:String(s.category_id), ext:s.container_extension || 'mp4', rate:+s.rating || 0, added:+s.added || 0 })) };
+async function fetchSection(section, isBackground = false){
+  const showProgress = isBackground ? () => {} : loading;
+  if (section === 'vod') {
+    showProgress('Baixando categorias de filmes…'); const vodCategories = await xtreamApi('get_vod_categories', '', 30000, isBackground);
+    showProgress('Baixando filmes… (listas grandes levam até 2 minutos)'); const vodStreams = await xtreamApi('get_vod_streams', '', 150000, isBackground);
+    return { cats:xtreamCategories(vodCategories), items:asArray(vodStreams).map(stream => ({ k:String(stream.stream_id), name:stream.name, logo:stream.stream_icon, cat:String(stream.category_id), ext:stream.container_extension || 'mp4', rate:+stream.rating || 0, added:+stream.added || 0 })) };
   }
-  step('Baixando categorias de séries…'); const sc = await xApi('get_series_categories', '', 30000, bg);
-  step('Baixando séries… (listas grandes levam até 2 minutos)'); const ss = await xApi('get_series', '', 150000, bg);
-  return { cats:xCats(sc), items:xArr(ss).map(s => ({ k:String(s.series_id), name:s.name, logo:s.cover, cat:String(s.category_id), rate:+s.rating || 0, added:+(s.last_modified||0), plot:s.plot })) };
+  showProgress('Baixando categorias de séries…'); const seriesCategories = await xtreamApi('get_series_categories', '', 30000, isBackground);
+  showProgress('Baixando séries… (listas grandes levam até 2 minutos)'); const seriesList = await xtreamApi('get_series', '', 150000, isBackground);
+  return { cats:xtreamCategories(seriesCategories), items:asArray(seriesList).map(series => ({ k:String(series.series_id), name:series.name, logo:series.cover, cat:String(series.category_id), rate:+series.rating || 0, added:+(series.last_modified||0), plot:series.plot })) };
 }
 
 /**
@@ -125,45 +128,45 @@ async function fetchSection(s, bg = false){
  * @returns {void}
  */
 function preloadSections(){
-  const d = D;
+  const loadedCatalog = catalog;
   let chain = Promise.resolve();
   sectionJobs = {};
-  for (const s of ['vod', 'series']) {
+  for (const section of ['vod', 'series']) {
     const job = chain = chain.then(async () => {
-      if (D !== d || d[s]) return !!d[s];
+      if (catalog !== loadedCatalog || loadedCatalog[section]) return !!loadedCatalog[section];
       try {
-        const data = await fetchSection(s, true);
-        if (D !== d) return false;
-        d[s] = data;
+        const sectionData = await fetchSection(section, true);
+        if (catalog !== loadedCatalog) return false;
+        loadedCatalog[section] = sectionData;
         renderHome();
         if ($('dSettings').open) renderCatRows();
         return true;
       } catch { return false; }
-      finally { if (sectionJobs[s] === job) delete sectionJobs[s]; }
+      finally { if (sectionJobs[section] === job) delete sectionJobs[section]; }
     });
-    sectionJobs[s] = job;
+    sectionJobs[section] = job;
   }
 }
 
 /**
  * Garante que filmes ou séries estejam carregados. Se o download em segundo plano
  * ainda estiver rodando, espera por ele; se tiver falhado, tenta de novo.
- * @param {Secao} s Seção.
+ * @param {Secao} section Seção.
  * @returns {Promise<boolean>} `true` se a seção está disponível.
  */
-async function ensureSection(s){
-  if (D[s]) return true;
-  const job = sectionJobs[s];
+async function ensureSection(section){
+  if (catalog[section]) return true;
+  const job = sectionJobs[section];
   if (job) {
-    loading(`Terminando de carregar ${SEC[s].toLowerCase()}…`);
+    loading(`Terminando de carregar ${SECTION_NAMES[section].toLowerCase()}…`);
     cancelled = false;
-    const done = await Promise.race([job, new Promise(r => { abortCtl = { abort: () => r('cancel') }; })]);
+    const jobResult = await Promise.race([job, new Promise(resolve => { abortController = { abort: () => resolve('cancel') }; })]);
     loading(null);
-    if (done === 'cancel') return false;
-    if (D[s]) return true;
+    if (jobResult === 'cancel') return false;
+    if (catalog[section]) return true;
   }
   try {
-    D[s] = await fetchSection(s);
+    catalog[section] = await fetchSection(section);
     loading(null); return true;
   } catch (err) { loading(null); if (err.name !== 'AbortError' || !cancelled) toast(errText(err)); return false; }
 }

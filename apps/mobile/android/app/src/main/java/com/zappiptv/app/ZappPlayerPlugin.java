@@ -24,24 +24,26 @@ public class ZappPlayerPlugin extends Plugin {
 
     /** Entra em PiP sozinho ao sair do app (botão Início/gesto) enquanto há vídeo tocando. */
     static boolean autoPip = false;
+    /** Instância carregada do plugin, usada para avisar o app web sobre o PiP. */
     private static ZappPlayerPlugin instance;
 
+    /** Guarda a instância do plugin ao carregar. */
     @Override
     public void load() { instance = this; }
 
     /** Se o aparelho tem picture-in-picture. */
-    static boolean pipSupported(Activity a) {
+    static boolean pipSupported(Activity activity) {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-            && a.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
+            && activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
     }
 
     /** Coloca o app em PiP, com a janela no formato 16:9. */
-    static boolean enter(Activity a) {
-        if (!pipSupported(a)) return false;
+    static boolean enter(Activity activity) {
+        if (!pipSupported(activity)) return false;
         try {
             PictureInPictureParams params = new PictureInPictureParams.Builder().setAspectRatio(new Rational(16, 9)).build();
-            return a.enterPictureInPictureMode(params);
-        } catch (IllegalStateException e) {
+            return activity.enterPictureInPictureMode(params);
+        } catch (IllegalStateException exception) {
             return false;
         }
     }
@@ -54,43 +56,50 @@ public class ZappPlayerPlugin extends Plugin {
         instance.notifyListeners("pipChanged", data);
     }
 
+    /** Responde se o aparelho tem picture-in-picture (`supported`). */
     @PluginMethod
     public void isPipSupported(PluginCall call) {
-        JSObject ret = new JSObject();
-        ret.put("supported", pipSupported(getActivity()));
-        call.resolve(ret);
+        JSObject result = new JSObject();
+        result.put("supported", pipSupported(getActivity()));
+        call.resolve(result);
     }
 
+    /** Entra em picture-in-picture e responde se conseguiu (`entered`). */
     @PluginMethod
     public void enterPip(PluginCall call) {
         getActivity().runOnUiThread(() -> {
-            JSObject ret = new JSObject();
-            ret.put("entered", enter(getActivity()));
-            call.resolve(ret);
+            JSObject result = new JSObject();
+            result.put("entered", enter(getActivity()));
+            call.resolve(result);
         });
     }
 
+    /** Liga ou desliga (`enabled`) a entrada automática em PiP ao sair do app. */
     @PluginMethod
     public void setAutoPip(PluginCall call) {
         autoPip = Boolean.TRUE.equals(call.getBoolean("enabled", false));
         call.resolve();
     }
 
+    /**
+     * Liga ou desliga (`enabled`) a tela cheia: esconde as barras do sistema e gira para
+     * paisagem. Ao desligar, volta a seguir a rotação do sistema: gira com o aparelho quando a
+     * rotação automática está ligada e respeita a trava de orientação do usuário quando está
+     * desligada.
+     */
     @PluginMethod
     public void setFullscreen(PluginCall call) {
-        boolean on = Boolean.TRUE.equals(call.getBoolean("enabled", false));
-        Activity a = getActivity();
-        a.runOnUiThread(() -> {
-            WindowInsetsControllerCompat c = WindowCompat.getInsetsController(a.getWindow(), a.getWindow().getDecorView());
-            if (on) {
-                c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                c.hide(WindowInsetsCompat.Type.systemBars());
-                a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        Activity activity = getActivity();
+        activity.runOnUiThread(() -> {
+            WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(activity.getWindow(), activity.getWindow().getDecorView());
+            if (enabled) {
+                insetsController.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                insetsController.hide(WindowInsetsCompat.Type.systemBars());
+                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
             } else {
-                c.show(WindowInsetsCompat.Type.systemBars());
-                // Volta a seguir a rotação do sistema: gira com o aparelho quando a rotação automática
-                // está ligada e respeita a trava de orientação do usuário quando está desligada.
-                a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
+                insetsController.show(WindowInsetsCompat.Type.systemBars());
+                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
             }
             call.resolve();
         });

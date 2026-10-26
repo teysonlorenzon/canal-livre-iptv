@@ -20,20 +20,20 @@ const THEME_INFO = {
  * @returns {ModoTema} Modo salvo, ou `auto`.
  */
 function getTheme(){
-  try { const t = JSON.parse(localStorage.getItem('cl_theme')); return THEMES.includes(t) ? t : 'auto'; } catch { return 'auto'; }
+  try { const savedMode = JSON.parse(localStorage.getItem('cl_theme')); return THEMES.includes(savedMode) ? savedMode : 'auto'; } catch { return 'auto'; }
 }
 
 /**
  * Aplica um modo de tema na página e atualiza o botão do topo, se já existir.
+ * O botão usa o ícone de traço de `src/ui/icons.js`; antes dele carregar, usa o símbolo de texto.
  * @param {ModoTema} mode Modo a aplicar.
  * @returns {void}
  */
 function applyTheme(mode){
   if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.dataset.theme = mode;
-  const b = document.getElementById('themeBtn');
-  // Ícone de traço (src/ui/icons.js); antes dele carregar, usa o símbolo de texto.
-  if (b) { if (typeof icon === 'function') b.innerHTML = icon({ auto:'themeAuto', light:'themeLight', dark:'themeDark' }[mode]); else b.textContent = THEME_INFO[mode].icon; b.title = 'Tema: ' + THEME_INFO[mode].label; b.setAttribute('aria-label', b.title); }
+  const themeButton = document.getElementById('themeBtn');
+  if (themeButton) { if (typeof icon === 'function') themeButton.innerHTML = icon({ auto:'themeAuto', light:'themeLight', dark:'themeDark' }[mode]); else themeButton.textContent = THEME_INFO[mode].icon; themeButton.title = 'Tema: ' + THEME_INFO[mode].label; themeButton.setAttribute('aria-label', themeButton.title); }
 }
 
 /**
