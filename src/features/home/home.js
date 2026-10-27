@@ -33,11 +33,13 @@ function renderHome(){
   const homeScreen = $('home');
   if (!activePlaylist || !catalog) {
     const httpsWarning = location.protocol === 'https:' ? '<p style="color:var(--accent)">Atenção: esta página está aberta em https. Listas e canais em http são bloqueados aqui. Baixe o arquivo e abra direto no navegador do computador.</p>' : '';
-    homeScreen.innerHTML = lastError && activePlaylist
-      ? `<div class="welcome"><h2>Não foi possível abrir “${esc(activePlaylist.name)}”</h2><p>${esc(lastError)}</p>${httpsWarning}<div class="row" style="justify-content:center"><button class="btn primary" id="wRetry">Tentar de novo</button><button class="btn" id="wAdd">Configurações</button></div></div>`
-      : `<div class="welcome"><h2>${playlists.length ? 'Escolha uma lista para começar' : 'Adicione sua lista IPTV'}</h2><p>Funciona com login Xtream Codes (servidor, usuário e senha), URL M3U ou arquivo .m3u. Tudo fica salvo neste navegador.</p>${httpsWarning}<button class="btn primary" id="wAdd">${playlists.length ? 'Gerenciar listas' : 'Adicionar lista'}</button></div>`;
-    $('wAdd').onclick = openSettings;
-    if ($('wRetry')) $('wRetry').onclick = () => openPlaylist(activePlaylist.id, true);
+    if (lastError && activePlaylist) {
+      homeScreen.innerHTML = `<div class="welcome"><h2>Não foi possível abrir “${esc(activePlaylist.name)}”</h2><p>${esc(lastError)}</p>${httpsWarning}<div class="row" style="justify-content:center"><button class="btn primary" id="wRetry">Tentar de novo</button><button class="btn" id="wAdd">Configurações</button></div></div>`;
+      $('wRetry').onclick = () => openPlaylist(activePlaylist.id, true);
+    } else if (!playlists.length) {
+      homeScreen.innerHTML = `<div class="welcome"><h2>Adicione sua lista IPTV</h2><p>Funciona com login Xtream Codes (servidor, usuário e senha), URL M3U ou arquivo .m3u. Tudo fica salvo neste navegador.</p>${httpsWarning}<button class="btn primary" id="wAdd">Adicionar lista</button></div>`;
+    } else homeScreen.innerHTML = '';
+    if ($('wAdd')) $('wAdd').onclick = openSettings;
     return;
   }
   /**

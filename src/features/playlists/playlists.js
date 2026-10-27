@@ -4,7 +4,7 @@
  * @returns {void}
  */
 function renderPlaylistSelect(){
-  $('plSelTxt').textContent = activePlaylist ? activePlaylist.name : playlists.length ? 'Escolha uma lista' : 'Nenhuma lista';
+  $('plSelTxt').textContent = activePlaylist ? activePlaylist.name : playlists.length ? 'Carregando…' : 'Nenhuma lista';
   $('plSel').title = 'Lista: ' + $('plSelTxt').textContent;
   $('plMenu').innerHTML = playlists.map(playlist => `<li role="option" tabindex="-1" data-id="${esc(playlist.id)}" aria-selected="${activePlaylist && activePlaylist.id === playlist.id}"><b>${esc(playlist.name)}</b><small>${playlist.type === 'xtream' ? 'Xtream' : playlist.url ? 'M3U' : 'Arquivo M3U'}</small></li>`).join('')
     + `<li class="dd-act" tabindex="-1" data-manage="1">${playlists.length ? 'Gerenciar listas…' : 'Adicionar lista…'}</li>`;
@@ -93,9 +93,18 @@ $('plList').onclick = clickEvent => {
     const playlistId = actionButton.dataset.del; playlists = playlists.filter(playlist => playlist.id !== playlistId); store.set('pls', playlists); profiles.forEach(profile => store.del(profileKey('ux_'+playlistId, profile.id))); store.del('m3u_'+playlistId);
     if (activePlaylist && activePlaylist.id === playlistId) { activePlaylist = null; catalog = null; store.del('active'); }
     renderPlaylistSelect(); renderHome();
+    if (!activePlaylist && playlists.length) openPlaylist(fallbackPlaylistId());
   }
 };
 
+/**
+ * Lista que o app abre quando nenhuma está ativa: a padrão, se ainda existir, senão a primeira.
+ * @returns {string|null} Id da lista, ou `null` se não houver nenhuma.
+ */
+function fallbackPlaylistId(){
+  const defaultPlaylist = playlists.find(playlist => playlist.id === DEFAULT_PLAYLIST.id);
+  return defaultPlaylist ? defaultPlaylist.id : playlists.length ? playlists[0].id : null;
+}
 /**
  * Ativa uma lista e carrega seus dados.
  * @param {string} id Id da lista.
