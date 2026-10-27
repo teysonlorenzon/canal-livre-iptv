@@ -62,6 +62,7 @@ function renderHome(){
   const favoriteChannels = userData.fav.live.map(channelKey => catalog.live.items.find(item => item.k === channelKey)).filter(Boolean).slice(0, 20);
   const topMovies = weeklyTop('vod'), topSeries = weeklyTop('series');
   const recommendedMovies = recommendedItems('vod'), recommendedSeries = recommendedItems('series');
+  const watchedMovies = watchedTitleEntries('vod'), watchedSeries = watchedTitleEntries('series');
   const recentChannels = userData.recentLive.map(channelKey => catalog.live.items.find(item => item.k === channelKey)).filter(Boolean).slice(0, 20);
   homeScreen.innerHTML = `
     <div class="tiles">
@@ -71,13 +72,15 @@ function renderHome(){
     </div>
     ${accountHtml}
     <div class="shelves">
+      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recentChannels.length, recentChannels.map(channel => chipHtml(channel, true)).join(''), 'Os canais que você assistir aparecem aqui.')}
+      ${shelfHtml('fav', 'Canais favoritos', 'Seus canais marcados', favoriteChannels.length, favoriteChannels.map(channel => chipHtml(channel)).join(''), 'Toque na estrela ★ de um canal para favoritar.')}
       ${shelfHtml('cont', 'Continuar assistindo', 'De onde você parou', continueWatching.length, continueWatching.map((historyEntry, index) => cardHtml({ name:historyEntry.title, logo:historyEntry.logo, pg:historyEntry.pos/historyEntry.dur, removable:true }, 'data-cont="'+index+'" data-fav="'+esc(historyEntry.series || historyEntry.ref)+'"')).join(''), 'Filmes e episódios que você começar aparecem aqui.')}
       ${recommendationShelfHtml('vod', recommendedMovies)}
       ${recommendationShelfHtml('series', recommendedSeries)}
       ${weeklyTopShelfHtml('vod', topMovies)}
       ${weeklyTopShelfHtml('series', topSeries)}
-      ${shelfHtml('recent', 'Canais recentes', 'Assistidos por último', recentChannels.length, recentChannels.map(channel => chipHtml(channel, true)).join(''), 'Os canais que você assistir aparecem aqui.')}
-      ${shelfHtml('fav', 'Canais favoritos', 'Seus canais marcados', favoriteChannels.length, favoriteChannels.map(channel => chipHtml(channel)).join(''), 'Toque na estrela ★ de um canal para favoritar.')}
+      ${watchedShelfHtml('vod', watchedMovies)}
+      ${watchedShelfHtml('series', watchedSeries)}
     </div>`;
   homeScreen.querySelectorAll('[data-sec]').forEach(sectionButton => sectionButton.onclick = () => openSection(sectionButton.dataset.sec));
   homeScreen.querySelectorAll('[data-cont]').forEach(continueButton => continueButton.onclick = () => { const historyEntry = continueWatching[+continueButton.dataset.cont]; if (historyEntry.series) resumeEpisode(historyEntry); else playMedia(historyEntry.desc, historyEntry.pos); });
@@ -86,6 +89,10 @@ function renderHome(){
     const sectionName = recommendationButton.dataset.rec, item = (sectionName === 'vod' ? recommendedMovies : recommendedSeries).items[+recommendationButton.dataset.i];
     if (item) withPin(sectionName + ':' + item.cat, () => sectionName === 'vod' ? openMovie(item) : openSeries(item));
   });
+  homeScreen.querySelectorAll('[data-watched]').forEach(watchedButton => watchedButton.onclick = () => {
+    const sectionName = watchedButton.dataset.watched, watchedEntry = (sectionName === 'vod' ? watchedMovies : watchedSeries)[+watchedButton.dataset.i];
+    if (watchedEntry) withPin(sectionName + ':' + watchedEntry.item.cat, () => sectionName === 'vod' ? openMovie(watchedEntry.item) : openSeries(watchedEntry.item));
+  });
   homeScreen.querySelectorAll('[data-top]').forEach(topButton => topButton.onclick = () => {
     const sectionName = topButton.dataset.top, item = (sectionName === 'vod' ? topMovies : topSeries).items[+topButton.dataset.rank];
     if (item) withPin(sectionName + ':' + item.cat, () => sectionName === 'vod' ? openMovie(item) : openSeries(item));
@@ -93,7 +100,9 @@ function renderHome(){
   homeScreen.querySelectorAll('.card-del').forEach(removeButton => removeButton.onclick = clickEvent => {
     clickEvent.stopPropagation();
     const cardElement = removeButton.closest('.card');
-    if (cardElement.dataset.cont) removeHistoryEntry(continueWatching[+cardElement.dataset.cont].ref); else removeRecentChannel(cardElement.dataset.live);
+    if (cardElement.dataset.cont) removeHistoryEntry(continueWatching[+cardElement.dataset.cont].ref);
+    else if (cardElement.dataset.watched) removeHistoryEntry((cardElement.dataset.watched === 'vod' ? watchedMovies : watchedSeries)[+cardElement.dataset.i].ref);
+    else removeRecentChannel(cardElement.dataset.live);
     toast('Removido do histórico.'); renderHome();
   });
   homeScreen.querySelectorAll('[data-live]').forEach(channelButton => channelButton.onclick = () => { const channel = catalog.live.items.find(item => item.k === channelButton.dataset.live); playLive(channel, catalog.live.items); });
@@ -101,7 +110,7 @@ function renderHome(){
 /**
  * HTML de uma prateleira da tela inicial: cabeçalho com ícone, contagem e setas para rolar,
  * e a faixa de cartões (ou um estado vazio).
- * @param {'cont'|'recent'|'fav'|'topvod'|'topseries'|'recvod'|'recseries'} kind Tipo (define ícone e cor).
+ * @param {'cont'|'recent'|'fav'|'topvod'|'topseries'|'recvod'|'recseries'|'watchedvod'|'watchedseries'} kind Tipo (define ícone e cor).
  * @param {string} title Título.
  * @param {string} subtitle Subtítulo.
  * @param {number} itemCount Quantidade de itens.
@@ -110,7 +119,7 @@ function renderHome(){
  * @returns {string} HTML.
  */
 const shelfHtml = (kind, title, subtitle, itemCount, itemsHtml, emptyText) => `<section class="shelf shelf-${kind}">
-  <div class="shelf-h"><span class="shelf-ico">${icon({ fav:'star', topvod:'trophy', topseries:'trophy', recvod:'sparkle', recseries:'sparkle' }[kind] || kind)}</span><div><h3>${title}</h3><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>${scrollArrowsHtml()}` : ''}</div>
+  <div class="shelf-h"><span class="shelf-ico">${icon({ fav:'star', topvod:'trophy', topseries:'trophy', recvod:'sparkle', recseries:'sparkle', watchedvod:'check', watchedseries:'check' }[kind] || kind)}</span><div><h3>${title}</h3><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>${scrollArrowsHtml()}` : ''}</div>
   ${itemCount ? `<div class="strip">${itemsHtml}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${emptyText}</p></div>`}
 </section>`;
 /**
@@ -237,4 +246,34 @@ function recommendationShelfHtml(sectionName, recommendations){
   if (!recommendations.items.length) return '';
   const kind = sectionName === 'vod' ? 'recvod' : 'recseries', title = sectionName === 'vod' ? 'Filmes recomendados' : 'Séries recomendadas';
   return shelfHtml(kind, title, esc(recommendations.reason), recommendations.items.length, recommendations.items.map((item, index) => cardHtml(item, `data-rec="${sectionName}" data-i="${index}" data-fav="${sectionName}:${esc(item.k)}"`)).join(''), '');
+}
+/**
+ * Títulos do histórico do perfil para o bloco "assistidos": filmes que ele terminou de ver
+ * (95% ou mais, o complemento de "Continuar assistindo") ou séries das quais viu algum episódio,
+ * do mais recente para o mais antigo.
+ * @param {'vod'|'series'} sectionName Seção.
+ * @returns {{item: Item, ref: string}[]} Até 20 títulos com a referência do registro no histórico.
+ */
+function watchedTitleEntries(sectionName){
+  const sectionData = catalog[sectionName]; if (!sectionData) return [];
+  const isSeries = sectionName === 'series', itemsByKey = recommendationIndex(sectionData).byKey, watchedEntries = [];
+  for (const historyEntry of userData.hist) {
+    if (historyEntry.hidden || !historyEntry.ref) continue;
+    if (isSeries ? !historyEntry.series : (historyEntry.series || historyEntry.ref.indexOf('vod:') !== 0 || !historyEntry.dur || historyEntry.pos / historyEntry.dur < 0.95)) continue;
+    const item = itemsByKey.get(isSeries ? historyEntry.series.slice('series:'.length) : historyEntry.ref.slice('vod:'.length));
+    if (item) watchedEntries.push({ item, ref:historyEntry.ref });
+    if (watchedEntries.length === 20) break;
+  }
+  return watchedEntries;
+}
+/**
+ * HTML do bloco "Filmes assistidos" ou "Séries assistidas" (some se o histórico não tiver nada).
+ * @param {'vod'|'series'} sectionName Seção.
+ * @param {{item: Item, ref: string}[]} watchedEntries Títulos (de `watchedTitleEntries`).
+ * @returns {string} HTML.
+ */
+function watchedShelfHtml(sectionName, watchedEntries){
+  if (!watchedEntries.length) return '';
+  const isMovie = sectionName === 'vod';
+  return shelfHtml(isMovie ? 'watchedvod' : 'watchedseries', isMovie ? 'Filmes assistidos' : 'Séries assistidas', isMovie ? 'Filmes que você terminou de ver' : 'Séries que você já começou', watchedEntries.length, watchedEntries.map(({ item }, index) => cardHtml({ ...item, removable:true }, `data-watched="${sectionName}" data-i="${index}" data-fav="${sectionName}:${esc(item.k)}"`)).join(''), '');
 }

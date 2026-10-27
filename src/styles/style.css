@@ -110,7 +110,8 @@ header .dd-menu{left:auto;right:0}
 .shelf{--c:var(--accent);position:relative;min-width:0;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:16px 18px 14px;overflow:hidden;display:flex;flex-direction:column;gap:14px}
 .shelf::before{content:"";position:absolute;left:0;right:0;top:0;height:120px;background:linear-gradient(180deg,var(--c),transparent);opacity:.09;pointer-events:none}
 .shelf::after{content:"";position:absolute;left:18px;right:18px;top:0;height:2px;border-radius:0 0 2px 2px;background:var(--c);opacity:.7}
-.shelf-cont,.shelf-topvod,.shelf-topseries,.shelf-recvod,.shelf-recseries{grid-column:1/-1}
+.shelf-cont,.shelf-topvod,.shelf-topseries,.shelf-recvod,.shelf-recseries,.shelf-watchedvod,.shelf-watchedseries{grid-column:1/-1}
+.shelf-watchedvod,.shelf-watchedseries{--c:var(--ok)}
 .shelf-recvod{--c:var(--av5)}
 .shelf-recseries{--c:var(--av2)}
 .shelf-topvod{--c:var(--av4)}

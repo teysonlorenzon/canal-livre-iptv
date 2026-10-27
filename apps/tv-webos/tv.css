@@ -13,8 +13,8 @@ html.tv #cPip,html.tv #cFs,html.tv #cMute{display:none!important}
 html.tv{--tv-blue:#2f6fde}
 html.tv .card-del{display:none;opacity:1;pointer-events:none;background:var(--tv-blue)}
 html.tv .card:focus .card-del{display:grid}
-html.tv .shelf-cont .shelf-n,html.tv .shelf-recent .shelf-n{position:relative}
-html.tv .shelf-cont .shelf-n::before,html.tv .shelf-recent .shelf-n::before{content:"Remover";position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%);white-space:nowrap;font:500 13px var(--display);color:var(--muted);padding-left:20px;background:radial-gradient(circle,var(--tv-blue) 6px,transparent 7px) left center/14px 14px no-repeat}
+html.tv .shelf-cont .shelf-n,html.tv .shelf-recent .shelf-n,html.tv .shelf-watchedvod .shelf-n,html.tv .shelf-watchedseries .shelf-n{position:relative}
+html.tv .shelf-cont .shelf-n::before,html.tv .shelf-recent .shelf-n::before,html.tv .shelf-watchedvod .shelf-n::before,html.tv .shelf-watchedseries .shelf-n::before{content:"Remover";position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%);white-space:nowrap;font:500 13px var(--display);color:var(--muted);padding-left:20px;background:radial-gradient(circle,var(--tv-blue) 6px,transparent 7px) left center/14px 14px no-repeat}
 html.tv .list li.rm .del{visibility:hidden;pointer-events:none}
 html.tv .list li.rm:focus .del{visibility:visible;font:500 13px var(--display);color:var(--muted);padding-left:20px;background:radial-gradient(circle,var(--tv-blue) 6px,transparent 7px) left center/14px 14px no-repeat}
 html.tv .list li.rm:focus .del .ico{display:none}
