@@ -54,7 +54,7 @@ function renderHome(){
    * @param {string} unitWord Palavra da unidade (ex.: "títulos").
    * @returns {string} Texto exibido.
    */
-  const countLabel = (sectionName, unitWord) => countVisibleItems(sectionName) == null ? (sectionJobs[sectionName] ? 'Carregando…' : 'Toque para carregar') : `${countVisibleItems(sectionName)} ${unitWord}`;
+  const countLabel = (sectionName, unitWord) => countVisibleItems(sectionName) == null ? 'Toque para carregar' : `${countVisibleItems(sectionName)} ${unitWord}`;
   let accountHtml = '';
   if (catalog.info) {
     const userInfo = catalog.info.user_info, expirationText = +userInfo.exp_date ? new Date(userInfo.exp_date*1000).toLocaleDateString('pt-BR') : 'Ilimitado';

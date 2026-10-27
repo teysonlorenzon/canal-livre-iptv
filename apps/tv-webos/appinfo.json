@@ -1,6 +1,6 @@
 {
   "id": "com.zappiptv.tv",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "vendor": "Zapp IPTV",
   "type": "web",
   "main": "index.html",

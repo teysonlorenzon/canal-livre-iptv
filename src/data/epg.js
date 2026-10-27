@@ -11,13 +11,14 @@ function parseXmltvDate(xmltvDate){
   return Date.parse(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}T${dateMatch[4]}:${dateMatch[5]}:${dateMatch[6]}${timezone}`);
 }
 /**
- * Baixa e lê um guia XMLTV (aceita `.gz`), mantendo de 3 dias atrás a 2 dias à frente.
+ * Baixa e lê um guia XMLTV (aceita `.gz`), mantendo de 3 dias atrás a 2 dias à frente. Roda com a
+ * tela de carregamento principal (pode ser cancelado, e o tempo limite é de 2 minutos).
  * @param {string} url URL do XMLTV.
  * @returns {Promise<Map<string, Programa[]>|null>} Programas por canal (id em minúsculas), ou `null` se falhar.
  */
 async function loadXmltv(url){
   try {
-    const response = await fetch(url); if (!response.ok) throw 0;
+    const response = await fetchWithTimeout(url, 120000);
     let xmlText;
     if (/\.gz(\?|$)/i.test(url) && 'DecompressionStream' in window) xmlText = await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).text();
     else xmlText = await response.text();

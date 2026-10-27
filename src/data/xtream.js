@@ -13,18 +13,14 @@ let cancelled = false;
  * (sem depender de `AbortSignal`).
  * @param {string} url URL a buscar.
  * @param {number} [timeoutMs=30000] Tempo limite em milissegundos.
- * @param {boolean} [isBackground] Download em segundo plano: não pode ser cancelado pelo botão
- * e não interfere no carregamento exibido na tela.
  * @returns {Promise<Response>} Resposta com status de sucesso.
  * @throws {Error} Em caso de tempo esgotado, cancelamento ou status de erro.
  */
-async function fetchWithTimeout(url, timeoutMs = 30000, isBackground = false){
+async function fetchWithTimeout(url, timeoutMs = 30000){
   let timeoutTimer, rejectCancel;
   const cancelPromise = new Promise((_, reject) => { rejectCancel = reject; });
-  if (!isBackground) {
-    cancelled = false;
-    abortController = { abort: () => { const abortError = new Error('Carregamento cancelado.'); abortError.name = 'AbortError'; rejectCancel(abortError); } };
-  }
+  cancelled = false;
+  abortController = { abort: () => { const abortError = new Error('Carregamento cancelado.'); abortError.name = 'AbortError'; rejectCancel(abortError); } };
   const timeoutPromise = new Promise((_, reject) => { timeoutTimer = setTimeout(() => reject(new Error(`O servidor não respondeu em ${Math.round(timeoutMs/1000)} segundos`)), timeoutMs); });
   try {
     const response = await Promise.race([fetch(url), timeoutPromise, cancelPromise]);
@@ -37,12 +33,11 @@ async function fetchWithTimeout(url, timeoutMs = 30000, isBackground = false){
  * @param {string} action Ação da API (vazio para login/informações).
  * @param {string} [extraParams=''] Parâmetros extras já codificados (`&chave=valor`).
  * @param {number} [timeoutMs] Tempo limite em milissegundos.
- * @param {boolean} [isBackground] Download em segundo plano (ver {@link fetchWithTimeout}).
  * @returns {Promise<*>} JSON da resposta.
  * @throws {Error} Se a resposta não for JSON válido.
  */
-const xtreamApi = async (action, extraParams='', timeoutMs, isBackground) => {
-  const response = await fetchWithTimeout(`${xtreamBaseUrl()}/player_api.php?username=${encodeURIComponent(activePlaylist.user)}&password=${encodeURIComponent(activePlaylist.pass)}${action ? '&action='+action : ''}${extraParams}`, timeoutMs, isBackground);
+const xtreamApi = async (action, extraParams='', timeoutMs) => {
+  const response = await fetchWithTimeout(`${xtreamBaseUrl()}/player_api.php?username=${encodeURIComponent(activePlaylist.user)}&password=${encodeURIComponent(activePlaylist.pass)}${action ? '&action='+action : ''}${extraParams}`, timeoutMs);
   const responseText = await response.text();
   try { return JSON.parse(responseText); } catch { throw new Error('O servidor não respondeu no formato Xtream esperado'); }
 };
@@ -81,7 +76,7 @@ const xtreamCategories = apiCategories => (Array.isArray(apiCategories) ? apiCat
 const asArray = value => Array.isArray(value) ? value : [];
 /**
  * Faz login no Xtream e baixa os canais ao vivo da lista ativa.
- * Filmes e séries ficam `null` e são baixados depois por {@link preloadSections}.
+ * Filmes e séries ficam `null` e são baixados em seguida por {@link loadAllSections}.
  * @returns {Promise<DadosLista>} Dados da lista.
  * @throws {Error} Se o login falhar ou a conta não estiver ativa.
  */
@@ -100,71 +95,45 @@ async function loadXtream(){
     vod:null, series:null
   };
 }
-/** @type {Partial<Record<Secao, Promise<boolean>>>} Downloads de filmes/séries em segundo plano. */
-let sectionJobs = {};
-
 /**
  * Baixa as categorias e os itens de filmes ou séries do Xtream.
  * @param {'vod'|'series'} section Seção.
- * @param {boolean} [isBackground] Baixar em segundo plano, sem a tela de carregamento.
  * @returns {Promise<DadosSecao>} Dados da seção.
  * @throws {Error} Se o servidor falhar.
  */
-async function fetchSection(section, isBackground = false){
-  const showProgress = isBackground ? () => {} : loading;
+async function fetchSection(section){
   if (section === 'vod') {
-    showProgress('Baixando categorias de filmes…'); const vodCategories = await xtreamApi('get_vod_categories', '', 30000, isBackground);
-    showProgress('Baixando filmes… (listas grandes levam até 2 minutos)'); const vodStreams = await xtreamApi('get_vod_streams', '', 150000, isBackground);
+    loading('Baixando categorias de filmes…'); const vodCategories = await xtreamApi('get_vod_categories', '', 30000);
+    loading('Baixando filmes… (listas grandes levam até 2 minutos)'); const vodStreams = await xtreamApi('get_vod_streams', '', 150000);
     return { cats:xtreamCategories(vodCategories), items:asArray(vodStreams).map(stream => ({ k:String(stream.stream_id), name:stream.name, logo:stream.stream_icon, cat:String(stream.category_id), ext:stream.container_extension || 'mp4', rate:+stream.rating || 0, added:+stream.added || 0 })) };
   }
-  showProgress('Baixando categorias de séries…'); const seriesCategories = await xtreamApi('get_series_categories', '', 30000, isBackground);
-  showProgress('Baixando séries… (listas grandes levam até 2 minutos)'); const seriesList = await xtreamApi('get_series', '', 150000, isBackground);
+  loading('Baixando categorias de séries…'); const seriesCategories = await xtreamApi('get_series_categories', '', 30000);
+  loading('Baixando séries… (listas grandes levam até 2 minutos)'); const seriesList = await xtreamApi('get_series', '', 150000);
   return { cats:xtreamCategories(seriesCategories), items:asArray(seriesList).map(series => ({ k:String(series.series_id), name:series.name, logo:series.cover, cat:String(series.category_id), rate:+series.rating || 0, added:+(series.last_modified||0), plot:series.plot })) };
 }
 
 /**
- * Começa a baixar filmes e depois séries em segundo plano, logo após abrir a lista.
- * Se a lista ativa mudar no meio, o resultado é descartado.
- * @returns {void}
+ * Baixa filmes e depois séries da lista Xtream ativa, com a tela de carregamento principal.
+ * Se uma seção falhar, avisa e segue com a próxima; se o usuário cancelar, para. Em ambos os
+ * casos o app abre com o que já foi baixado, e a seção que faltar é tentada de novo ao ser aberta.
+ * @returns {Promise<void>}
  */
-function preloadSections(){
+async function loadAllSections(){
   const loadedCatalog = catalog;
-  let chain = Promise.resolve();
-  sectionJobs = {};
   for (const section of ['vod', 'series']) {
-    const job = chain = chain.then(async () => {
-      if (catalog !== loadedCatalog || loadedCatalog[section]) return !!loadedCatalog[section];
-      try {
-        const sectionData = await fetchSection(section, true);
-        if (catalog !== loadedCatalog) return false;
-        loadedCatalog[section] = sectionData;
-        renderHome();
-        if ($('dSettings').open) renderCatRows();
-        return true;
-      } catch { return false; }
-      finally { if (sectionJobs[section] === job) delete sectionJobs[section]; }
-    });
-    sectionJobs[section] = job;
+    try { loadedCatalog[section] = await fetchSection(section); }
+    catch (err) { if (cancelled) return; toast(SECTION_NAMES[section] + ': ' + errText(err)); }
   }
 }
 
 /**
- * Garante que filmes ou séries estejam carregados. Se o download em segundo plano
- * ainda estiver rodando, espera por ele; se tiver falhado, tenta de novo.
+ * Garante que filmes ou séries estejam carregados; se um download anterior falhou ou foi
+ * cancelado, tenta de novo com a tela de carregamento.
  * @param {Secao} section Seção.
  * @returns {Promise<boolean>} `true` se a seção está disponível.
  */
 async function ensureSection(section){
   if (catalog[section]) return true;
-  const job = sectionJobs[section];
-  if (job) {
-    loading(`Terminando de carregar ${SECTION_NAMES[section].toLowerCase()}…`);
-    cancelled = false;
-    const jobResult = await Promise.race([job, new Promise(resolve => { abortController = { abort: () => resolve('cancel') }; })]);
-    loading(null);
-    if (jobResult === 'cancel') return false;
-    if (catalog[section]) return true;
-  }
   try {
     catalog[section] = await fetchSection(section);
     loading(null); return true;

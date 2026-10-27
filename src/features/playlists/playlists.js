@@ -113,10 +113,10 @@ function fallbackPlaylistId(){
  */
 async function openPlaylist(id, force){
   const playlist = playlists.find(candidate => candidate.id === id); if (!playlist) return;
-  activePlaylist = playlist; store.set('active', id); loadUserData(); unlockedCategories.clear(); epgCache.clear(); lastError = ''; catalog = null; sectionJobs = {};
+  activePlaylist = playlist; store.set('active', id); loadUserData(); unlockedCategories.clear(); epgCache.clear(); lastError = ''; catalog = null;
   renderPlaylistSelect();
   try {
-    if (playlist.type === 'xtream') { catalog = await loadXtream(); preloadSections(); }
+    if (playlist.type === 'xtream') { catalog = await loadXtream(); await loadAllSections(); }
     else {
       let m3uText = playlist.id === DEFAULT_PLAYLIST.id ? DEFAULT_M3U : (!force || !playlist.url) ? store.get('m3u_' + playlist.id, null) : null;
       if (!m3uText && playlist.url) { loading('Baixando lista…'); const response = await fetchWithTimeout(playlist.url, 120000); m3uText = await response.text(); store.set('m3u_' + playlist.id, m3uText); }
@@ -124,7 +124,7 @@ async function openPlaylist(id, force){
       loading('Organizando canais…');
       catalog = buildFromM3U(m3uText);
       const epgUrl = playlist.epg || catalog.epgUrl;
-      if (epgUrl) { loadXmltv(epgUrl).then(epgMap => { if (epgMap && catalog) { catalog.epg = epgMap; if (!$('section').hidden && currentSection === 'live') renderItems(); } }); }
+      if (epgUrl) { loading('Baixando guia de programação…'); const epgMap = await loadXmltv(epgUrl); if (epgMap) catalog.epg = epgMap; }
     }
     loading(null);
     show('home');
