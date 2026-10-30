@@ -1,4 +1,6 @@
-document.body.insertAdjacentHTML('beforeend', `
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `
 <dialog id="dProfiles" style="width:min(560px,calc(100vw - 32px))">
   <div class="dlg">
     <h3 style="text-align:center">Quem está assistindo?</h3>
@@ -17,4 +19,5 @@ document.body.insertAdjacentHTML('beforeend', `
     <div class="row"><button class="btn" type="button" id="profileEditCancel">Cancelar</button><button class="btn primary" type="button" id="profileEditSave">Salvar</button></div>
   </form>
 </dialog>
-`);
+`,
+);

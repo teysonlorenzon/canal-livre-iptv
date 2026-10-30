@@ -8,12 +8,12 @@
 
 ## Plataformas
 
-| Plataforma | Onde fica | Formato |
-|---|---|---|
-| Navegador | `iptv-player.html` | abre direto, sem instalação |
-| TV LG (webOS) | [`apps/tv-webos`](apps/tv-webos/README.md) | `.ipk` |
-| Windows e Linux | [`apps/desktop`](apps/README.md) | `.exe` / `.zip`, `.AppImage`, `.deb` (Electron) |
-| Android e iOS | [`apps/mobile`](apps/README.md) | `.apk` / `.aab`, projeto Xcode (Capacitor) |
+| Plataforma      | Onde fica                                  | Formato                                         |
+| --------------- | ------------------------------------------ | ----------------------------------------------- |
+| Navegador       | `src/iptv-player.html`                     | abre direto, sem instalação                     |
+| TV LG (webOS)   | [`apps/tv-webos`](apps/tv-webos/README.md) | `.ipk`                                          |
+| Windows e Linux | [`apps/desktop`](apps/README.md)           | `.exe` / `.zip`, `.AppImage`, `.deb` (Electron) |
+| Android e iOS   | [`apps/mobile`](apps/README.md)            | `.apk` / `.aab`, projeto Xcode (Capacitor)      |
 
 Todas usam o mesmo código: `tools/bundle.mjs` monta o player web para cada plataforma e
 acrescenta os ajustes de cada uma (controle remoto na TV, CORS liberado no desktop, botão
@@ -33,7 +33,7 @@ Voltar e requisições nativas no celular).
 
 ## Usar no navegador
 
-Abra o `iptv-player.html` (Chrome ou Edge recomendados). A lista de exemplo já abre sozinha;
+Abra o `src/iptv-player.html` (Chrome ou Edge recomendados). A lista de exemplo já abre sozinha;
 para adicionar a sua, vá em **Configurações**. Tudo fica salvo só no navegador (`localStorage`).
 
 > Por causa de CORS, alguns servidores só funcionam com a página aberta direto do arquivo
@@ -48,13 +48,13 @@ Instale as dependências uma vez, na raiz (Node 22 ou mais novo):
 npm install
 ```
 
-| App | Comando | Guia |
-|---|---|---|
-| TV LG | `npm run package -w apps/tv-webos` | [apps/tv-webos/README.md](apps/tv-webos/README.md) |
-| Linux | `npm run dist:linux -w apps/desktop` | [apps/README.md](apps/README.md) |
-| Windows | `npm run dist:win -w apps/desktop` | [apps/README.md](apps/README.md) |
-| Android | `npm run android:apk -w apps/mobile` | [apps/README.md](apps/README.md) |
-| iOS | `npm run ios:sync -w apps/mobile` (no Mac) | [apps/README.md](apps/README.md) |
+| App     | Comando                      | Guia                                               |
+| ------- | ---------------------------- | -------------------------------------------------- |
+| TV LG   | `npm run tv:package`         | [apps/tv-webos/README.md](apps/tv-webos/README.md) |
+| Linux   | `npm run desktop:dist:linux` | [apps/README.md](apps/README.md)                   |
+| Windows | `npm run desktop:dist:win`   | [apps/README.md](apps/README.md)                   |
+| Android | `npm run android:apk`        | [apps/README.md](apps/README.md)                   |
+| iOS     | `npm run ios:sync` (no Mac)  | [apps/README.md](apps/README.md)                   |
 
 O workflow [`build-apps.yml`](.github/workflows/build-apps.yml) gera o instalador do Windows,
 os pacotes de Linux, o APK e um build de verificação do iOS no GitHub Actions
@@ -70,8 +70,8 @@ Monorepo organizado por funcionalidade: o código do player fica em `src/` (cama
 Detalhes e regras de onde colocar código novo em [src/README.md](src/README.md).
 
 ```
-iptv-player.html     entrada do player (carrega o CSS e os scripts de src/ na ordem certa)
 src/
+  iptv-player.html   entrada do player (carrega o CSS e os scripts na ordem certa)
   core/              base: utilidades, estado global, tema
   data/              fontes de dados: lista padrão, M3U, Xtream, guia (EPG)
   ui/                peças visuais comuns: ícones, abertura, cabeçalho, diálogos

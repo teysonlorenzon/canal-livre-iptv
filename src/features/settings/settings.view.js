@@ -1,4 +1,6 @@
-document.body.insertAdjacentHTML('beforeend', `
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `
 <dialog id="dSettings">
   <div class="dlg">
     <h3>Configurações</h3>
@@ -55,4 +57,5 @@ document.body.insertAdjacentHTML('beforeend', `
     </div>
   </div>
 </dialog>
-`);
+`,
+);

@@ -14,8 +14,9 @@ const PROFILE_COLOR_COUNT = 6;
  * @param {{name: string, icon?: string, color?: number}} profile Perfil (ou rascunho do editor).
  * @returns {string} HTML.
  */
-function avatarHtml(profile){
-  const colorIndex = profile.color >= 0 ? profile.color % PROFILE_COLOR_COUNT : Math.max(0, profiles.indexOf(profile)) % PROFILE_COLOR_COUNT;
+function avatarHtml(profile) {
+  const colorIndex =
+    profile.color >= 0 ? profile.color % PROFILE_COLOR_COUNT : Math.max(0, profiles.indexOf(profile)) % PROFILE_COLOR_COUNT;
   const content = profile.icon && ICONS[profile.icon] ? icon(profile.icon) : esc((profile.name.trim().charAt(0) || '?').toUpperCase());
   return `<span class="avatar avatar-c${colorIndex}">${content}</span>`;
 }
@@ -24,8 +25,9 @@ function avatarHtml(profile){
  * Atualiza o botão de perfil do topo e os textos das configurações que dependem do perfil.
  * @returns {void}
  */
-function renderProfileButton(){
-  const profile = activeProfile(), hasManyProfiles = profiles.length > 1;
+function renderProfileButton() {
+  const profile = activeProfile(),
+    hasManyProfiles = profiles.length > 1;
   $('profileBtn').innerHTML = avatarHtml(profile);
   $('profileBtn').title = 'Usuário: ' + profile.name;
   $('profileBtn').setAttribute('aria-label', $('profileBtn').title);
@@ -38,13 +40,20 @@ function renderProfileButton(){
  * @param {boolean} [lockUntilChosen] Não deixar fechar sem escolher (abertura do app com perfil protegido).
  * @returns {void}
  */
-function openProfilePicker(lockUntilChosen){
+function openProfilePicker(lockUntilChosen) {
   if (lockUntilChosen) profileGateActive = true;
-  $('profileCards').innerHTML = profiles.map(profile => `<button class="profile-card${profile.id === activeProfileId ? ' on' : ''}" type="button" data-profile="${esc(profile.id)}">${avatarHtml(profile)}<b>${esc(profile.name)}</b>${profile.askPin ? '<small>com PIN</small>' : ''}</button>`).join('')
-    + `<button class="profile-card add" type="button" data-add-profile="1"><span class="avatar">${icon('avPlus')}</span><b>Adicionar</b></button>`;
+  $('profileCards').innerHTML =
+    profiles
+      .map(
+        profile =>
+          `<button class="profile-card${profile.id === activeProfileId ? ' on' : ''}" type="button" data-profile="${esc(profile.id)}">${avatarHtml(profile)}<b>${esc(profile.name)}</b>${profile.askPin ? '<small>com PIN</small>' : ''}</button>`,
+      )
+      .join('') +
+    `<button class="profile-card add" type="button" data-add-profile="1"><span class="avatar">${icon('avPlus')}</span><b>Adicionar</b></button>`;
   $('profilesClose').hidden = profileGateActive;
   if (!$('dProfiles').open) $('dProfiles').showModal();
-  const activeCard = $('profileCards').querySelector('.on'); if (activeCard) activeCard.focus();
+  const activeCard = $('profileCards').querySelector('.on');
+  if (activeCard) activeCard.focus();
 }
 
 /**
@@ -52,11 +61,18 @@ function openProfilePicker(lockUntilChosen){
  * @param {string} profileId Perfil escolhido.
  * @returns {void}
  */
-function switchProfile(profileId){
-  const profile = profiles.find(candidate => candidate.id === profileId); if (!profile) return;
+function switchProfile(profileId) {
+  const profile = profiles.find(candidate => candidate.id === profileId);
+  if (!profile) return;
   const isSameProfile = profile.id === activeProfileId;
-  if (isSameProfile && !profileGateActive) { $('dProfiles').close(); return; }
-  if (profile.askPin) { requestPin(readOptions(profile.id).pin || '0000', () => activateProfile(profile), 'Digite o PIN de ' + profile.name + '.'); return; }
+  if (isSameProfile && !profileGateActive) {
+    $('dProfiles').close();
+    return;
+  }
+  if (profile.askPin) {
+    requestPin(readOptions(profile.id).pin || '0000', () => activateProfile(profile), 'Digite o PIN de ' + profile.name + '.');
+    return;
+  }
   activateProfile(profile);
 }
 
@@ -65,17 +81,21 @@ function switchProfile(profileId){
  * @param {Perfil} profile Perfil.
  * @returns {void}
  */
-function activateProfile(profile){
+function activateProfile(profile) {
   profileGateActive = false;
   if ($('dProfiles').open) $('dProfiles').close();
   const isSameProfile = profile.id === activeProfileId;
-  activeProfileId = profile.id; store.set('user', profile.id);
+  activeProfileId = profile.id;
+  store.set('user', profile.id);
   if (isSameProfile) return;
-  options = readOptions(); unlockedCategories.clear();
+  options = readOptions();
+  unlockedCategories.clear();
   if (activePlaylist) loadUserData();
-  applyTheme(getTheme()); applyVideoRatio();
+  applyTheme(getTheme());
+  applyVideoRatio();
   if (!$('player').hidden) closePlayer();
-  renderProfileButton(); show('home');
+  renderProfileButton();
+  show('home');
   toast('Olá, ' + profile.name + '!');
 }
 
@@ -87,10 +107,18 @@ $('profileBtn').onclick = () => openProfilePicker();
  * @param {Function} [onCancel] Chamada se o pedido for cancelado.
  * @returns {void}
  */
-function withMainProfilePin(action, onCancel){
+function withMainProfilePin(action, onCancel) {
   const mainProfile = profiles.find(profile => profile.id === MAIN_PROFILE_ID);
   const mainName = mainProfile ? mainProfile.name : 'Principal';
-  requestPin(readOptions(MAIN_PROFILE_ID).pin || '0000', action, 'Usuários novos começam sem bloqueios de categorias e sem controle parental. Para ninguém escapar dos bloqueios criando outro usuário, digite o PIN de ' + mainName + '.', onCancel, 'Criar usuário');
+  requestPin(
+    readOptions(MAIN_PROFILE_ID).pin || '0000',
+    action,
+    'Usuários novos começam sem bloqueios de categorias e sem controle parental. Para ninguém escapar dos bloqueios criando outro usuário, digite o PIN de ' +
+      mainName +
+      '.',
+    onCancel,
+    'Criar usuário',
+  );
 }
 
 /**
@@ -99,33 +127,61 @@ function withMainProfilePin(action, onCancel){
  */
 $('profileCards').onclick = clickEvent => {
   if (clickEvent.target.closest('[data-add-profile]')) {
-    withMainProfilePin(() => { const wasGateActive = profileGateActive; profileGateActive = false; $('dProfiles').close(); openProfileEditor(null, () => openProfilePicker(wasGateActive)); });
+    withMainProfilePin(() => {
+      const wasGateActive = profileGateActive;
+      profileGateActive = false;
+      $('dProfiles').close();
+      openProfileEditor(null, () => openProfilePicker(wasGateActive));
+    });
     return;
   }
-  const profileCard = clickEvent.target.closest('[data-profile]'); if (profileCard) switchProfile(profileCard.dataset.profile);
+  const profileCard = clickEvent.target.closest('[data-profile]');
+  if (profileCard) switchProfile(profileCard.dataset.profile);
 };
 /** Fecha o seletor de perfis. */
 $('profilesClose').onclick = () => $('dProfiles').close();
 /** Abre as configurações na parte de usuários. */
-$('profilesManage').onclick = () => { if (profileGateActive) return requestPin(options.pin || '0000', () => { activateProfile(activeProfile()); openManageProfiles(); }, 'Digite o PIN de ' + activeProfile().name + '.'); $('dProfiles').close(); openManageProfiles(); };
+$('profilesManage').onclick = () => {
+  if (profileGateActive)
+    return requestPin(
+      options.pin || '0000',
+      () => {
+        activateProfile(activeProfile());
+        openManageProfiles();
+      },
+      'Digite o PIN de ' + activeProfile().name + '.',
+    );
+  $('dProfiles').close();
+  openManageProfiles();
+};
 /**
  * Com a escolha travada, o seletor reabre se for fechado (Esc ou Voltar).
  */
-onDialogClose($('dProfiles'), () => { if (profileGateActive) openProfilePicker(); });
+onDialogClose($('dProfiles'), () => {
+  if (profileGateActive) openProfilePicker();
+});
 
 /**
  * Abre as configurações já na parte de usuários.
  * @returns {void}
  */
-function openManageProfiles(){ openSettings(); $('profileList').scrollIntoView({ block:'center' }); }
+function openManageProfiles() {
+  openSettings();
+  $('profileList').scrollIntoView({ block: 'center' });
+}
 
 /**
  * Desenha a lista de perfis nas configurações (foto, nome, "Pedir PIN", Editar e Remover).
  * O Principal e o perfil ativo não podem ser removidos.
  * @returns {void}
  */
-function renderProfileRows(){
-  $('profileList').innerHTML = profiles.map(profile => `<div class="plrow">${avatarHtml(profile)}<div><b>${esc(profile.name)}</b><small>${profile.id === activeProfileId ? 'Usuário atual' : profile.id === MAIN_PROFILE_ID ? 'Usuário principal' : ''}</small></div><label class="profile-pin"><input type="checkbox" data-askpin="${esc(profile.id)}" ${profile.askPin ? 'checked' : ''}>Pedir PIN</label><button class="btn sm" type="button" data-edit-profile="${esc(profile.id)}">Editar</button>${profile.id === MAIN_PROFILE_ID || profile.id === activeProfileId ? '' : `<button class="btn sm danger" type="button" data-del-profile="${esc(profile.id)}">Remover</button>`}</div>`).join('');
+function renderProfileRows() {
+  $('profileList').innerHTML = profiles
+    .map(
+      profile =>
+        `<div class="plrow">${avatarHtml(profile)}<div><b>${esc(profile.name)}</b><small>${profile.id === activeProfileId ? 'Usuário atual' : profile.id === MAIN_PROFILE_ID ? 'Usuário principal' : ''}</small></div><label class="profile-pin"><input type="checkbox" data-askpin="${esc(profile.id)}" ${profile.askPin ? 'checked' : ''}>Pedir PIN</label><button class="btn sm" type="button" data-edit-profile="${esc(profile.id)}">Editar</button>${profile.id === MAIN_PROFILE_ID || profile.id === activeProfileId ? '' : `<button class="btn sm danger" type="button" data-del-profile="${esc(profile.id)}">Remover</button>`}</div>`,
+    )
+    .join('');
 }
 
 /**
@@ -136,10 +192,18 @@ function renderProfileRows(){
  * @param {boolean} [actionReopensSettings] A ação reabre as configurações sozinha.
  * @returns {void}
  */
-function withProfilePin(profile, action, actionReopensSettings){
+function withProfilePin(profile, action, actionReopensSettings) {
   if (!profile.askPin || profile.id === activeProfileId) return action();
   $('dSettings').close();
-  requestPin(readOptions(profile.id).pin || '0000', () => { action(); if (!actionReopensSettings) openSettings(); }, 'Digite o PIN de ' + profile.name + '.', openSettings);
+  requestPin(
+    readOptions(profile.id).pin || '0000',
+    () => {
+      action();
+      if (!actionReopensSettings) openSettings();
+    },
+    'Digite o PIN de ' + profile.name + '.',
+    openSettings,
+  );
 }
 
 /**
@@ -149,11 +213,16 @@ function withProfilePin(profile, action, actionReopensSettings){
 $('profileList').onchange = changeEvent => {
   const field = changeEvent.target;
   if (field.dataset.askpin) {
-    const profile = profiles.find(candidate => candidate.id === field.dataset.askpin); if (!profile) return;
-    const wantsPin = field.checked; field.checked = !wantsPin;
+    const profile = profiles.find(candidate => candidate.id === field.dataset.askpin);
+    if (!profile) return;
+    const wantsPin = field.checked;
+    field.checked = !wantsPin;
     withProfilePin(profile, () => {
-      profile.askPin = wantsPin; saveProfiles(); renderProfileRows();
-      if (wantsPin && (readOptions(profile.id).pin || '0000') === '0000') toast('Atenção: o PIN de ' + profile.name + ' ainda é o padrão 0000.');
+      profile.askPin = wantsPin;
+      saveProfiles();
+      renderProfileRows();
+      if (wantsPin && (readOptions(profile.id).pin || '0000') === '0000')
+        toast('Atenção: o PIN de ' + profile.name + ' ainda é o padrão 0000.');
     });
   }
 };
@@ -166,24 +235,46 @@ $('profileList').onchange = changeEvent => {
 $('profileList').onclick = clickEvent => {
   const editButton = clickEvent.target.closest('[data-edit-profile]');
   if (editButton) {
-    const profileToEdit = profiles.find(candidate => candidate.id === editButton.dataset.editProfile); if (!profileToEdit) return;
-    withProfilePin(profileToEdit, () => { $('dSettings').close(); openProfileEditor(profileToEdit, openSettings); }, true);
+    const profileToEdit = profiles.find(candidate => candidate.id === editButton.dataset.editProfile);
+    if (!profileToEdit) return;
+    withProfilePin(
+      profileToEdit,
+      () => {
+        $('dSettings').close();
+        openProfileEditor(profileToEdit, openSettings);
+      },
+      true,
+    );
     return;
   }
-  const removeButton = clickEvent.target.closest('[data-del-profile]'); if (!removeButton) return;
-  const profile = profiles.find(candidate => candidate.id === removeButton.dataset.delProfile); if (!profile) return;
-  if (removeButton.dataset.confirm !== '1') { removeButton.dataset.confirm = '1'; removeButton.textContent = 'Confirmar'; return; }
+  const removeButton = clickEvent.target.closest('[data-del-profile]');
+  if (!removeButton) return;
+  const profile = profiles.find(candidate => candidate.id === removeButton.dataset.delProfile);
+  if (!profile) return;
+  if (removeButton.dataset.confirm !== '1') {
+    removeButton.dataset.confirm = '1';
+    removeButton.textContent = 'Confirmar';
+    return;
+  }
   withProfilePin(profile, () => {
-    ['opts', 'theme', 'ratio'].concat(playlists.map(playlist => 'ux_' + playlist.id)).forEach(baseKey => store.del(profileKey(baseKey, profile.id)));
-    profiles = profiles.filter(candidate => candidate.id !== profile.id); saveProfiles();
-    renderProfileRows(); renderProfileButton(); toast('Usuário ' + profile.name + ' removido.');
+    ['opts', 'theme', 'ratio']
+      .concat(playlists.map(playlist => 'ux_' + playlist.id))
+      .forEach(baseKey => store.del(profileKey(baseKey, profile.id)));
+    profiles = profiles.filter(candidate => candidate.id !== profile.id);
+    saveProfiles();
+    renderProfileRows();
+    renderProfileButton();
+    toast('Usuário ' + profile.name + ' removido.');
   });
 };
 
 /**
  * Abre o editor para criar um perfil novo a partir das configurações (pede o PIN do Principal).
  */
-$('profileAdd').onclick = () => { $('dSettings').close(); withMainProfilePin(() => openProfileEditor(null, openSettings), openSettings); };
+$('profileAdd').onclick = () => {
+  $('dSettings').close();
+  withMainProfilePin(() => openProfileEditor(null, openSettings), openSettings);
+};
 
 /** @type {{profile: Perfil|null, draft: {name: string, icon: string, color: number}, onDone: Function}|null} Edição em andamento. */
 let profileEdit = null;
@@ -194,8 +285,14 @@ let profileEdit = null;
  * @param {Function} onDone Chamada ao salvar ou cancelar (ex.: reabrir a tela de origem).
  * @returns {void}
  */
-function openProfileEditor(profile, onDone){
-  const draft = profile ? { name:profile.name, icon:profile.icon || '', color:profile.color >= 0 ? profile.color : Math.max(0, profiles.indexOf(profile)) % PROFILE_COLOR_COUNT } : { name:'', icon:PROFILE_ICONS[1 + profiles.length % (PROFILE_ICONS.length - 1)], color:profiles.length % PROFILE_COLOR_COUNT };
+function openProfileEditor(profile, onDone) {
+  const draft = profile
+    ? {
+        name: profile.name,
+        icon: profile.icon || '',
+        color: profile.color >= 0 ? profile.color : Math.max(0, profiles.indexOf(profile)) % PROFILE_COLOR_COUNT,
+      }
+    : { name: '', icon: PROFILE_ICONS[1 + (profiles.length % (PROFILE_ICONS.length - 1))], color: profiles.length % PROFILE_COLOR_COUNT };
   profileEdit = { profile, draft, onDone };
   $('profileEditTitle').textContent = profile ? 'Editar usuário' : 'Novo usuário';
   $('profileEditName').value = draft.name;
@@ -208,11 +305,19 @@ function openProfileEditor(profile, onDone){
  * Redesenha a prévia, os ícones e as cores do editor com a escolha atual.
  * @returns {void}
  */
-function renderProfileEditor(){
-  const draft = profileEdit.draft, previewDraft = { ...draft, name:draft.name || '?' };
+function renderProfileEditor() {
+  const draft = profileEdit.draft,
+    previewDraft = { ...draft, name: draft.name || '?' };
   $('profileEditPreview').innerHTML = avatarHtml(previewDraft);
-  $('profileIcons').innerHTML = PROFILE_ICONS.map(iconName => `<button class="icon-choice${iconName === draft.icon ? ' on' : ''}" type="button" data-icon="${iconName}" aria-label="${iconName ? 'Ícone' : 'Inicial do nome'}">${avatarHtml({ ...previewDraft, icon:iconName })}</button>`).join('');
-  $('profileColors').innerHTML = Array.from({ length:PROFILE_COLOR_COUNT }, (_, colorIndex) => `<button class="color-choice${colorIndex === draft.color ? ' on' : ''}" type="button" data-color="${colorIndex}" aria-label="Cor ${colorIndex + 1}"><span class="avatar-c${colorIndex}"></span></button>`).join('');
+  $('profileIcons').innerHTML = PROFILE_ICONS.map(
+    iconName =>
+      `<button class="icon-choice${iconName === draft.icon ? ' on' : ''}" type="button" data-icon="${iconName}" aria-label="${iconName ? 'Ícone' : 'Inicial do nome'}">${avatarHtml({ ...previewDraft, icon: iconName })}</button>`,
+  ).join('');
+  $('profileColors').innerHTML = Array.from(
+    { length: PROFILE_COLOR_COUNT },
+    (_, colorIndex) =>
+      `<button class="color-choice${colorIndex === draft.color ? ' on' : ''}" type="button" data-color="${colorIndex}" aria-label="Cor ${colorIndex + 1}"><span class="avatar-c${colorIndex}"></span></button>`,
+  ).join('');
 }
 
 /**
@@ -220,36 +325,53 @@ function renderProfileEditor(){
  * @param {MouseEvent} clickEvent Evento de clique.
  */
 $('profileIcons').onclick = clickEvent => {
-  const choice = clickEvent.target.closest('[data-icon]'); if (!choice) return;
-  profileEdit.draft.icon = choice.dataset.icon; renderProfileEditor();
-  $('profileIcons').querySelector('[data-icon="' + choice.dataset.icon + '"]').focus();
+  const choice = clickEvent.target.closest('[data-icon]');
+  if (!choice) return;
+  profileEdit.draft.icon = choice.dataset.icon;
+  renderProfileEditor();
+  $('profileIcons')
+    .querySelector('[data-icon="' + choice.dataset.icon + '"]')
+    .focus();
 };
 /**
  * Escolhe uma cor e mantém o foco nela depois de redesenhar.
  * @param {MouseEvent} clickEvent Evento de clique.
  */
 $('profileColors').onclick = clickEvent => {
-  const choice = clickEvent.target.closest('[data-color]'); if (!choice) return;
-  profileEdit.draft.color = +choice.dataset.color; renderProfileEditor();
-  $('profileColors').querySelector('[data-color="' + choice.dataset.color + '"]').focus();
+  const choice = clickEvent.target.closest('[data-color]');
+  if (!choice) return;
+  profileEdit.draft.color = +choice.dataset.color;
+  renderProfileEditor();
+  $('profileColors')
+    .querySelector('[data-color="' + choice.dataset.color + '"]')
+    .focus();
 };
 /**
  * Atualiza a prévia (inicial) enquanto o nome é digitado.
  */
-$('profileEditName').oninput = () => { profileEdit.draft.name = $('profileEditName').value; $('profileEditPreview').innerHTML = avatarHtml({ ...profileEdit.draft, name:profileEdit.draft.name || '?' }); };
+$('profileEditName').oninput = () => {
+  profileEdit.draft.name = $('profileEditName').value;
+  $('profileEditPreview').innerHTML = avatarHtml({ ...profileEdit.draft, name: profileEdit.draft.name || '?' });
+};
 /**
  * Enter no nome salva.
  * @param {KeyboardEvent} keyEvent Evento de tecla.
  */
-$('profileEditName').onkeydown = keyEvent => { if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); $('profileEditSave').click(); } };
+$('profileEditName').onkeydown = keyEvent => {
+  if (keyEvent.key === 'Enter') {
+    keyEvent.preventDefault();
+    $('profileEditSave').click();
+  }
+};
 $('profileEditForm').onsubmit = submitEvent => submitEvent.preventDefault();
 
 /**
  * Fecha o editor e volta para a tela de origem.
  * @returns {void}
  */
-function closeProfileEditor(){
-  const onDone = profileEdit && profileEdit.onDone; profileEdit = null;
+function closeProfileEditor() {
+  const onDone = profileEdit && profileEdit.onDone;
+  profileEdit = null;
   if ($('dProfileEdit').open) $('dProfileEdit').close();
   if (onDone) onDone();
 }
@@ -257,17 +379,25 @@ $('profileEditCancel').onclick = closeProfileEditor;
 /**
  * Fechar com Esc ou Voltar equivale a cancelar.
  */
-onDialogClose($('dProfileEdit'), () => { if (profileEdit) closeProfileEditor(); });
+onDialogClose($('dProfileEdit'), () => {
+  if (profileEdit) closeProfileEditor();
+});
 
 /**
  * Salva o perfil editado ou cria o novo (vazio, com opções padrão).
  */
 $('profileEditSave').onclick = () => {
-  const draft = profileEdit.draft, name = $('profileEditName').value.trim().slice(0, 24);
-  if (!name) { toast('Digite o nome do usuário.'); $('profileEditName').focus(); return; }
-  if (profileEdit.profile) Object.assign(profileEdit.profile, { name, icon:draft.icon, color:draft.color });
-  else profiles.push({ id:'u' + Date.now().toString(36), name, icon:draft.icon, color:draft.color });
-  saveProfiles(); renderProfileButton();
+  const draft = profileEdit.draft,
+    name = $('profileEditName').value.trim().slice(0, 24);
+  if (!name) {
+    toast('Digite o nome do usuário.');
+    $('profileEditName').focus();
+    return;
+  }
+  if (profileEdit.profile) Object.assign(profileEdit.profile, { name, icon: draft.icon, color: draft.color });
+  else profiles.push({ id: 'u' + Date.now().toString(36), name, icon: draft.icon, color: draft.color });
+  saveProfiles();
+  renderProfileButton();
   toast(profileEdit.profile ? 'Usuário salvo.' : 'Usuário ' + name + ' criado.');
   closeProfileEditor();
 };

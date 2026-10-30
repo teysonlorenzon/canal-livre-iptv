@@ -1,6 +1,6 @@
 # Zapp IPTV: desktop e celular
 
-Os apps usam o mesmo player web da raiz (`iptv-player.html`). `tools/bundle.mjs` junta os
+Os apps usam o mesmo player web da raiz (`src/iptv-player.html`). `tools/bundle.mjs` junta os
 scripts, copia hls.js/mpegts.js para dentro do app e acrescenta os ajustes de cada plataforma.
 
 Instale as dependências uma vez, na raiz do repositório:
@@ -14,11 +14,11 @@ npm install
 Electron. A janela desliga o bloqueio de CORS do navegador, então listas e APIs Xtream que
 não carregam no navegador funcionam aqui.
 
-| Comando | O que faz |
-|---|---|
-| `npm start -w apps/desktop` | Abre o app para testar |
-| `npm run dist:linux -w apps/desktop` | Gera `out/Zapp IPTV-<versão>.AppImage` e `out/zapp-iptv-desktop_<versão>_amd64.deb` |
-| `npm run dist:win -w apps/desktop` | Gera o instalador `.exe` e um `.zip` portátil (o `.exe` precisa do Wine no Linux; sem Wine, use `npx electron-builder --win zip` ou o GitHub Actions) |
+| Comando                      | O que faz                                                                                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run desktop:start`      | Abre o app para testar                                                                                                                                |
+| `npm run desktop:dist:linux` | Gera `out/Zapp IPTV-<versão>.AppImage` e `out/zapp-iptv-desktop_<versão>_amd64.deb`                                                                   |
+| `npm run desktop:dist:win`   | Gera o instalador `.exe` e um `.zip` portátil (o `.exe` precisa do Wine no Linux; sem Wine, use `npx electron-builder --win zip` ou o GitHub Actions) |
 
 No Ubuntu 22.04 ou mais novo, o AppImage precisa da `libfuse2`
 (`sudo apt install libfuse2`) ou de ser aberto com `--appimage-extract-and-run`.
@@ -33,11 +33,11 @@ web. Conexões `http` estão liberadas no Android (`usesCleartextTraffic`) e no 
 Precisa do Java 21 e do Android SDK (`JAVA_HOME` e `ANDROID_HOME` apontando para eles).
 
 ```bash
-npm run android:apk -w apps/mobile
+npm run android:apk
 ```
 
 O APK sai em `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`. Para instalar,
-ligue a **Depuração USB** no celular e rode `npm run android:install -w apps/mobile`, ou copie
+ligue a **Depuração USB** no celular e rode `npm run android:install`, ou copie
 o APK para o celular e abra (permitindo "instalar apps desconhecidos").
 
 ### iOS
@@ -45,7 +45,7 @@ o APK para o celular e abra (permitindo "instalar apps desconhecidos").
 Só compila num Mac com Xcode:
 
 ```bash
-npm run ios:sync -w apps/mobile
+npm run ios:sync
 npx cap open ios
 ```
 
@@ -56,7 +56,7 @@ só para conferir que o projeto está certo; instalar num iPhone exige assinatur
 ### Ícones
 
 Os ícones e telas de abertura já estão nos projetos `android/` e `ios/`. Para recriá-los a
-partir de `brand/icon-app.svg` (precisa do Chrome): `npm run icons -w apps/mobile`.
+partir de `brand/icon-app.svg` (precisa do Chrome): `npm run mobile:icons`.
 
 ## GitHub Actions
 

@@ -1,4 +1,6 @@
-document.body.insertAdjacentHTML('beforeend', `
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `
 <div id="player" hidden>
   <video id="v" playsinline></video>
   <div class="pl-msg" id="plMsg"></div>
@@ -51,4 +53,5 @@ document.body.insertAdjacentHTML('beforeend', `
     <ul id="sideList"></ul>
   </aside>
 </div>
-`);
+`,
+);

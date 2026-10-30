@@ -11,15 +11,22 @@ const path = require('node:path');
  * para o navegador do sistema.
  * @returns {void}
  */
-function createWindow(){
+function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 800, minHeight: 500,
-    backgroundColor: '#0c0f11', title: 'Zapp IPTV',
+    width: 1280,
+    height: 800,
+    minWidth: 800,
+    minHeight: 500,
+    backgroundColor: '#0c0f11',
+    title: 'Zapp IPTV',
     icon: path.join(__dirname, 'app', 'icon.png'),
     autoHideMenuBar: true,
-    webPreferences: { webSecurity: false, contextIsolation: true, nodeIntegration: false, sandbox: true }
+    webPreferences: { webSecurity: false, contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
   mainWindow.loadFile(path.join(__dirname, 'app', 'index.html'));
 }
 

@@ -20,7 +20,7 @@ troque `SENHA_DA_CHAVE` pela senha que você escolheu.
 Na raiz do repositório:
 
 ```bash
-npm run android:aab -w apps/mobile
+npm run android:aab
 ```
 
 O arquivo sai em `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`.

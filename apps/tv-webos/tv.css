@@ -1,22 +1,108 @@
-html.tv :focus{outline:3px solid var(--accent);outline-offset:3px}
-html.tv .tile:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 10px 28px rgba(255,176,32,.22)}
-html.tv .tile.live:focus{border-color:var(--live);box-shadow:0 0 0 2px var(--live),0 10px 28px rgba(255,77,77,.22)}
-html.tv .card:focus{outline:none}
-html.tv .card:focus .poster{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
-html.tv .shelf .card:focus .poster{border-color:var(--c);box-shadow:0 0 0 2px var(--c),0 8px 20px rgba(0,0,0,.35)}
-html.tv .dd-menu li:focus{box-shadow:inset 0 0 0 3px var(--accent)}
-html.tv .eps li:focus{outline:none;background:var(--panel2);box-shadow:inset 0 0 0 3px var(--accent)}
-html.tv dialog{overflow-y:auto;max-height:calc(100vh - 32px)}
-html.tv input[readonly]:focus,html.tv textarea[readonly]:focus{background:var(--panel2)}
-html.tv [data-editing]{outline-color:var(--ok)!important;box-shadow:0 0 0 6px rgba(62,207,142,.25)}
-html.tv #cPip,html.tv #cFs,html.tv #cMute{display:none!important}
-html.tv{--tv-blue:#2f6fde}
-html.tv .card-del{display:none;opacity:1;pointer-events:none;background:var(--tv-blue)}
-html.tv .card:focus .card-del{display:grid}
-html.tv .shelf-cont .shelf-n,html.tv .shelf-recent .shelf-n,html.tv .shelf-watchedvod .shelf-n,html.tv .shelf-watchedseries .shelf-n{position:relative}
-html.tv .shelf-cont .shelf-n::before,html.tv .shelf-recent .shelf-n::before,html.tv .shelf-watchedvod .shelf-n::before,html.tv .shelf-watchedseries .shelf-n::before{content:"Remover";position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%);white-space:nowrap;font:500 13px var(--display);color:var(--muted);padding-left:20px;background:radial-gradient(circle,var(--tv-blue) 6px,transparent 7px) left center/14px 14px no-repeat}
-html.tv .list li.rm .del{visibility:hidden;pointer-events:none}
-html.tv .list li.rm:focus .del{visibility:visible;font:500 13px var(--display);color:var(--muted);padding-left:20px;background:radial-gradient(circle,var(--tv-blue) 6px,transparent 7px) left center/14px 14px no-repeat}
-html.tv .list li.rm:focus .del .ico{display:none}
-html.tv .list li.rm:focus .del::after{content:"Remover"}
-html.tv .scroll-arrows{display:none!important}
+html.tv :focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+html.tv .tile:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 10px 28px rgba(255, 176, 32, 0.22);
+}
+html.tv .tile.live:focus {
+  border-color: var(--live);
+  box-shadow:
+    0 0 0 2px var(--live),
+    0 10px 28px rgba(255, 77, 77, 0.22);
+}
+html.tv .card:focus {
+  outline: none;
+}
+html.tv .card:focus .poster {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+html.tv .shelf .card:focus .poster {
+  border-color: var(--c);
+  box-shadow:
+    0 0 0 2px var(--c),
+    0 8px 20px rgba(0, 0, 0, 0.35);
+}
+html.tv .dd-menu li:focus {
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+html.tv .eps li:focus {
+  outline: none;
+  background: var(--panel2);
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+html.tv dialog {
+  overflow-y: auto;
+  max-height: calc(100vh - 32px);
+}
+html.tv input[readonly]:focus,
+html.tv textarea[readonly]:focus {
+  background: var(--panel2);
+}
+html.tv [data-editing] {
+  outline-color: var(--ok) !important;
+  box-shadow: 0 0 0 6px rgba(62, 207, 142, 0.25);
+}
+html.tv #cPip,
+html.tv #cFs,
+html.tv #cMute {
+  display: none !important;
+}
+html.tv {
+  --tv-blue: #2f6fde;
+}
+html.tv .card-del {
+  display: none;
+  opacity: 1;
+  pointer-events: none;
+  background: var(--tv-blue);
+}
+html.tv .card:focus .card-del {
+  display: grid;
+}
+html.tv .shelf-cont .shelf-n,
+html.tv .shelf-recent .shelf-n,
+html.tv .shelf-watchedvod .shelf-n,
+html.tv .shelf-watchedseries .shelf-n {
+  position: relative;
+}
+html.tv .shelf-cont .shelf-n::before,
+html.tv .shelf-recent .shelf-n::before,
+html.tv .shelf-watchedvod .shelf-n::before,
+html.tv .shelf-watchedseries .shelf-n::before {
+  content: 'Remover';
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font: 500 13px var(--display);
+  color: var(--muted);
+  padding-left: 20px;
+  background: radial-gradient(circle, var(--tv-blue) 6px, transparent 7px) left center/14px 14px no-repeat;
+}
+html.tv .list li.rm .del {
+  visibility: hidden;
+  pointer-events: none;
+}
+html.tv .list li.rm:focus .del {
+  visibility: visible;
+  font: 500 13px var(--display);
+  color: var(--muted);
+  padding-left: 20px;
+  background: radial-gradient(circle, var(--tv-blue) 6px, transparent 7px) left center/14px 14px no-repeat;
+}
+html.tv .list li.rm:focus .del .ico {
+  display: none;
+}
+html.tv .list li.rm:focus .del::after {
+  content: 'Remover';
+}
+html.tv .scroll-arrows {
+  display: none !important;
+}

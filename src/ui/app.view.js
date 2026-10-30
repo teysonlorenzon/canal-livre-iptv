@@ -1,4 +1,6 @@
-document.body.insertAdjacentHTML('beforeend', `
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `
 <div id="app">
   <div id="home" class="gut"></div>
   <div id="section" hidden>
@@ -20,4 +22,5 @@ document.body.insertAdjacentHTML('beforeend', `
     </div>
   </div>
 </div>
-`);
+`,
+);

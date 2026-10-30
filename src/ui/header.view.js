@@ -1,4 +1,6 @@
-document.body.insertAdjacentHTML('beforeend', `
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `
 <header class="gut">
   <button class="brand" id="goHome" title="Início"><i></i>ZAPP IPTV</button>
   <span class="clock" id="clock"></span>
@@ -12,4 +14,5 @@ document.body.insertAdjacentHTML('beforeend', `
     <button class="avatar-btn" id="profileBtn" type="button"></button>
   </div>
 </header>
-`);
+`,
+);

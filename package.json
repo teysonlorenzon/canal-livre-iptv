@@ -1,15 +1,90 @@
 {
   "name": "zapp-iptv",
+  "productName": "Zapp IPTV",
+  "version": "1.1.3",
   "private": true,
   "description": "Zapp IPTV: player web e empacotamento para TV LG, desktop (Windows/Linux) e celular (Android/iOS).",
-  "workspaces": [
-    "apps/tv-webos",
-    "apps/desktop",
-    "apps/mobile"
-  ],
+  "author": {
+    "name": "Zapp IPTV",
+    "email": "47832168+teysonlorenzon@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/teysonlorenzon/canal-livre-iptv",
+  "main": "apps/desktop/main.cjs",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "tv:build": "node apps/tv-webos/build.mjs",
+    "tv:package": "node apps/tv-webos/build.mjs && ares-package apps/tv-webos/dist -o apps/tv-webos/out --no-minify",
+    "tv:install": "node -e \"const a=require('./apps/tv-webos/appinfo.json');require('child_process').execSync('ares-install --device tv apps/tv-webos/out/'+a.id+'_'+a.version+'_all.ipk',{stdio:'inherit'})\"",
+    "tv:launch": "node -e \"require('child_process').execSync('ares-launch --device tv '+require('./apps/tv-webos/appinfo.json').id,{stdio:'inherit'})\"",
+    "desktop:build": "node apps/desktop/build.mjs",
+    "desktop:start": "node apps/desktop/build.mjs && electron .",
+    "desktop:dist:linux": "node apps/desktop/build.mjs && electron-builder --linux",
+    "desktop:dist:win": "node apps/desktop/build.mjs && electron-builder --win",
+    "mobile:build": "node apps/mobile/build.mjs",
+    "mobile:sync": "node apps/mobile/build.mjs && cap sync",
+    "mobile:icons": "node apps/mobile/icons.mjs",
+    "android:apk": "node apps/mobile/build.mjs && cap sync android && cd apps/mobile/android && ./gradlew assembleDebug",
+    "android:aab": "node apps/mobile/build.mjs && cap sync android && cd apps/mobile/android && ./gradlew bundleRelease",
+    "android:install": "adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk",
+    "ios:sync": "node apps/mobile/build.mjs && cap sync ios"
+  },
   "devDependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@eslint/js": "^10.0.1",
+    "@webos-tools/cli": "3.2.6",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
     "esbuild": "0.28.2",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "globals": "^17.13.0",
     "hls.js": "1.5.13",
-    "mpegts.js": "1.7.3"
+    "mpegts.js": "1.7.3",
+    "prettier": "^3.9.10"
+  },
+  "build": {
+    "appId": "com.zappiptv.desktop",
+    "productName": "Zapp IPTV",
+    "directories": {
+      "output": "apps/desktop/out",
+      "buildResources": "apps/desktop/build"
+    },
+    "files": [
+      "apps/desktop/main.cjs",
+      "apps/desktop/app/**"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "icon": "apps/desktop/build/icon.png",
+      "maintainer": "Zapp IPTV"
+    },
+    "deb": {
+      "packageName": "zapp-iptv-desktop"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "apps/desktop/build/icon.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Zapp IPTV"
+    }
   }
 }

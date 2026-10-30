@@ -3,9 +3,10 @@
  * antigos). O ícone (build/icon.png) fica no repositório; para recriá-lo a partir do SVG da
  * marca, apague o arquivo e rode o build numa máquina com Chrome.
  */
-import { existsSync, copyFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { copyFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import { bundleWeb, renderIcons } from '../../tools/bundle.mjs';
 
 const appDir = dirname(fileURLToPath(import.meta.url));

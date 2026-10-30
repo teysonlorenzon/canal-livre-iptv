@@ -18,19 +18,27 @@ const closeDialogInstantly = HTMLDialogElement.prototype.close;
  * @param {HTMLDialogElement} dialog Diálogo que vai fechar.
  * @returns {{dialogGhost: HTMLDivElement, backdropGhost: HTMLDivElement, scrollTop: number}} Cópia, fundo e rolagem.
  */
-function createDialogGhost(dialog){
+function createDialogGhost(dialog) {
   const dialogBox = dialog.getBoundingClientRect();
-  const dialogGhost = document.createElement('div'), backdropGhost = document.createElement('div');
-  dialogGhost.className = 'dialog-ghost'; backdropGhost.className = 'dialog-ghost-backdrop';
-  dialogGhost.setAttribute('aria-hidden', 'true'); backdropGhost.setAttribute('aria-hidden', 'true');
-  dialogGhost.style.left = dialogBox.left + 'px'; dialogGhost.style.top = dialogBox.top + 'px';
-  dialogGhost.style.width = dialogBox.width + 'px'; dialogGhost.style.height = dialogBox.height + 'px';
+  const dialogGhost = document.createElement('div'),
+    backdropGhost = document.createElement('div');
+  dialogGhost.className = 'dialog-ghost';
+  backdropGhost.className = 'dialog-ghost-backdrop';
+  dialogGhost.setAttribute('aria-hidden', 'true');
+  backdropGhost.setAttribute('aria-hidden', 'true');
+  dialogGhost.style.left = dialogBox.left + 'px';
+  dialogGhost.style.top = dialogBox.top + 'px';
+  dialogGhost.style.width = dialogBox.width + 'px';
+  dialogGhost.style.height = dialogBox.height + 'px';
   if (dialog.getElementsByTagName('*').length <= DIALOG_GHOST_MAX_ELEMENTS) {
     [...dialog.childNodes].forEach(childNode => dialogGhost.appendChild(childNode.cloneNode(true)));
     dialogGhost.querySelectorAll('[id]').forEach(copiedElement => copiedElement.removeAttribute('id'));
-    dialogGhost.querySelectorAll('input,select,textarea,button').forEach(copiedField => { copiedField.disabled = true; copiedField.tabIndex = -1; });
+    dialogGhost.querySelectorAll('input,select,textarea,button').forEach(copiedField => {
+      copiedField.disabled = true;
+      copiedField.tabIndex = -1;
+    });
   }
-  return { dialogGhost, backdropGhost, scrollTop:dialog.scrollTop };
+  return { dialogGhost, backdropGhost, scrollTop: dialog.scrollTop };
 }
 
 /**
@@ -39,14 +47,18 @@ function createDialogGhost(dialog){
  * @param {string} [returnValue] Valor de retorno do diálogo.
  * @returns {void}
  */
-HTMLDialogElement.prototype.close = function closeWithFade(returnValue){
+HTMLDialogElement.prototype.close = function closeWithFade(returnValue) {
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!this.open || reduceMotion) return closeDialogInstantly.apply(this, arguments);
   const { dialogGhost, backdropGhost, scrollTop } = createDialogGhost(this);
   closeDialogInstantly.apply(this, arguments);
   const openDialogs = document.querySelectorAll('dialog[open]');
   const ghostParent = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
-  ghostParent.appendChild(backdropGhost); ghostParent.appendChild(dialogGhost);
+  ghostParent.appendChild(backdropGhost);
+  ghostParent.appendChild(dialogGhost);
   dialogGhost.scrollTop = scrollTop;
-  setTimeout(() => { backdropGhost.remove(); dialogGhost.remove(); }, DIALOG_CLOSE_DURATION);
+  setTimeout(() => {
+    backdropGhost.remove();
+    dialogGhost.remove();
+  }, DIALOG_CLOSE_DURATION);
 };

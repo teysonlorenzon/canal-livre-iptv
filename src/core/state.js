@@ -134,14 +134,18 @@
  */
 
 /** @type {Playlist} Lista padrão com canais brasileiros gratuitos, cadastrada na primeira execução. */
-const DEFAULT_PLAYLIST = { id:'br-gratis', name:'Canais abertos BR', type:'m3u' };
+const DEFAULT_PLAYLIST = { id: 'br-gratis', name: 'Canais abertos BR', type: 'm3u' };
 /** @type {Playlist[]} Listas cadastradas. */
 let playlists = store.get('pls', null);
-if (playlists === null) { playlists = [DEFAULT_PLAYLIST]; store.set('pls', playlists); store.set('active', DEFAULT_PLAYLIST.id); }
+if (playlists === null) {
+  playlists = [DEFAULT_PLAYLIST];
+  store.set('pls', playlists);
+  store.set('active', DEFAULT_PLAYLIST.id);
+}
 /** @type {string} Id do perfil Principal, dono dos dados de antes de existirem perfis. */
 const MAIN_PROFILE_ID = 'main';
 /** @type {Perfil[]} Perfis cadastrados. */
-let profiles = store.get('users', null) || [{ id:MAIN_PROFILE_ID, name:'Principal' }];
+let profiles = store.get('users', null) || [{ id: MAIN_PROFILE_ID, name: 'Principal' }];
 /** @type {string} Id do perfil ativo. */
 let activeProfileId = profiles.some(profile => profile.id === store.get('user', null)) ? store.get('user', null) : profiles[0].id;
 /**
@@ -151,7 +155,7 @@ let activeProfileId = profiles.some(profile => profile.id === store.get('user', 
  * @param {string} [profileId] Perfil (padrão: o ativo).
  * @returns {string} Chave do perfil.
  */
-const profileKey = (baseKey, profileId = activeProfileId) => profileId === MAIN_PROFILE_ID ? baseKey : baseKey + '@' + profileId;
+const profileKey = (baseKey, profileId = activeProfileId) => (profileId === MAIN_PROFILE_ID ? baseKey : baseKey + '@' + profileId);
 /**
  * Perfil ativo.
  * @returns {Perfil} Perfil.
@@ -167,7 +171,7 @@ const saveProfiles = () => store.set('users', profiles);
  * @param {string} [profileId] Perfil (padrão: o ativo).
  * @returns {{fmt: string, auto: string, pin: string}} Opções.
  */
-const readOptions = profileId => Object.assign({ fmt:'m3u8', auto:'1', pin:'0000' }, store.get(profileKey('opts', profileId), {}));
+const readOptions = profileId => Object.assign({ fmt: 'm3u8', auto: '1', pin: '0000' }, store.get(profileKey('opts', profileId), {}));
 /** @type {{fmt: string, auto: string, pin: string}} Opções do perfil ativo. */
 let options = readOptions();
 /**
@@ -201,7 +205,12 @@ const userDataKey = () => profileKey('ux_' + activePlaylist.id);
  * Carrega as preferências e o histórico da lista ativa em `userData`.
  * @returns {void}
  */
-function loadUserData(){ userData = Object.assign({ fav:{live:[],vod:[],series:[]}, locked:[], hidden:[], hist:[], recentLive:[] }, store.get(userDataKey(), {})); }
+function loadUserData() {
+  userData = Object.assign(
+    { fav: { live: [], vod: [], series: [] }, locked: [], hidden: [], hist: [], recentLive: [] },
+    store.get(userDataKey(), {}),
+  );
+}
 /**
  * Salva `userData` no armazenamento local.
  * @returns {boolean} `true` se salvou.
@@ -220,17 +229,31 @@ const isFav = (section, itemKey) => userData.fav[section].includes(String(itemKe
  * @param {string|number} itemKey Chave do item.
  * @returns {boolean} `true` se passou a ser favorito.
  */
-function toggleFav(section, itemKey){ const favoriteKey = String(itemKey); const favoriteKeys = userData.fav[section]; const favoriteIndex = favoriteKeys.indexOf(favoriteKey); favoriteIndex < 0 ? favoriteKeys.unshift(favoriteKey) : favoriteKeys.splice(favoriteIndex,1); saveUserData(); return favoriteIndex < 0; }
+function toggleFav(section, itemKey) {
+  const favoriteKey = String(itemKey);
+  const favoriteKeys = userData.fav[section];
+  const favoriteIndex = favoriteKeys.indexOf(favoriteKey);
+  favoriteIndex < 0 ? favoriteKeys.unshift(favoriteKey) : favoriteKeys.splice(favoriteIndex, 1);
+  saveUserData();
+  return favoriteIndex < 0;
+}
 /**
  * Remove um filme ou episódio do "Continuar assistindo" e salva. O progresso de cada
  * episódio (registros ocultos) é mantido para as barras da lista de episódios.
  * @param {string} historyRef Referência do registro no histórico.
  * @returns {void}
  */
-function removeHistoryEntry(historyRef){ userData.hist = userData.hist.filter(entry => entry.hidden || entry.ref !== historyRef); saveUserData(); }
+function removeHistoryEntry(historyRef) {
+  userData.hist = userData.hist.filter(entry => entry.hidden || entry.ref !== historyRef);
+  saveUserData();
+}
 /**
  * Remove um canal dos recentes e salva.
  * @param {string|number} channelKey Chave do canal.
  * @returns {void}
  */
-function removeRecentChannel(channelKey){ const recentKey = String(channelKey); userData.recentLive = userData.recentLive.filter(otherKey => otherKey !== recentKey); saveUserData(); }
+function removeRecentChannel(channelKey) {
+  const recentKey = String(channelKey);
+  userData.recentLive = userData.recentLive.filter(otherKey => otherKey !== recentKey);
+  saveUserData();
+}

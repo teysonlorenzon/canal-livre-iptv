@@ -4,20 +4,40 @@
  * @param {Secao} sectionName Seção.
  * @returns {Promise<void>}
  */
-async function openSection(sectionName){ if (!(await ensureSection(sectionName))) return; renderHome(); currentSection = sectionName; currentCategory = '*'; visibleItemCount = 200; $('q').value = ''; $('sort').value = ''; show('section'); renderCats(); renderItems(); }
+async function openSection(sectionName) {
+  if (!(await ensureSection(sectionName))) return;
+  renderHome();
+  currentSection = sectionName;
+  currentCategory = '*';
+  visibleItemCount = 200;
+  $('q').value = '';
+  $('sort').value = '';
+  show('section');
+  renderCats();
+  renderItems();
+}
 
 /**
  * Desenha a lista de categorias da seção atual com contagens.
  * @returns {void}
  */
-function renderCats(){
-  const visibleCategories = catalog[currentSection].cats.filter(category => !userData.hidden.includes(currentSection+':'+category.id));
-  const itemCountByCategory = new Map(); for (const item of catalog[currentSection].items) itemCountByCategory.set(item.cat, (itemCountByCategory.get(item.cat)||0) + 1);
-  const totalVisible = catalog[currentSection].items.filter(item => !userData.hidden.includes(currentSection+':'+item.cat)).length;
-  const categoryRows = [{ id:'*', name:'Todos', n:totalVisible }, { id:'fav', name:'★ Favoritos', n:userData.fav[currentSection].length }];
-  if (currentSection === 'live') categoryRows.push({ id:'recent', name:'Recentes', n:userData.recentLive.length });
-  categoryRows.push(...visibleCategories.map(category => ({ ...category, n:itemCountByCategory.get(category.id)||0 })));
-  $('cats').innerHTML = categoryRows.map(categoryRow => `<li data-c="${esc(categoryRow.id)}" class="${categoryRow.id === currentCategory ? 'on' : ''}"><span>${esc(categoryRow.name)}</span>${userData.locked.includes(currentSection+':'+categoryRow.id) ? '<span class="lock" title="Bloqueada">🔒</span>' : ''}<small>${categoryRow.n}</small></li>`).join('');
+function renderCats() {
+  const visibleCategories = catalog[currentSection].cats.filter(category => !userData.hidden.includes(currentSection + ':' + category.id));
+  const itemCountByCategory = new Map();
+  for (const item of catalog[currentSection].items) itemCountByCategory.set(item.cat, (itemCountByCategory.get(item.cat) || 0) + 1);
+  const totalVisible = catalog[currentSection].items.filter(item => !userData.hidden.includes(currentSection + ':' + item.cat)).length;
+  const categoryRows = [
+    { id: '*', name: 'Todos', n: totalVisible },
+    { id: 'fav', name: '★ Favoritos', n: userData.fav[currentSection].length },
+  ];
+  if (currentSection === 'live') categoryRows.push({ id: 'recent', name: 'Recentes', n: userData.recentLive.length });
+  categoryRows.push(...visibleCategories.map(category => ({ ...category, n: itemCountByCategory.get(category.id) || 0 })));
+  $('cats').innerHTML = categoryRows
+    .map(
+      categoryRow =>
+        `<li data-c="${esc(categoryRow.id)}" class="${categoryRow.id === currentCategory ? 'on' : ''}"><span>${esc(categoryRow.name)}</span>${userData.locked.includes(currentSection + ':' + categoryRow.id) ? '<span class="lock" title="Bloqueada">🔒</span>' : ''}<small>${categoryRow.n}</small></li>`,
+    )
+    .join('');
   $('secTitle').textContent = SECTION_NAMES[currentSection];
   updateScrollArrows($('cats'), $('catsArrows'));
   $('sort').querySelector('[value=new]').hidden = $('sort').querySelector('[value=rate]').hidden = currentSection === 'live';
@@ -28,9 +48,16 @@ bindScrollArrows($('cats'), $('catsArrows'));
  * @param {MouseEvent} clickEvent Evento de clique.
  */
 $('cats').onclick = clickEvent => {
-  const categoryItem = clickEvent.target.closest('li'); if (!categoryItem) return;
+  const categoryItem = clickEvent.target.closest('li');
+  if (!categoryItem) return;
   const categoryId = categoryItem.dataset.c;
-  withPin(currentSection+':'+categoryId, () => { currentCategory = categoryId; visibleItemCount = 200; renderCats(); renderItems(); $('items').scrollTop = 0; });
+  withPin(currentSection + ':' + categoryId, () => {
+    currentCategory = categoryId;
+    visibleItemCount = 200;
+    renderCats();
+    renderItems();
+    $('items').scrollTop = 0;
+  });
 };
 
 /**
@@ -40,9 +67,12 @@ $('cats').onclick = clickEvent => {
  * @param {boolean} [force] Exigir o PIN mesmo sem bloqueio.
  * @returns {*} Retorno de `action` quando executada sem PIN.
  */
-function withPin(key, action, force){
+function withPin(key, action, force) {
   if (!force && (!userData.locked.includes(key) || unlockedCategories.has(key))) return action();
-  requestPin(options.pin || '0000', () => { unlockedCategories.add(key); action(); });
+  requestPin(options.pin || '0000', () => {
+    unlockedCategories.add(key);
+    action();
+  });
 }
 /**
  * Abre o diálogo de PIN e executa a ação quando o PIN digitado for o esperado.
@@ -53,29 +83,50 @@ function withPin(key, action, force){
  * @param {string} [title] Título do diálogo (padrão: "Digite o PIN" com mensagem, ou "Conteúdo bloqueado"); com título, o botão vira "Continuar".
  * @returns {void}
  */
-function requestPin(expectedPin, action, message, onCancel, title){
+function requestPin(expectedPin, action, message, onCancel, title) {
   $('pinTitle').textContent = title || (message ? 'Digite o PIN' : 'Conteúdo bloqueado');
   $('pinOk').textContent = title ? 'Continuar' : 'Desbloquear';
   $('pinHint').textContent = message || 'Digite o PIN do controle parental.';
-  $('pinIn').value = ''; $('pinError').hidden = true; $('pinIn').classList.remove('wrong');
-  $('dPin').showModal(); $('pinIn').focus();
+  $('pinIn').value = '';
+  $('pinError').hidden = true;
+  $('pinIn').classList.remove('wrong');
+  $('dPin').showModal();
+  $('pinIn').focus();
   /**
    * Confere o PIN digitado e libera a ação se estiver correto.
    * @returns {void}
    */
   const checkPin = () => {
-    if ($('pinIn').value === expectedPin) { pinCancelAction = null; $('dPin').close(); action(); return; }
-    $('pinIn').value = ''; $('pinError').hidden = true; void $('pinError').offsetWidth; $('pinError').hidden = false; $('pinIn').classList.add('wrong'); $('pinIn').focus();
+    if ($('pinIn').value === expectedPin) {
+      pinCancelAction = null;
+      $('dPin').close();
+      action();
+      return;
+    }
+    $('pinIn').value = '';
+    $('pinError').hidden = true;
+    void $('pinError').offsetWidth;
+    $('pinError').hidden = false;
+    $('pinIn').classList.add('wrong');
+    $('pinIn').focus();
   };
   pinCancelAction = onCancel || null;
   $('pinOk').onclick = checkPin;
-  $('pinIn').onkeydown = keyEvent => { if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); checkPin(); } };
+  $('pinIn').onkeydown = keyEvent => {
+    if (keyEvent.key === 'Enter') {
+      keyEvent.preventDefault();
+      checkPin();
+    }
+  };
   $('pinForm').onsubmit = submitEvent => submitEvent.preventDefault();
 }
 /**
  * Ao digitar de novo, some o aviso de PIN incorreto.
  */
-$('pinIn').addEventListener('input', () => { $('pinError').hidden = true; $('pinIn').classList.remove('wrong'); });
+$('pinIn').addEventListener('input', () => {
+  $('pinError').hidden = true;
+  $('pinIn').classList.remove('wrong');
+});
 /** @type {Function|null} O que fazer se o pedido de PIN atual for cancelado. */
 let pinCancelAction = null;
 /**
@@ -85,21 +136,43 @@ $('pinCancel').onclick = () => $('dPin').close();
 /**
  * Ao fechar sem acertar o PIN (Cancelar, Esc ou Voltar), executa a ação de cancelamento.
  */
-onDialogClose($('dPin'), () => { const cancelAction = pinCancelAction; pinCancelAction = null; if (cancelAction) cancelAction(); });
+onDialogClose($('dPin'), () => {
+  const cancelAction = pinCancelAction;
+  pinCancelAction = null;
+  if (cancelAction) cancelAction();
+});
 
 /**
  * Itens da seção atual após aplicar categoria, bloqueios, busca e ordenação.
  * @returns {Item[]} Itens filtrados.
  */
-function currentItems(){
-  const searchText = $('q').value.trim().toLowerCase(), sortOrder = $('sort').value;
+function currentItems() {
+  const searchText = $('q').value.trim().toLowerCase(),
+    sortOrder = $('sort').value;
   let filteredItems = catalog[currentSection].items;
-  if (currentCategory === 'fav') filteredItems = userData.fav[currentSection].map(itemKey => filteredItems.find(item => item.k === itemKey)).filter(Boolean);
-  else if (currentCategory === 'recent') filteredItems = userData.recentLive.map(itemKey => filteredItems.find(item => item.k === itemKey)).filter(Boolean);
+  if (currentCategory === 'fav')
+    filteredItems = userData.fav[currentSection].map(itemKey => filteredItems.find(item => item.k === itemKey)).filter(Boolean);
+  else if (currentCategory === 'recent')
+    filteredItems = userData.recentLive.map(itemKey => filteredItems.find(item => item.k === itemKey)).filter(Boolean);
   else if (currentCategory !== '*') filteredItems = filteredItems.filter(item => item.cat === currentCategory);
-  filteredItems = filteredItems.filter(item => !userData.hidden.includes(currentSection+':'+item.cat) && (currentCategory === item.cat || !userData.locked.includes(currentSection+':'+item.cat) || unlockedCategories.has(currentSection+':'+item.cat)));
+  filteredItems = filteredItems.filter(
+    item =>
+      !userData.hidden.includes(currentSection + ':' + item.cat) &&
+      (currentCategory === item.cat ||
+        !userData.locked.includes(currentSection + ':' + item.cat) ||
+        unlockedCategories.has(currentSection + ':' + item.cat)),
+  );
   if (searchText) filteredItems = filteredItems.filter(item => item.name.toLowerCase().includes(searchText));
-  if (sortOrder) { filteredItems = filteredItems.slice(); const compareItems = { az:(firstItem,secondItem)=>firstItem.name.localeCompare(secondItem.name,'pt-BR'), za:(firstItem,secondItem)=>secondItem.name.localeCompare(firstItem.name,'pt-BR'), new:(firstItem,secondItem)=>(secondItem.added||0)-(firstItem.added||0), rate:(firstItem,secondItem)=>(secondItem.rate||0)-(firstItem.rate||0) }[sortOrder]; filteredItems.sort(compareItems); }
+  if (sortOrder) {
+    filteredItems = filteredItems.slice();
+    const compareItems = {
+      az: (firstItem, secondItem) => firstItem.name.localeCompare(secondItem.name, 'pt-BR'),
+      za: (firstItem, secondItem) => secondItem.name.localeCompare(firstItem.name, 'pt-BR'),
+      new: (firstItem, secondItem) => (secondItem.added || 0) - (firstItem.added || 0),
+      rate: (firstItem, secondItem) => (secondItem.rate || 0) - (firstItem.rate || 0),
+    }[sortOrder];
+    filteredItems.sort(compareItems);
+  }
   return filteredItems;
 }
 
@@ -107,22 +180,42 @@ function currentItems(){
  * Desenha os itens da seção atual (lista de canais ou grade de pôsteres), paginados.
  * @returns {void}
  */
-function renderItems(){
-  const allItems = currentItems(), itemsBox = $('items'), visibleItems = allItems.slice(0, visibleItemCount);
-  if (!allItems.length) { itemsBox.innerHTML = `<div class="empty">${currentCategory === 'fav' ? 'Nenhum favorito nesta seção.' : 'Nada encontrado.'}</div>`; return; }
+function renderItems() {
+  const allItems = currentItems(),
+    itemsBox = $('items'),
+    visibleItems = allItems.slice(0, visibleItemCount);
+  if (!allItems.length) {
+    itemsBox.innerHTML = `<div class="empty">${currentCategory === 'fav' ? 'Nenhum favorito nesta seção.' : 'Nada encontrado.'}</div>`;
+    return;
+  }
   if (currentSection === 'live') {
     const playingChannelKey = currentMedia && currentMedia.kind === 'live' ? currentMedia.item.k : null;
     const isRecentCategory = currentCategory === 'recent';
-    itemsBox.innerHTML = `<ul class="list">${visibleItems.map((channel, index) => {
-      let subtitleHtml = esc(catName('live', channel.cat));
-      if (catalog.epg) { const [currentProgram] = nowNext(catalog.epg.get(String(channel.epg||'').toLowerCase()) || []); if (currentProgram) subtitleHtml = `<span style="color:var(--fg)">${esc(currentProgram.title)}</span> · ${formatHourMinute(new Date(currentProgram.s))}–${formatHourMinute(new Date(currentProgram.e))}`; }
-      return `<li data-i="${index}" class="${channel.k === playingChannelKey ? 'on' : ''}${isRecentCategory ? ' rm' : ''}"><span class="num">${esc(channel.num)}</span>${channel.logo ? `<img class="logo" loading="lazy" src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='<span class=logo>${initials(channel.name)}</span>'">` : `<span class="logo">${initials(channel.name)}</span>`}<span class="nm"><b>${esc(channel.name)}${channel.archive ? '<span class="badge">CATCH-UP</span>' : ''}</b><small>${subtitleHtml}</small></span>${isRecentCategory ? `<button class="del" aria-label="Remover dos recentes" title="Remover dos recentes">${icon('close')}</button>` : ''}<button class="star ${isFav('live', channel.k) ? 'on' : ''}" aria-label="Favoritar">★</button></li>`;
-    }).join('')}</ul>`;
+    itemsBox.innerHTML = `<ul class="list">${visibleItems
+      .map((channel, index) => {
+        let subtitleHtml = esc(catName('live', channel.cat));
+        if (catalog.epg) {
+          const [currentProgram] = nowNext(catalog.epg.get(String(channel.epg || '').toLowerCase()) || []);
+          if (currentProgram)
+            subtitleHtml = `<span style="color:var(--fg)">${esc(currentProgram.title)}</span> · ${formatHourMinute(new Date(currentProgram.s))}–${formatHourMinute(new Date(currentProgram.e))}`;
+        }
+        return `<li data-i="${index}" class="${channel.k === playingChannelKey ? 'on' : ''}${isRecentCategory ? ' rm' : ''}"><span class="num">${esc(channel.num)}</span>${channel.logo ? `<img class="logo" loading="lazy" src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='<span class=logo>${initials(channel.name)}</span>'">` : `<span class="logo">${initials(channel.name)}</span>`}<span class="nm"><b>${esc(channel.name)}${channel.archive ? '<span class="badge">CATCH-UP</span>' : ''}</b><small>${subtitleHtml}</small></span>${isRecentCategory ? `<button class="del" aria-label="Remover dos recentes" title="Remover dos recentes">${icon('close')}</button>` : ''}<button class="star ${isFav('live', channel.k) ? 'on' : ''}" aria-label="Favoritar">★</button></li>`;
+      })
+      .join('')}</ul>`;
   } else {
     itemsBox.innerHTML = `<div class="grid">${visibleItems.map((item, index) => cardHtml({ ...item, pg: progressOf(currentSection, item) }, `data-i="${index}"`)).join('')}</div>`;
   }
-  if (allItems.length > visibleItemCount) itemsBox.insertAdjacentHTML('beforeend', `<div class="more"><button class="btn" id="moreBtn">Mostrar mais (${allItems.length - visibleItemCount} restantes)</button></div>`);
-  const moreButton = $('moreBtn'); if (moreButton) moreButton.onclick = () => { visibleItemCount += 300; renderItems(); };
+  if (allItems.length > visibleItemCount)
+    itemsBox.insertAdjacentHTML(
+      'beforeend',
+      `<div class="more"><button class="btn" id="moreBtn">Mostrar mais (${allItems.length - visibleItemCount} restantes)</button></div>`,
+    );
+  const moreButton = $('moreBtn');
+  if (moreButton)
+    moreButton.onclick = () => {
+      visibleItemCount += 300;
+      renderItems();
+    };
   itemsBox._a = allItems;
 }
 /**
@@ -138,26 +231,51 @@ const catName = (sectionName, id) => (catalog[sectionName].cats.find(category =>
  * @param {Item} item Item.
  * @returns {number} Fração de 0 a 1.
  */
-const progressOf = (sectionName, item) => { const historyEntry = userData.hist.find(entry => entry.ref === sectionName + ':' + item.k); return historyEntry && historyEntry.dur ? historyEntry.pos / historyEntry.dur : 0; };
+const progressOf = (sectionName, item) => {
+  const historyEntry = userData.hist.find(entry => entry.ref === sectionName + ':' + item.k);
+  return historyEntry && historyEntry.dur ? historyEntry.pos / historyEntry.dur : 0;
+};
 
 /**
  * Abre um item, alterna seu favorito ou o remove dos recentes.
  * @param {MouseEvent} clickEvent Evento de clique.
  */
 $('items').onclick = clickEvent => {
-  const itemElement = clickEvent.target.closest('[data-i]'); if (!itemElement) return;
+  const itemElement = clickEvent.target.closest('[data-i]');
+  if (!itemElement) return;
   const item = $('items')._a[+itemElement.dataset.i];
-  if (clickEvent.target.closest('.del')) { removeRecentChannel(item.k); toast('Removido dos recentes.'); renderItems(); renderCats(); return; }
-  if (clickEvent.target.classList.contains('star')) { clickEvent.target.classList.toggle('on', toggleFav(currentSection, item.k)); if (currentCategory === 'fav') renderItems(); renderCats(); return; }
-  const openItem = () => currentSection === 'live' ? playLive(item, $('items')._a) : currentSection === 'vod' ? openMovie(item) : openSeries(item);
-  withPin(currentSection+':'+item.cat, openItem);
+  if (clickEvent.target.closest('.del')) {
+    removeRecentChannel(item.k);
+    toast('Removido dos recentes.');
+    renderItems();
+    renderCats();
+    return;
+  }
+  if (clickEvent.target.classList.contains('star')) {
+    clickEvent.target.classList.toggle('on', toggleFav(currentSection, item.k));
+    if (currentCategory === 'fav') renderItems();
+    renderCats();
+    return;
+  }
+  const openItem = () =>
+    currentSection === 'live' ? playLive(item, $('items')._a) : currentSection === 'vod' ? openMovie(item) : openSeries(item);
+  withPin(currentSection + ':' + item.cat, openItem);
 };
 let searchDebounceTimer;
 /**
  * Refaz a busca 150 ms após o usuário parar de digitar.
  */
-$('q').oninput = () => { clearTimeout(searchDebounceTimer); searchDebounceTimer = setTimeout(() => { visibleItemCount = 200; renderItems(); }, 150); };
+$('q').oninput = () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    visibleItemCount = 200;
+    renderItems();
+  }, 150);
+};
 /**
  * Reordena os itens.
  */
-$('sort').onchange = () => { visibleItemCount = 200; renderItems(); };
+$('sort').onchange = () => {
+  visibleItemCount = 200;
+  renderItems();
+};

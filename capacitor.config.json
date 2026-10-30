@@ -1,0 +1,19 @@
+{
+  "appId": "com.zappiptv.app",
+  "appName": "Zapp IPTV",
+  "webDir": "apps/mobile/www",
+  "backgroundColor": "#0c0f11",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "path": "apps/mobile/android"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0c0f11",
+    "path": "apps/mobile/ios"
+  }
+}

@@ -14,7 +14,7 @@ Você é o desenvolvedor especialista do **Zapp IPTV**. Fale com o usuário em p
 
 ## Arquitetura (resumo)
 
-- `iptv-player.html` carrega `src/` como **scripts clássicos** (escopo global, sem módulos); a
+- `src/iptv-player.html` carrega `src/` como **scripts clássicos** (escopo global, sem módulos); a
   ordem das tags é a ordem de execução: tema → `src/ui` e `*.view.js` → hls.js/mpegts.js →
   `src/core` → `src/data` → lógica de `src/features/*` → `src/main.js`.
 - Organização por funcionalidade com camadas: `core/` (utils, state, theme), `data/` (lista
@@ -52,12 +52,12 @@ Você é o desenvolvedor especialista do **Zapp IPTV**. Fale com o usuário em p
 
 | Plataforma | Como |
 |---|---|
-| Web | preview `iptv` (porta 8765); teste na origem `http://127.0.0.1:8765/iptv-player.html` — `localhost` tem os dados reais do usuário (lista Xtream dele) |
-| Celular (layout) | preview `mobile-www` (8767) após `npm run build -w apps/mobile`, com `resize_window` 390×844 e 844×390 |
-| TV (layout/controle) | preview `webos-dist` (8766) após `npm run build -w apps/tv-webos`, viewport 1280×720, simulando teclas (`KeyboardEvent`, keyCode 461 para Voltar) |
-| Android | `npm run android:apk -w apps/mobile` (JAVA_HOME=~/.jdks/jdk-21, ANDROID_HOME=~/Android/Sdk); emulador `zapp_test`; inspecionar o WebView via `adb forward ... webview_devtools_remote_<pid>` + script de avaliação CDP |
-| Desktop | `npm start -w apps/desktop` com `--remote-debugging-port` |
-| TV LG real | `npm run package -w apps/tv-webos`, `npm run install-tv`/`launch` (TV em 192.168.101.9, dev mode expira em 50 h) |
+| Web | preview `iptv` (porta 8765); teste na origem `http://127.0.0.1:8765/src/iptv-player.html` — `localhost` tem os dados reais do usuário (lista Xtream dele) |
+| Celular (layout) | preview `mobile-www` (8767) após `npm run mobile:build`, com `resize_window` 390×844 e 844×390 |
+| TV (layout/controle) | preview `webos-dist` (8766) após `npm run tv:build`, viewport 1280×720, simulando teclas (`KeyboardEvent`, keyCode 461 para Voltar) |
+| Android | `npm run android:apk` (JAVA_HOME=~/.jdks/jdk-21, ANDROID_HOME=~/Android/Sdk); emulador `zapp_test`; inspecionar o WebView via `adb forward ... webview_devtools_remote_<pid>` + script de avaliação CDP |
+| Desktop | `npm run desktop:start` com `--remote-debugging-port` |
+| TV LG real | `npm run tv:package`, `npm run tv:install`/`tv:launch` (TV em 192.168.101.9, dev mode expira em 50 h) |
 
 Para TV LG e publicação na LG Content Store use a skill `lg-webos-store` (ou o agente
 `lg-webos-store-expert`); para a Play Store veja `store/play/README.md`.
@@ -66,7 +66,7 @@ Para TV LG e publicação na LG Content Store use a skill `lg-webos-store` (ou o
 
 - TV: subir `version` em `apps/tv-webos/appinfo.json` para a TV aceitar a atualização (o id
   `com.zappiptv.tv` está cadastrado na LG; não mudar). Celular: `versionCode`/`versionName` em
-  `apps/mobile/android/app/build.gradle`. Desktop: `version` em `apps/desktop/package.json`.
+  `apps/mobile/android/app/build.gradle`. Desktop: `version` em `package.json` (raiz).
 - O APK assinado usa `apps/mobile/android/keystore.properties` + `zapp-upload.jks` (fora do git;
   nunca leia nem mostre a senha).
 - Instale no celular/TV só quando o usuário pedir; commit/push só quando pedir. Commits em

@@ -21,7 +21,12 @@
    * @param {string} base64Text Conteúdo em Base64.
    * @returns {Uint8Array} Bytes.
    */
-  const base64ToBytes = base64Text => { const binaryText = atob(base64Text), byteArray = new Uint8Array(binaryText.length); for (let index = 0; index < binaryText.length; index++) byteArray[index] = binaryText.charCodeAt(index); return byteArray; };
+  const base64ToBytes = base64Text => {
+    const binaryText = atob(base64Text),
+      byteArray = new Uint8Array(binaryText.length);
+    for (let index = 0; index < binaryText.length; index++) byteArray[index] = binaryText.charCodeAt(index);
+    return byteArray;
+  };
 
   /**
    * `fetch` que busca URLs externas pelo lado nativo. Mantém o `fetch` da WebView para
@@ -35,12 +40,23 @@
     const url = typeof input === 'string' ? input : input.url;
     if (!/^https?:/i.test(url) || url.startsWith(location.origin) || init.mode === 'no-cors') return webFetch(input, init);
     const isBinary = /\.gz(\?|$)/i.test(url);
-    const nativeResponse = await nativeHttp.request({ url, method: init.method || 'GET', headers: init.headers || {}, responseType: isBinary ? 'arraybuffer' : 'text', connectTimeout: 30000, readTimeout: 120000 });
+    const nativeResponse = await nativeHttp.request({
+      url,
+      method: init.method || 'GET',
+      headers: init.headers || {},
+      responseType: isBinary ? 'arraybuffer' : 'text',
+      connectTimeout: 30000,
+      readTimeout: 120000,
+    });
     let body = nativeResponse.data;
     if (isBinary) body = base64ToBytes(body);
     else if (typeof body !== 'string') body = JSON.stringify(body);
     let headers;
-    try { headers = new Headers(nativeResponse.headers || {}); } catch { headers = undefined; }
+    try {
+      headers = new Headers(nativeResponse.headers || {});
+    } catch {
+      headers = undefined;
+    }
     return new Response(body, { status: nativeResponse.status || 200, headers });
   };
 
@@ -54,7 +70,8 @@
     if (!$('plMenu').hidden) return togglePlaylistMenu(false);
     if (!$('player').hidden) {
       if (isFullscreen) return setFullscreen(false);
-      if (!$('side').hidden) $('side').hidden = true; else closePlayer();
+      if (!$('side').hidden) $('side').hidden = true;
+      else closePlayer();
       return;
     }
     if (!$('section').hidden) return show('home');
@@ -67,7 +84,8 @@
    * no Android usamos o plugin nativo ZappPlayer (MainActivity), no iOS os modos de
    * apresentação do próprio <video>.
    */
-  const zappPlayer = capacitor.Plugins.ZappPlayer, isIos = capacitor.getPlatform() === 'ios';
+  const zappPlayer = capacitor.Plugins.ZappPlayer,
+    isIos = capacitor.getPlatform() === 'ios';
   let isFullscreen = false;
 
   /**
@@ -75,15 +93,23 @@
    * @param {boolean} enabled Ligar.
    * @returns {void}
    */
-  const setFullscreen = enabled => { isFullscreen = enabled; document.documentElement.classList.toggle('app-full', enabled); if (zappPlayer) zappPlayer.setFullscreen({ enabled }); };
+  const setFullscreen = enabled => {
+    isFullscreen = enabled;
+    document.documentElement.classList.toggle('app-full', enabled);
+    if (zappPlayer) zappPlayer.setFullscreen({ enabled });
+  };
 
   $('cFs').onclick = () => {
-    if (isIos) { if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); return; }
+    if (isIos) {
+      if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+      return;
+    }
     setFullscreen(!isFullscreen);
   };
   $('cPip').onclick = async () => {
     if (isIos) {
-      if (video.webkitSupportsPresentationMode && video.webkitSupportsPresentationMode('picture-in-picture')) video.webkitSetPresentationMode(video.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+      if (video.webkitSupportsPresentationMode && video.webkitSupportsPresentationMode('picture-in-picture'))
+        video.webkitSetPresentationMode(video.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
       else toast('Picture-in-Picture indisponível neste aparelho.');
       return;
     }
@@ -91,10 +117,22 @@
     if (!pipResult.entered) toast('Picture-in-Picture indisponível neste aparelho.');
   };
   /** No modo PiP, só o vídeo aparece na janela flutuante. */
-  if (zappPlayer) zappPlayer.addListener('pipChanged', pipState => { document.documentElement.classList.toggle('pip', !!pipState.active); if (pipState.active) $('side').hidden = true; });
+  if (zappPlayer)
+    zappPlayer.addListener('pipChanged', pipState => {
+      document.documentElement.classList.toggle('pip', !!pipState.active);
+      if (pipState.active) $('side').hidden = true;
+    });
 
-  const webOpenPlayer = openPlayer, webClosePlayer = closePlayer;
-  openPlayer = () => { webOpenPlayer(); if (zappPlayer) zappPlayer.setAutoPip({ enabled: true }); };
-  closePlayer = () => { webClosePlayer(); if (zappPlayer) zappPlayer.setAutoPip({ enabled: false }); if (isFullscreen) setFullscreen(false); };
+  const webOpenPlayer = openPlayer,
+    webClosePlayer = closePlayer;
+  openPlayer = () => {
+    webOpenPlayer();
+    if (zappPlayer) zappPlayer.setAutoPip({ enabled: true });
+  };
+  closePlayer = () => {
+    webClosePlayer();
+    if (zappPlayer) zappPlayer.setAutoPip({ enabled: false });
+    if (isFullscreen) setFullscreen(false);
+  };
   $('plBack').onclick = () => closePlayer();
 })();

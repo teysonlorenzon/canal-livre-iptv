@@ -1,4 +1,6 @@
-document.body.insertAdjacentHTML('beforeend', `
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `
 <div class="loading" id="loading" hidden>
   <div class="loading-card" role="status" aria-live="polite">
     <svg class="loading-logo" viewBox="0 0 130 100" aria-hidden="true"><path class="loading-z-track" d="M41 24h48L45 70h46"/><path class="loading-z" d="M41 24h48L45 70h46"/><circle class="loading-dot" cx="98" cy="20" r="7.5"/></svg>
@@ -11,4 +13,5 @@ document.body.insertAdjacentHTML('beforeend', `
   </div>
 </div>
 <div class="toast" id="toast"></div>
-`);
+`,
+);

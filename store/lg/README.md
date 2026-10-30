@@ -6,7 +6,7 @@ Material para enviar o Zapp IPTV pelo **LG Seller Lounge** (seller.lgappstv.com)
 |---|---|
 | Id do app | `com.zappiptv.tv` (não muda depois de cadastrado) |
 | Versão | `1.0.0` (`apps/tv-webos/appinfo.json`) |
-| Pacote | `apps/tv-webos/out/com.zappiptv.tv_1.0.0_all.ipk` (`npm run package -w apps/tv-webos`) |
+| Pacote | `apps/tv-webos/out/com.zappiptv.tv_1.0.0_all.ipk` (`npm run tv:package`) |
 | Política de privacidade | https://teysonlorenzon.github.io/canal-livre-iptv/store/play/politica-de-privacidade.html |
 | Contato | teyson_lorenzon@hotmail.com |
 

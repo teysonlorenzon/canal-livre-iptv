@@ -41,7 +41,7 @@ src/
     funcionalidade nova, com `nome.view.js` para o markup e `nome.js` para a lógica);
   - algo usado por várias funcionalidades → `ui/` (visual) ou `core/` (sem interface);
   - uma nova fonte de canais/dados → `data/`.
-  Depois, inclua o arquivo no `iptv-player.html` na posição certa.
+    Depois, inclua o arquivo no `iptv-player.html` na posição certa.
 - **Ajustes de plataforma não entram aqui**: ficam em `apps/<plataforma>/` (`tv.js`/`tv.css`,
   `desktop.js`, `mobile.js`/`mobile.css`) e são acrescentados no build por `tools/bundle.mjs`.
 - **Estilo do código**: `'use strict'` no topo, sem comentários `//` ou `/* */` — só JSDoc em
