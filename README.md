@@ -33,7 +33,7 @@ Voltar e requisições nativas no celular).
 
 ## Usar no navegador
 
-Abra o `src/iptv-player.html` (Chrome ou Edge recomendados). A lista de exemplo já abre sozinha;
+Abra o `src/iptv-player.html` (Chrome ou Edge recomendados; no GitHub Pages, o `index.html` da raiz redireciona para ele). A lista de exemplo já abre sozinha;
 para adicionar a sua, vá em **Configurações**. Tudo fica salvo só no navegador (`localStorage`).
 
 > Por causa de CORS, alguns servidores só funcionam com a página aberta direto do arquivo
