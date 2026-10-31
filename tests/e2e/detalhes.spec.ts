@@ -6,7 +6,7 @@ test.describe('detalhes', () => {
     await app.openSection('vod');
     await page.locator('#items .card', { hasText: 'O Chamado' }).click();
     await expect(page.locator('#dDetail')).toBeVisible();
-    await expect(page.locator('#detailBody h3')).toHaveText('O Chamado');
+    await expect(page.locator('#detailTitle')).toHaveText('O Chamado');
     await page.locator('#mFav').click();
     await expect(page.locator('#mFav')).toHaveText('★ Favorito');
     await page.locator('#mClose').click();

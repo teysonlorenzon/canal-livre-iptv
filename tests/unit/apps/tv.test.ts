@@ -221,12 +221,11 @@ describe('TV LG', () => {
       expect(pressRemote('ArrowUp').defaultPrevented).toBe(true);
     });
 
-    it('rola o item focado para dentro da tela e dá foco a itens de lista', async () => {
+    it('rola o item focado para dentro da tela', async () => {
       const { app } = await bootTv();
       await app.section.openSection('live');
       await settle();
-      const firstItem = element('#items li');
-      expect(firstItem.getAttribute('tabindex')).toBe('-1');
+      const firstItem = element('#items .row-main');
       expect(firstItem.scrollIntoView).toHaveBeenCalledWith({ block: 'center', inline: 'nearest' });
     });
   });
@@ -389,14 +388,14 @@ describe('TV LG', () => {
       await settle();
       element('#cList').click();
       await settle();
-      expect(document.activeElement).toBe(element('#sideList .on'));
-      element('#sideList').innerHTML = '<li class="cur" tabindex="-1">Guia</li>';
+      expect(document.activeElement).toBe(element('#sideList .on .side-btn'));
+      element('#sideList').innerHTML = '<li class="cur"><button type="button" class="side-btn">Guia</button></li>';
       (document.activeElement instanceof HTMLElement ? document.activeElement : element('#sideList li')).blur();
       await settle();
-      expect(document.activeElement).toBe(element('#sideList .cur'));
-      element('#sideList').innerHTML = '<li data-x="0">Item</li>';
+      expect(document.activeElement).toBe(element('#sideList .cur .side-btn'));
+      element('#sideList').innerHTML = '<li data-x="0"><button type="button" class="side-btn">Item</button></li>';
       await settle();
-      expect(document.activeElement).toBe(element('#sideList li'));
+      expect(document.activeElement).toBe(element('#sideList .side-btn'));
       element('#sideList').innerHTML = '';
       await settle();
       expect(document.activeElement).toBe(document.body);
@@ -477,12 +476,14 @@ describe('TV LG', () => {
   });
 
   describe('Enter nos itens', () => {
-    it('abre categorias, itens e episódios', async () => {
+    it('os botões de categoria e de item recebem o foco e abrem com OK', async () => {
       const { app } = await bootTv();
       await app.section.openSection('live');
       await settle();
-      focusItem('[data-c="abertos"]');
-      expect(pressRemote('Enter').defaultPrevented).toBe(true);
+      const categoryButton = element('[data-c="abertos"] .cat-btn');
+      categoryButton.focus();
+      expect(pressRemote('Enter').defaultPrevented).toBe(false);
+      categoryButton.click();
       expect(app.state.state.currentCategory).toBe('abertos');
     });
   });
@@ -576,7 +577,7 @@ describe('TV LG', () => {
       const { app } = await bootTv();
       await app.section.openSection('vod');
       await settle();
-      focusItem('#items [data-i="0"]');
+      focusItem('#items [data-i="0"] .row-main, #items .card[data-i="0"]');
       pressRemote('Yellow', KEY_YELLOW);
       expect(app.state.state.userData.fav.vod).toEqual(['m1']);
     });
@@ -589,10 +590,10 @@ describe('TV LG', () => {
       await app.section.openSection('vod');
       element('[data-c="fav"]').click();
       await settle();
-      focusItem('#items [data-i="1"]');
+      focusItem('#items [data-i="1"] .row-main, #items .card[data-i="1"]');
       pressRemote('Yellow', KEY_YELLOW);
       await settle();
-      expect(document.activeElement).toBe(element('#items [data-i="0"]'));
+      expect(document.activeElement).toBe(element('#items [data-i="0"] .row-main, #items .card[data-i="0"]'));
     });
 
     it('o último favorito devolve o foco à categoria', async () => {
@@ -600,9 +601,9 @@ describe('TV LG', () => {
       await app.section.openSection('vod');
       element('[data-c="fav"]').click();
       await settle();
-      focusItem('#items [data-i="0"]');
+      focusItem('#items [data-i="0"] .row-main, #items .card[data-i="0"]');
       pressRemote('Yellow', KEY_YELLOW);
-      expect(document.activeElement).toBe(element('#cats li.on'));
+      expect(document.activeElement).toBe(element('#cats li.on .cat-btn'));
     });
 
     it('sem nada para focar depois de remover, segue a vida', async () => {
@@ -611,7 +612,7 @@ describe('TV LG', () => {
       element('[data-c="fav"]').click();
       await settle();
       element('#cats').innerHTML = '';
-      focusItem('#items [data-i="0"]');
+      focusItem('#items [data-i="0"] .row-main, #items .card[data-i="0"]');
       expect(() => pressRemote('Yellow', KEY_YELLOW)).not.toThrow();
     });
 
@@ -620,7 +621,7 @@ describe('TV LG', () => {
       await app.section.openSection('vod');
       await settle();
       element('#items [data-i="0"]').dataset.i = '9';
-      focusItem('#items [data-i="9"]');
+      focusItem('#items [data-i="9"] .row-main, #items .card[data-i="9"]');
       pressRemote('Yellow', KEY_YELLOW);
       expect(app.state.state.userData.fav.vod).toEqual([]);
     });
@@ -719,10 +720,10 @@ describe('TV LG', () => {
       await app.section.openSection('live');
       element('[data-c="recent"]').click();
       await settle();
-      focusItem('#items [data-i="1"]');
+      focusItem('#items [data-i="1"] .row-main, #items .card[data-i="1"]');
       expect(pressRemote('Blue', KEY_BLUE).defaultPrevented).toBe(true);
       expect(app.state.state.userData.recentLive).toEqual(['c1']);
-      expect(document.activeElement).toBe(element('#items [data-i="0"]'));
+      expect(document.activeElement).toBe(element('#items [data-i="0"] .row-main, #items .card[data-i="0"]'));
     });
 
     it('o último recente devolve o foco à categoria', async () => {
@@ -730,9 +731,9 @@ describe('TV LG', () => {
       await app.section.openSection('live');
       element('[data-c="recent"]').click();
       await settle();
-      focusItem('#items [data-i="0"]');
+      focusItem('#items [data-i="0"] .row-main, #items .card[data-i="0"]');
       pressRemote('Blue', KEY_BLUE);
-      expect(document.activeElement).toBe(element('#cats li.on'));
+      expect(document.activeElement).toBe(element('#cats li.on .cat-btn'));
     });
 
     it('sem categoria selecionada não foca nada', async () => {
@@ -741,7 +742,7 @@ describe('TV LG', () => {
       element('[data-c="recent"]').click();
       await settle();
       element('#cats').innerHTML = '';
-      focusItem('#items [data-i="0"]');
+      focusItem('#items [data-i="0"] .row-main, #items .card[data-i="0"]');
       expect(() => pressRemote('Blue', KEY_BLUE)).not.toThrow();
     });
 
@@ -756,7 +757,7 @@ describe('TV LG', () => {
 
     it('remove o cartão da prateleira e foca o vizinho', async () => {
       const { app } = await bootTv(catalog(), userData({ recentLive: ['c1', 'c2'] }));
-      focusItem('.shelf-recent .card:nth-child(2)');
+      focusItem('.shelf-recent .card-wrap:nth-child(2) .card');
       pressRemote('Blue', KEY_BLUE);
       expect(app.state.state.userData.recentLive).toEqual(['c1']);
       expect(document.activeElement).toBe(element('.shelf-recent .card'));
@@ -868,7 +869,7 @@ describe('TV LG', () => {
       const { app } = await bootPlayingTv();
       element('#cList').click();
       await settle();
-      focusItem('#sideList li:nth-child(2)');
+      focusItem('#sideList li:nth-child(2) .side-btn');
       pressRemote('', KEY_YELLOW);
       expect(app.state.state.userData.fav.live).toEqual(['c2']);
       expect(document.querySelector('#cFav svg')?.classList.contains('on')).toBe(false);
@@ -967,7 +968,7 @@ describe('TV LG', () => {
       const { app } = await bootPlayingTv();
       element('#cList').click();
       await settle();
-      focusItem('#sideList li:nth-child(2)');
+      focusItem('#sideList li:nth-child(2) .side-btn');
       pressRemote('Enter');
       expect(app.playback.playback.currentMedia?.item?.k).toBe('c2');
     });

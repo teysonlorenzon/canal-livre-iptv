@@ -14,19 +14,20 @@ import { openSettings } from '../settings/settings';
 export function renderPlaylistSelect(): void {
   $('plSelTxt').textContent = state.activePlaylist ? state.activePlaylist.name : state.playlists.length ? 'Carregando…' : 'Nenhuma lista';
   $('plSel').title = 'Lista: ' + $('plSelTxt').textContent;
+  $('plSel').setAttribute('aria-label', 'Lista ativa: ' + $('plSelTxt').textContent);
   $('plMenu').innerHTML =
     state.playlists
       .map(
         playlist =>
-          `<li role="option" tabindex="-1" data-id="${esc(playlist.id)}" aria-selected="${state.activePlaylist && state.activePlaylist.id === playlist.id}"><b>${esc(playlist.name)}</b><small>${playlist.type === 'xtream' ? 'Xtream' : playlist.url ? 'M3U' : 'Arquivo M3U'}</small></li>`,
+          `<li role="menuitemradio" tabindex="-1" data-id="${esc(playlist.id)}" aria-checked="${state.activePlaylist?.id === playlist.id}"><b>${esc(playlist.name)}</b><small>${playlist.type === 'xtream' ? 'Xtream' : playlist.url ? 'M3U' : 'Arquivo M3U'}</small></li>`,
       )
       .join('') +
-    `<li class="dd-act" tabindex="-1" data-manage="1">${state.playlists.length ? 'Gerenciar listas…' : 'Adicionar lista…'}</li>`;
+    `<li role="menuitem" class="dd-act" tabindex="-1" data-manage="1">${state.playlists.length ? 'Gerenciar listas…' : 'Adicionar lista…'}</li>`;
   $('plList').innerHTML = state.playlists.length
     ? state.playlists
         .map(
           playlist => `<div class="plrow"><div><b>${esc(playlist.name)}</b><small>${playlist.type === 'xtream' ? 'Xtream · ' + esc(playlist.server) + ' · ' + esc(playlist.user) : playlist.url ? 'M3U · ' + esc(playlist.url) : 'M3U · arquivo local'}</small></div>
-    <button class="btn sm" data-open="${playlist.id}">Abrir</button><button class="btn sm" data-reload="${playlist.id}">Atualizar</button><button class="btn sm danger" data-del="${playlist.id}">Remover</button></div>`,
+    <button type="button" class="btn sm" data-open="${playlist.id}" aria-label="Abrir ${esc(playlist.name)}">Abrir</button><button type="button" class="btn sm" data-reload="${playlist.id}" aria-label="Atualizar ${esc(playlist.name)}">Atualizar</button><button type="button" class="btn sm danger" data-del="${playlist.id}" aria-label="Remover ${esc(playlist.name)}">Remover</button></div>`,
         )
         .join('')
     : '<p class="hint">Nenhuma lista ainda. Adicione abaixo.</p>';
@@ -39,7 +40,7 @@ export function renderPlaylistSelect(): void {
 export function togglePlaylistMenu(open: boolean, focus?: boolean): void {
   $('plMenu').hidden = !open;
   $('plSel').setAttribute('aria-expanded', String(open));
-  if (open && focus) (query($('plMenu'), '[aria-selected=true]') ?? query($('plMenu'), 'li'))?.focus();
+  if (open && focus) (query($('plMenu'), '[aria-checked=true]') ?? query($('plMenu'), 'li'))?.focus();
 }
 
 /**
@@ -201,6 +202,10 @@ export function initPlaylists(): void {
       if (actionButton.dataset.confirm !== '1') {
         actionButton.dataset.confirm = '1';
         actionButton.textContent = 'Confirmar';
+        actionButton.setAttribute(
+          'aria-label',
+          'Confirmar a remoção de ' + (actionButton.closest('.plrow')?.querySelector('b')?.textContent ?? 'a lista'),
+        );
         return;
       }
       const playlistId = actionButton.dataset.del;

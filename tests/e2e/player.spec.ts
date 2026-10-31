@@ -238,4 +238,18 @@ test.describe('player', () => {
     await expect(page.locator('#plMsg')).toBeEmpty();
     expect(app.pageErrors).toEqual([]);
   });
+
+  test('o botão de transmitir para a TV é acessível e avisa quando o navegador não transmite', async ({ app, page }) => {
+    await app.openWithList();
+    await app.openSection('vod');
+    await page.locator('#items .card').first().click();
+    await page.locator('#mPlay').click();
+    await app.waitForPlayback();
+    const castButton = page.getByRole('button', { name: 'Transmitir para a TV' });
+    await expect(castButton).toHaveAttribute('aria-pressed', 'false');
+    await castButton.focus();
+    await expect(castButton).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#toast, [role="status"]').first()).toBeAttached();
+  });
 });

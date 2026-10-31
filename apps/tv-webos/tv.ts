@@ -7,11 +7,10 @@ import { isFav, state, toggleFav } from '../../src/core/state';
 import type { CurrentMedia, SectionName } from '../../src/core/types';
 import { toast } from '../../src/core/utils';
 import { renderHome, show } from '../../src/features/home/home';
-import { playback, playerScreen, video } from '../../src/features/player/playback';
-import { closePlayer, poke, stepChannel } from '../../src/features/player/player';
+import { playback, playerPlatformHooks, playerScreen, video } from '../../src/features/player/playback';
+import { closePlayer, poke, showFavoriteButton, stepChannel } from '../../src/features/player/player';
 import { togglePlaylistMenu } from '../../src/features/playlists/playlists';
 import { openSection, renderCats, renderItems } from '../../src/features/section/section';
-import { icon } from '../../src/ui/icons';
 
 /**
  * Adaptação para controle remoto de TV (LG webOS): navegação pelas setas entre os
@@ -34,12 +33,13 @@ const TV_KEY = { BACK: 461, PLAY: 415, PAUSE: 19, STOP: 413, FF: 417, RW: 412, R
 
 /** Seletor dos elementos que recebem foco pelas setas. */
 const FOCUSABLE =
-  'button:not([disabled]):not(.star):not(.del),a[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea,[tabindex]:not([tabindex="-1"]),.dd-menu li,#cats li,#items li[data-i],#sideList li[data-x],.eps li[data-e]';
+  'button:not([disabled]):not(.star):not(.del):not(.card-del),a[href]:not(.skip-link),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea,[tabindex]:not([tabindex="-1"]),.dd-menu li';
 
 /** Mapa das teclas de seta para a direção da navegação. */
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 
 document.documentElement.classList.add('tv');
+playerPlatformHooks.focusPlayer = () => undefined;
 
 /**
  * Indica se o elemento está visível na tela.
@@ -310,14 +310,17 @@ function focusFirst(): void {
     if (focusedElement && focusedElement !== document.body && !$('player').contains(focusedElement)) focusedElement.blur();
     if (!$('side').hidden) {
       const sideList = $('sideList'),
-        sideItem = query(sideList, 'li.on') ?? query(sideList, 'li.cur') ?? query(sideList, 'li[data-x]');
+        sideItem = query(sideList, '.on .side-btn') ?? query(sideList, '.cur .side-btn') ?? query(sideList, '.side-btn');
       if (sideItem) focusElement(sideItem);
     }
     return;
   }
   const mainElement =
     getNavigationRoot() === document
-      ? query(document, '#home:not([hidden]) .tile, #section:not([hidden]) #items li.on, #section:not([hidden]) #items [data-i]')
+      ? query(
+          document,
+          '#home:not([hidden]) .tile, #section:not([hidden]) #items li.on .row-main, #section:not([hidden]) #items .row-main, #section:not([hidden]) #items .card[data-i]',
+        )
       : null;
   const elementToFocus = mainElement && isShown(mainElement) ? mainElement : getFocusCandidates()[0];
   if (elementToFocus) focusElement(elementToFocus);
@@ -365,8 +368,8 @@ function toggleSectionItemFavorite(itemElement: HTMLElement): void {
   }
   announceFavorite(isFav(state.currentSection, item.k));
   if (itemElement.isConnected) return;
-  const sectionItems = queryAll($('items'), '[data-i]');
-  const itemToFocus = sectionItems[Math.min(itemIndex, sectionItems.length - 1)] ?? query(document, '#cats li.on');
+  const sectionItems = queryAll($('items'), '.row-main, .card[data-i]');
+  const itemToFocus = sectionItems[Math.min(itemIndex, sectionItems.length - 1)] ?? query(document, '#cats li.on .cat-btn');
   if (itemToFocus) focusElement(itemToFocus);
 }
 
@@ -439,13 +442,13 @@ function removeFocusedHistoryItem(focusedElement: EventTarget | null): void {
   if (sectionItem && sectionRemoveButton) {
     const itemIndex = Number(sectionItem.dataset.i);
     sectionRemoveButton.click();
-    const sectionItems = queryAll($('items'), '[data-i]');
-    const itemToFocus = sectionItems[Math.min(itemIndex, sectionItems.length - 1)] ?? query(document, '#cats li.on');
+    const sectionItems = queryAll($('items'), '.row-main, .card[data-i]');
+    const itemToFocus = sectionItems[Math.min(itemIndex, sectionItems.length - 1)] ?? query(document, '#cats li.on .cat-btn');
     if (itemToFocus) focusElement(itemToFocus);
     return;
   }
   const homeCard = closest(focusedElement, '#home .card');
-  const cardRemoveButton = homeCard && query(homeCard, '.card-del');
+  const cardRemoveButton = homeCard && query(homeCard.parentElement ?? homeCard, '.card-del');
   const shelfElement = homeCard && homeCard.closest('.shelf');
   if (!homeCard || !cardRemoveButton || !shelfElement) return;
   const shelfKindClass = [...shelfElement.classList].find(className => className.indexOf('shelf-') === 0);
@@ -473,10 +476,8 @@ function playingFavoriteTarget(): FavoriteTarget | null {
 function togglePlayerFavorite(): void {
   const focusedElement = focusedHtmlElement();
   const isChannelSideList = !$('side').hidden && $('side').dataset.mode === 'list' && !(playback.currentMedia && playback.currentMedia.ctx);
-  const focusedSideChannel =
-    isChannelSideList && focusedElement?.matches('#sideList li[data-x]')
-      ? playback.liveChannelList[Number(focusedElement.dataset.x)]
-      : null;
+  const focusedSideItem = closest(focusedElement, '#sideList li[data-x]');
+  const focusedSideChannel = isChannelSideList && focusedSideItem ? playback.liveChannelList[Number(focusedSideItem.dataset.x)] : null;
   const favoriteTarget: FavoriteTarget | null = focusedSideChannel
     ? { section: 'live', key: focusedSideChannel.k }
     : playingFavoriteTarget();
@@ -488,7 +489,7 @@ function togglePlayerFavorite(): void {
     playback.currentMedia.item &&
     playback.currentMedia.item.k === favoriteTarget.key
   )
-    $('cFav').innerHTML = icon('star', isNowFavorite ? 'on' : '');
+    showFavoriteButton(isNowFavorite);
   announceFavorite(isNowFavorite);
 }
 
@@ -557,7 +558,7 @@ function handlePlayerKey(event: KeyboardEvent): void {
   } else if (event.keyCode === TV_KEY.GREEN) {
     event.preventDefault();
     $('cEpg').click();
-  } else if (event.key === 'Enter' && focusedTarget?.matches('#sideList li[data-x]')) {
+  } else if (event.key === 'Enter' && focusedTarget?.matches('#sideList .side-btn')) {
     event.preventDefault();
     event.stopImmediatePropagation();
     focusedTarget.click();
@@ -599,7 +600,7 @@ document.addEventListener(
       return;
     }
     const target = event.target instanceof HTMLElement ? event.target : null;
-    if (event.key === 'Enter' && target?.matches('#cats li,#items li[data-i],.eps li[data-e],input[type=checkbox],input[type=radio]')) {
+    if (event.key === 'Enter' && target?.matches('input[type=checkbox],input[type=radio]')) {
       event.preventDefault();
       target.click();
       return;

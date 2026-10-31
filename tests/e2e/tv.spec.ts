@@ -81,7 +81,7 @@ test.describe('TV LG', () => {
     await expect(page.locator('#section')).toBeVisible();
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('#items li').first()).toBeFocused();
+    await expect(page.locator('#items .row-main').first()).toBeFocused();
     await pressRemote(page, KEY_YELLOW);
     await expect(app.toast).toHaveText('Adicionado aos favoritos');
     await pressRemote(page, KEY_YELLOW);

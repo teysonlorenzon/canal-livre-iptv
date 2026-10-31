@@ -161,11 +161,24 @@ describe('tela inicial', () => {
       expect(element('#player').hidden).toBe(true);
     });
 
+    it('com o foco no botão de remover, o foco vai para o cartão vizinho', async () => {
+      const app = await bootApp();
+      openCatalog(app, catalog(), userData({ recentLive: ['c1', 'c2'] }));
+      element('.shelf-recent .card-del').focus();
+      element('.shelf-recent .card-del').click();
+      expect(document.activeElement).toBe(element('.shelf-recent .card'));
+      element('.shelf-recent .card-del').focus();
+      element('.shelf-recent .card-del').click();
+      expect(document.activeElement).toBe(element('#home .tile'));
+    });
+
     it('ignora o botão de remover fora de um cartão', async () => {
       const app = await bootApp();
       openCatalog(app, catalog(), userData({ recentLive: ['c1'] }));
       const removeButton = element('.shelf-recent .card-del');
-      element('.shelf-recent').appendChild(removeButton);
+      const loneWrapper = document.createElement('div');
+      loneWrapper.appendChild(removeButton);
+      element('#home').appendChild(loneWrapper);
       removeButton.click();
       expect(app.state.state.userData.recentLive).toEqual(['c1']);
     });

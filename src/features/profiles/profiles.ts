@@ -1,8 +1,9 @@
+import { clearFormError, showFormError } from '../../core/a11y';
 import { $, closest, query } from '../../core/dom';
 import { activeProfile, loadUserData, MAIN_PROFILE_ID, profileKey, readOptions, saveProfiles, state } from '../../core/state';
 import type { Profile } from '../../core/types';
 import { esc, onDialogClose, store, toast } from '../../core/utils';
-import { icon, isIconName, PROFILE_ICONS } from '../../ui/icons';
+import { icon, type IconName, isIconName, PROFILE_ICONS } from '../../ui/icons';
 import { showSavedTheme } from '../../ui/theme-button';
 import { show } from '../home/home';
 import { applyVideoRatio, closePlayer } from '../player/player';
@@ -18,6 +19,28 @@ let profileGateActive: boolean = false;
 
 /** Quantidade de cores de foto de perfil (`--av0` a `--av5`). */
 const PROFILE_COLOR_COUNT = 6;
+
+/** Nome falado de cada cor de foto de perfil, na ordem de `--av0` a `--av5`. */
+const PROFILE_COLOR_NAMES = ['Amarelo', 'Coral', 'Verde', 'Azul', 'Roxo', 'Rosa'];
+
+/** Nome falado de cada ícone de foto de perfil. */
+const PROFILE_ICON_NAMES: Partial<Record<IconName, string>> = {
+  avSmile: 'Rosto sorridente',
+  avCat: 'Gato',
+  avDog: 'Cachorro',
+  avPaw: 'Patinha',
+  star: 'Estrela',
+  avHeart: 'Coração',
+  avBolt: 'Raio',
+  avRocket: 'Foguete',
+  avMusic: 'Música',
+  avBall: 'Bola',
+  avCrown: 'Coroa',
+  avGame: 'Videogame',
+  avFilm: 'Cinema',
+  themeDark: 'Lua',
+  themeLight: 'Sol',
+};
 
 /**
  * Cor da foto de um perfil: a escolhida ou, sem escolha, a da posição dele na lista.
@@ -42,7 +65,7 @@ function profileColor(profile: { color?: number }): number {
 function avatarHtml(profile: { name: string; icon?: string; color?: number }): string {
   const colorIndex = profileColor(profile);
   const content = isIconName(profile.icon) ? icon(profile.icon) : esc((profile.name.trim().charAt(0) || '?').toUpperCase());
-  return `<span class="avatar avatar-c${colorIndex}">${content}</span>`;
+  return `<span class="avatar avatar-c${colorIndex}" aria-hidden="true">${content}</span>`;
 }
 
 /**
@@ -68,7 +91,7 @@ export function openProfilePicker(lockUntilChosen?: boolean): void {
     state.profiles
       .map(
         profile =>
-          `<button class="profile-card${profile.id === state.activeProfileId ? ' on' : ''}" type="button" data-profile="${esc(profile.id)}">${avatarHtml(profile)}<b>${esc(profile.name)}</b>${profile.askPin ? '<small>com PIN</small>' : ''}</button>`,
+          `<button class="profile-card${profile.id === state.activeProfileId ? ' on' : ''}" type="button" data-profile="${esc(profile.id)}"${profile.id === state.activeProfileId ? ' aria-current="true"' : ''}>${avatarHtml(profile)}<b>${esc(profile.name)}</b>${profile.askPin ? '<small>com PIN</small>' : ''}</button>`,
       )
       .join('') +
     `<button class="profile-card add" type="button" data-add-profile="1"><span class="avatar">${icon('avPlus')}</span><b>Adicionar</b></button>`;
@@ -154,7 +177,7 @@ export function renderProfileRows(): void {
   $('profileList').innerHTML = state.profiles
     .map(
       profile =>
-        `<div class="plrow">${avatarHtml(profile)}<div><b>${esc(profile.name)}</b><small>${profile.id === state.activeProfileId ? 'Usuário atual' : profile.id === MAIN_PROFILE_ID ? 'Usuário principal' : ''}</small></div><label class="profile-pin"><input type="checkbox" data-askpin="${esc(profile.id)}" ${profile.askPin ? 'checked' : ''}>Pedir PIN</label><button class="btn sm" type="button" data-edit-profile="${esc(profile.id)}">Editar</button>${profile.id === MAIN_PROFILE_ID || profile.id === state.activeProfileId ? '' : `<button class="btn sm danger" type="button" data-del-profile="${esc(profile.id)}">Remover</button>`}</div>`,
+        `<div class="plrow">${avatarHtml(profile)}<div><b>${esc(profile.name)}</b><small>${profile.id === state.activeProfileId ? 'Usuário atual' : profile.id === MAIN_PROFILE_ID ? 'Usuário principal' : ''}</small></div><label class="profile-pin"><input type="checkbox" data-askpin="${esc(profile.id)}" aria-label="Pedir PIN para ${esc(profile.name)}" ${profile.askPin ? 'checked' : ''}>Pedir PIN</label><button class="btn sm" type="button" data-edit-profile="${esc(profile.id)}" aria-label="Editar ${esc(profile.name)}">Editar</button>${profile.id === MAIN_PROFILE_ID || profile.id === state.activeProfileId ? '' : `<button class="btn sm danger" type="button" data-del-profile="${esc(profile.id)}" aria-label="Remover ${esc(profile.name)}">Remover</button>`}</div>`,
     )
     .join('');
 }
@@ -215,6 +238,7 @@ function openProfileEditor(profile: Profile | null, onDone: () => void): void {
   profileEdit = { profile, draft, onDone };
   $('profileEditTitle').textContent = profile ? 'Editar usuário' : 'Novo usuário';
   $('profileEditName').value = draft.name;
+  clearFormError($('profileEditError'), [$('profileEditName')]);
   renderProfileEditor();
   $('dProfileEdit').showModal();
   $('profileEditName').focus();
@@ -230,12 +254,12 @@ function renderProfileEditor(): void {
   $('profileEditPreview').innerHTML = avatarHtml(previewDraft);
   $('profileIcons').innerHTML = PROFILE_ICONS.map(
     iconName =>
-      `<button class="icon-choice${iconName === draft.icon ? ' on' : ''}" type="button" data-icon="${iconName}" aria-label="${iconName ? 'Ícone' : 'Inicial do nome'}">${avatarHtml({ ...previewDraft, icon: iconName })}</button>`,
+      `<button class="icon-choice${iconName === draft.icon ? ' on' : ''}" type="button" data-icon="${iconName}" aria-pressed="${iconName === draft.icon}" aria-label="${isIconName(iconName) ? (PROFILE_ICON_NAMES[iconName] ?? 'Ícone') : 'Inicial do nome'}">${avatarHtml({ ...previewDraft, icon: iconName })}</button>`,
   ).join('');
   $('profileColors').innerHTML = Array.from(
     { length: PROFILE_COLOR_COUNT },
     (_, colorIndex) =>
-      `<button class="color-choice${colorIndex === draft.color ? ' on' : ''}" type="button" data-color="${colorIndex}" aria-label="Cor ${colorIndex + 1}"><span class="avatar-c${colorIndex}"></span></button>`,
+      `<button class="color-choice${colorIndex === draft.color ? ' on' : ''}" type="button" data-color="${colorIndex}" aria-pressed="${colorIndex === draft.color}" aria-label="${PROFILE_COLOR_NAMES[colorIndex] ?? 'Cor ' + (colorIndex + 1)}"><span class="avatar-c${colorIndex}"></span></button>`,
   ).join('');
 }
 
@@ -346,6 +370,10 @@ export function initProfiles(): void {
     if (removeButton.dataset.confirm !== '1') {
       removeButton.dataset.confirm = '1';
       removeButton.textContent = 'Confirmar';
+      removeButton.setAttribute(
+        'aria-label',
+        'Confirmar a remoção de ' + (removeButton.closest('.plrow')?.querySelector('b')?.textContent ?? 'o usuário'),
+      );
       return;
     }
     withProfilePin(profile, () => {
@@ -398,6 +426,7 @@ export function initProfiles(): void {
   $('profileEditName').oninput = () => {
     if (!profileEdit) return;
     profileEdit.draft.name = $('profileEditName').value;
+    clearFormError($('profileEditError'), [$('profileEditName')]);
     $('profileEditPreview').innerHTML = avatarHtml({ ...profileEdit.draft, name: profileEdit.draft.name || '?' });
   };
 
@@ -431,8 +460,7 @@ export function initProfiles(): void {
     const draft = profileEdit.draft,
       name = $('profileEditName').value.trim().slice(0, 24);
     if (!name) {
-      toast('Digite o nome do usuário.');
-      $('profileEditName').focus();
+      showFormError($('profileEditError'), 'Digite o nome do usuário.', [$('profileEditName')]);
       return;
     }
     if (profileEdit.profile) Object.assign(profileEdit.profile, { name, icon: draft.icon, color: draft.color });

@@ -1217,6 +1217,154 @@ describe('player', () => {
     });
   });
 
+  describe('acessibilidade do player', () => {
+    it('vira um modal: fundo inerte, foco dentro e volta ao fechar', async () => {
+      const { app } = await bootPlayer();
+      await app.section.openSection('live');
+      const opener = element('#items .row-main');
+      opener.focus();
+      app.player.playLive(channel(1));
+      expect(document.activeElement).toBe(element('#player'));
+      expect(element('header').hasAttribute('inert')).toBe(true);
+      expect(element('#app').hasAttribute('inert')).toBe(true);
+      app.player.playLive(channel(2));
+      expect(element('#app').hasAttribute('inert')).toBe(true);
+      app.player.closePlayer();
+      expect(element('#app').hasAttribute('inert')).toBe(false);
+      expect(document.activeElement).toBe(element('#items .row-main'));
+    });
+
+    it('sem foco guardado, fechar leva o foco ao conteúdo principal', async () => {
+      const { app } = await bootPlayer();
+      element('#appTitle').blur();
+      app.player.playLive(channel(1));
+      app.player.closePlayer();
+      expect(document.activeElement).toBe(element('#app'));
+    });
+
+    it('na TV não move o foco ao abrir nem ao fechar sem foco guardado', async () => {
+      const { app } = await bootPlayer();
+      document.documentElement.classList.add('tv');
+      app.playback.playerPlatformHooks.focusPlayer = () => undefined;
+      element('#appTitle').blur();
+      app.player.playLive(channel(1));
+      expect(document.activeElement).toBe(document.body);
+      app.player.closePlayer();
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it('fechar um player que já está fechado não destrava o fundo de outro modal', async () => {
+      const { app } = await bootPlayer();
+      app.utils.loading('Baixando…');
+      app.player.closePlayer();
+      expect(element('#app').hasAttribute('inert')).toBe(true);
+      app.utils.loading(null);
+    });
+
+    it('o título vai para o vídeo e para a aba, e volta ao fechar', async () => {
+      const { app } = await bootPlayer();
+      app.player.playLive(channel(1));
+      expect(document.title).toBe('1 Canal 1 · Zapp IPTV');
+      expect(app.playback.video().getAttribute('aria-label')).toBe('1  Canal 1');
+      app.player.closePlayer();
+      expect(document.title).toBe('Zapp IPTV');
+      expect(app.playback.video().hasAttribute('aria-label')).toBe(false);
+    });
+
+    it('mudo e favorito dizem se estão ligados', async () => {
+      const { app } = await bootPlayer(catalog(), userData({ fav: { live: ['c1'], vod: [], series: [] } }));
+      app.player.playLive(channel(1));
+      expect(element('#cFav').getAttribute('aria-pressed')).toBe('true');
+      element('#cFav').click();
+      expect(element('#cFav').getAttribute('aria-pressed')).toBe('false');
+      element('#cMute').click();
+      expect(element('#cMute').getAttribute('aria-pressed')).toBe('true');
+      element('#cMute').click();
+      expect(element('#cMute').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('a barra de progresso fala o tempo', async () => {
+      const { app, video } = await bootPlayer();
+      app.player.playMedia(mediaDescriptor());
+      video.duration = 100;
+      video.currentTime = 25;
+      fire(app.playback.video(), 'timeupdate');
+      expect(element('#seek').getAttribute('aria-valuetext')).toBe('0:25 de 1:40');
+      inputField('#seek').value = '500';
+      fire(element('#seek'), 'input');
+      expect(element('#seek').getAttribute('aria-valuetext')).toBe('0:50 de 1:40');
+    });
+
+    it('as mensagens do carregamento têm texto para o leitor de tela', async () => {
+      const { app } = await bootPlayer();
+      app.player.playLive(channel(1));
+      expect(element('#plMsg').textContent).toContain('Carregando…');
+    });
+
+    it('o foco em um controle mostra os controles escondidos', async () => {
+      const { app, video } = await bootPlayer();
+      app.player.playLive(channel(1));
+      video.paused = false;
+      await advance(5000);
+      expect(element('#player').classList.contains('idle')).toBe(true);
+      fire(element('#cPlay'), 'focusin');
+      expect(element('#player').classList.contains('idle')).toBe(false);
+    });
+
+    it('atalhos só valem com o foco no player', async () => {
+      const { app } = await bootPlayer();
+      app.player.playLive(channel(1));
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      outside.focus();
+      expect(pressKey(document.body, 'm').defaultPrevented).toBe(false);
+      expect(app.playback.video().muted).toBe(false);
+      element('#cPlay').focus();
+      pressKey(document.body, 'm');
+      expect(app.playback.video().muted).toBe(true);
+    });
+
+    it('o painel lateral recebe o foco ao abrir e devolve ao botão ao fechar', async () => {
+      const { app } = await bootPlayer();
+      const items = app.state.state.catalog?.live.items ?? [];
+      app.player.playLive(items[0], items);
+      element('#cList').click();
+      expect(document.activeElement).toBe(element('#sideList .on .side-btn'));
+      element('#sideClose').click();
+      expect(document.activeElement).toBe(element('#cList'));
+      element('#cList').click();
+      pressKey(document.activeElement ?? document.body, 'Escape');
+      expect(element('#side').hidden).toBe(true);
+      expect(document.activeElement).toBe(element('#cList'));
+    });
+
+    it('o guia abre com foco no programa atual e o painel mantém o foco ao trocar de canal', async () => {
+      const { app } = await bootPlayer();
+      const now = Date.now();
+      app.state.state.catalog = catalog({ epg: new Map([['epg1', [programme(now - 1000, now + 1000, { title: 'Atual' })]]]) });
+      const items = app.state.state.catalog.live.items;
+      app.player.playLive(items[0], items);
+      element('#cEpg').click();
+      await flush();
+      expect(document.activeElement).toBe(element('#sideList .cur .side-btn'));
+      element('#cEpg').click();
+      expect(document.activeElement).toBe(element('#cEpg'));
+      element('#cList').click();
+      const secondChannelButton = element('#sideList li:nth-child(2) .side-btn');
+      secondChannelButton.focus();
+      secondChannelButton.click();
+      expect(document.activeElement).toBe(element('#sideList li:nth-child(2) .side-btn'));
+    });
+
+    it('o guia sem programas também recebe o foco', async () => {
+      const { app } = await bootPlayer();
+      app.player.playLive(channel(1));
+      element('#cEpg').click();
+      await flush();
+      expect(document.activeElement).toBe(element('#sideClose'));
+    });
+  });
+
   describe('painel lateral', () => {
     it('lista os canais e toca o escolhido', async () => {
       const { app } = await bootPlayer();

@@ -61,8 +61,9 @@ export const playback: PlaybackState = {
   engine: null,
 };
 
-/** O que cada plataforma faz ao abrir e fechar o player (ex.: PiP automático no celular). */
-export const playerPlatformHooks: { afterOpen: () => void; afterClose: () => void } = {
+/** O que cada plataforma faz ao abrir e fechar o player (ex.: PiP automático no celular) e onde põe o foco ao abrir. */
+export const playerPlatformHooks: { afterOpen: () => void; afterClose: () => void; focusPlayer: () => void } = {
   afterOpen: () => undefined,
   afterClose: () => undefined,
+  focusPlayer: () => playerScreen().focus(),
 };

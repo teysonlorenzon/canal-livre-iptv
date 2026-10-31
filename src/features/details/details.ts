@@ -1,3 +1,4 @@
+import { preservingFocus } from '../../core/a11y';
 import { $, $optional, query, queryAll } from '../../core/dom';
 import { asRecords, isRecord, readNumber, readText } from '../../core/guards';
 import { activeCatalog, isFav, state, toggleFav } from '../../core/state';
@@ -44,41 +45,42 @@ export async function openMovie(movie: Item): Promise<void> {
    * Desenha o conteúdo do diálogo do filme.
    * @param info Informações extras (nome, sinopse, capa, ano, duração, gênero, elenco, trailer).
    */
-  const drawMovie = (info: MovieInfo): void => {
-    const historyEntry = state.userData.hist.find(entry => entry.ref === 'vod:' + movie.k);
-    detailBody.innerHTML = `<div class="detail"><div class="poster">${initials(movie.name)}${info.cover || movie.logo ? `<img src="${esc(info.cover || movie.logo)}" alt="" onerror="this.remove()">` : ''}</div>
-      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(info.name || movie.name)}</h3>
+  const drawMovie = (info: MovieInfo): void =>
+    preservingFocus(detailBody, () => {
+      const historyEntry = state.userData.hist.find(entry => entry.ref === 'vod:' + movie.k);
+      detailBody.innerHTML = `<div class="detail"><div class="poster"><span aria-hidden="true">${initials(movie.name)}</span>${info.cover || movie.logo ? `<img src="${esc(info.cover || movie.logo)}" alt="" onerror="this.remove()">` : ''}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h2 id="detailTitle">${esc(info.name || movie.name)}</h2>
       <div class="meta">${info.year ? `<span>${esc(info.year)}</span>` : ''}${info.dur ? `<span>${esc(info.dur)}</span>` : ''}${movie.rate ? `<span>★ ${(+movie.rate).toFixed(1)}</span>` : ''}${info.genre ? `<span>${esc(info.genre)}</span>` : ''}</div>
       ${info.plot ? `<p class="plot">${esc(info.plot)}</p>` : ''}${info.cast ? `<p class="hint">Elenco: ${esc(info.cast)}</p>` : ''}
       <div class="row" style="justify-content:flex-start">
         ${historyEntry && historyEntry.pos > 30 ? `<button class="btn primary" id="mResume">Continuar de ${formatTime(historyEntry.pos)}</button><button class="btn" id="mPlay">Do início</button>` : `<button class="btn primary" id="mPlay">Assistir</button>`}
         <button class="btn" id="mFav">${isFav('vod', movie.k) ? '★ Favorito' : '☆ Favoritar'}</button>
-        ${info.trailer ? `<a class="btn" href="https://www.youtube.com/watch?v=${esc(info.trailer)}" target="_blank" rel="noopener">Trailer</a>` : ''}
+        ${info.trailer ? `<a class="btn" href="https://www.youtube.com/watch?v=${esc(info.trailer)}" target="_blank" rel="noopener">Trailer<span class="visually-hidden"> (abre em nova aba)</span></a>` : ''}
         <button class="btn" id="mClose">Fechar</button>
       </div></div></div>`;
-    const mediaDescriptor: MediaDescriptor = {
-      kind: 'vod',
-      ref: 'vod:' + movie.k,
-      title: movie.name,
-      logo: info.cover || movie.logo,
-      url: movie.url || xtreamStreamUrl('movie', movie.k, movie.ext ?? 'mp4'),
-    };
-    $('mPlay').onclick = () => {
-      $('dDetail').close();
-      playMedia(mediaDescriptor, 0);
-    };
-    const resumeButton = $optional('mResume');
-    if (resumeButton)
-      resumeButton.onclick = () => {
-        $('dDetail').close();
-        playMedia(mediaDescriptor, historyEntry?.pos);
+      const mediaDescriptor: MediaDescriptor = {
+        kind: 'vod',
+        ref: 'vod:' + movie.k,
+        title: movie.name,
+        logo: info.cover || movie.logo,
+        url: movie.url || xtreamStreamUrl('movie', movie.k, movie.ext ?? 'mp4'),
       };
-    const favoriteButton = $('mFav');
-    favoriteButton.onclick = () => {
-      favoriteButton.textContent = toggleFav('vod', movie.k) ? '★ Favorito' : '☆ Favoritar';
-    };
-    $('mClose').onclick = () => $('dDetail').close();
-  };
+      $('mPlay').onclick = () => {
+        $('dDetail').close();
+        playMedia(mediaDescriptor, 0);
+      };
+      const resumeButton = $optional('mResume');
+      if (resumeButton)
+        resumeButton.onclick = () => {
+          $('dDetail').close();
+          playMedia(mediaDescriptor, historyEntry?.pos);
+        };
+      const favoriteButton = $('mFav');
+      favoriteButton.onclick = () => {
+        favoriteButton.textContent = toggleFav('vod', movie.k) ? '★ Favorito' : '☆ Favoritar';
+      };
+      $('mClose').onclick = () => $('dDetail').close();
+    });
   drawMovie({});
   $('dDetail').showModal();
   if (state.activePlaylist?.type === 'xtream') {
@@ -162,59 +164,61 @@ export async function openSeries(series: Item): Promise<void> {
   /**
    * Desenha o conteúdo do diálogo da série para a temporada selecionada.
    */
-  const drawSeries = (): void => {
-    const previousSeasonTabs = query(detailBody, '.stabs'),
-      seasonTabsScroll = previousSeasonTabs ? previousSeasonTabs.scrollLeft : 0;
-    detailBody.innerHTML = `<div class="detail"><div class="poster">${initials(series.name)}${info.cover ? `<img src="${esc(info.cover)}" alt="" onerror="this.remove()">` : ''}</div>
-      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h3>${esc(series.name)}</h3>
+  const drawSeries = (): void =>
+    preservingFocus(detailBody, () => {
+      const previousSeasonTabs = query(detailBody, '.stabs'),
+        seasonTabsScroll = previousSeasonTabs ? previousSeasonTabs.scrollLeft : 0;
+      detailBody.innerHTML = `<div class="detail"><div class="poster"><span aria-hidden="true">${initials(series.name)}</span>${info.cover ? `<img src="${esc(info.cover)}" alt="" onerror="this.remove()">` : ''}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><h2 id="detailTitle">${esc(series.name)}</h2>
       <div class="meta">${info.year ? `<span>${esc(info.year)}</span>` : ''}<span>${seasons.length} temporada${seasons.length === 1 ? '' : 's'}</span>${info.genre ? `<span>${esc(info.genre)}</span>` : ''}</div>
       ${info.plot ? `<p class="plot">${esc(info.plot)}</p>` : ''}
       <div class="row" style="justify-content:flex-start">${lastWatched ? `<button class="btn primary" id="sResume">Continuar T${lastWatched.season}E${lastWatched.num}</button>` : ''}<button class="btn" id="sFav">${isFav('series', series.k) ? '★ Favorito' : '☆ Favoritar'}</button><button class="btn" id="sClose">Fechar</button></div>
       </div></div>
       ${
         seasons.length
-          ? `<div class="stabs-row"><div class="stabs">${seasons.map(seasonNumber => `<button data-s="${seasonNumber}" class="${seasonNumber === selectedSeason ? 'on' : ''}">Temporada ${seasonNumber}</button>`).join('')}</div>${scrollArrowsHtml()}</div>
+          ? `<div class="stabs-row"><div class="stabs">${seasons.map(seasonNumber => `<button type="button" data-s="${seasonNumber}" class="${seasonNumber === selectedSeason ? 'on' : ''}" aria-pressed="${seasonNumber === selectedSeason}">Temporada ${seasonNumber}</button>`).join('')}</div>${scrollArrowsHtml()}</div>
       <ul class="eps">${(episodesBySeason[selectedSeason] || [])
         .map((episode, index) => {
           const historyEntry = state.userData.hist.find(entry => entry.ref === 'ep:' + episode.id);
-          return `<li data-e="${index}"><span class="num">${episode.num}</span><span class="nm"><b>${esc(episode.title)}</b>${historyEntry && historyEntry.dur ? `<div class="pg"><i style="width:${Math.min(100, (historyEntry.pos / historyEntry.dur) * 100)}%"></i></div>` : ''}</span><span class="hint">${esc(episode.dur || '')}</span></li>`;
+          const watchedPercent = historyEntry && historyEntry.dur ? Math.min(100, (historyEntry.pos / historyEntry.dur) * 100) : 0;
+          return `<li data-e="${index}"><button type="button" class="ep-main"><span class="num">${episode.num}</span><span class="nm"><b>${esc(episode.title)}</b>${watchedPercent ? `<div class="pg" aria-hidden="true"><i style="width:${watchedPercent}%"></i></div><span class="visually-hidden">${Math.round(watchedPercent)}% assistido</span>` : ''}</span><span class="hint">${esc(episode.dur || '')}</span></button></li>`;
         })
         .join('')}</ul>`
           : '<p class="empty">Nenhum episódio disponível.</p>'
       }`;
-    const seasonTabs = query(detailBody, '.stabs'),
-      seasonArrows = query(detailBody, '.stabs-row .scroll-arrows');
-    if (seasonTabs && seasonArrows) {
-      seasonTabs.scrollLeft = seasonTabsScroll;
-      bindScrollArrows(seasonTabs, seasonArrows);
-    }
-    queryAll(detailBody, '[data-s]').forEach(seasonButton => {
-      seasonButton.onclick = () => {
-        selectedSeason = seasonButton.dataset.s ?? '';
-        drawSeries();
+      const seasonTabs = query(detailBody, '.stabs'),
+        seasonArrows = query(detailBody, '.stabs-row .scroll-arrows');
+      if (seasonTabs && seasonArrows) {
+        seasonTabs.scrollLeft = seasonTabsScroll;
+        bindScrollArrows(seasonTabs, seasonArrows);
+      }
+      queryAll(detailBody, '[data-s]').forEach(seasonButton => {
+        seasonButton.onclick = () => {
+          selectedSeason = seasonButton.dataset.s ?? '';
+          drawSeries();
+        };
+      });
+      queryAll(detailBody, '[data-e]').forEach(episodeItem => {
+        episodeItem.onclick = () => {
+          const episode = episodesBySeason[selectedSeason]?.[Number(episodeItem.dataset.e)];
+          if (!episode) return;
+          $('dDetail').close();
+          playEpisode(series, info, episodeList, episodeList.indexOf(episode));
+        };
+      });
+      const resumeButton = $optional('sResume');
+      if (resumeButton && lastWatched)
+        resumeButton.onclick = () => {
+          const resumeIndex = episodeList.findIndex(episode => episode.id === lastWatched.epId);
+          $('dDetail').close();
+          playEpisode(series, info, episodeList, Math.max(0, resumeIndex), lastWatched.pos);
+        };
+      const favoriteButton = $('sFav');
+      favoriteButton.onclick = () => {
+        favoriteButton.textContent = toggleFav('series', series.k) ? '★ Favorito' : '☆ Favoritar';
       };
+      $('sClose').onclick = () => $('dDetail').close();
     });
-    queryAll(detailBody, '[data-e]').forEach(episodeItem => {
-      episodeItem.onclick = () => {
-        const episode = episodesBySeason[selectedSeason]?.[Number(episodeItem.dataset.e)];
-        if (!episode) return;
-        $('dDetail').close();
-        playEpisode(series, info, episodeList, episodeList.indexOf(episode));
-      };
-    });
-    const resumeButton = $optional('sResume');
-    if (resumeButton && lastWatched)
-      resumeButton.onclick = () => {
-        const resumeIndex = episodeList.findIndex(episode => episode.id === lastWatched.epId);
-        $('dDetail').close();
-        playEpisode(series, info, episodeList, Math.max(0, resumeIndex), lastWatched.pos);
-      };
-    const favoriteButton = $('sFav');
-    favoriteButton.onclick = () => {
-      favoriteButton.textContent = toggleFav('series', series.k) ? '★ Favorito' : '☆ Favoritar';
-    };
-    $('sClose').onclick = () => $('dDetail').close();
-  };
   drawSeries();
 }
 /**

@@ -71,7 +71,7 @@ describe('seções', () => {
       );
       await openTestSection(app, 'live');
       const rows = [...document.querySelectorAll('#cats li')].map(row => row.textContent);
-      expect(rows).toEqual(['Todos3', '★ Favoritos2', 'Recentes1', 'Abertos🔒2', 'Vazia0']);
+      expect(rows).toEqual(['Todos3', '★ Favoritos2', 'Recentes1', 'Abertos🔒(bloqueada)2', 'Vazia0']);
       expect(element('#cats li').classList.contains('on')).toBe(true);
     });
 
@@ -244,6 +244,9 @@ describe('seções', () => {
       pressKey(document.body, '/');
       expect(document.activeElement).not.toBe(element('#q'));
       await openTestSection(app, 'live');
+      pressKey(document.body, '/');
+      expect(document.activeElement).not.toBe(element('#q'));
+      element('#cats .cat-btn').focus();
       pressKey(document.body, '/');
       expect(document.activeElement).toBe(element('#q'));
     });

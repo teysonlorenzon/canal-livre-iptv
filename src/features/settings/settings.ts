@@ -1,3 +1,4 @@
+import { clearFormError, showFormError } from '../../core/a11y';
 import { $, closest, queryAll } from '../../core/dom';
 import { errorMessage, isSectionName } from '../../core/guards';
 import { saveOptions, saveUserData, state } from '../../core/state';
@@ -43,11 +44,11 @@ function renderCatRows(): void {
     return;
   }
   rowsBox.innerHTML =
-    `<label class="hd"><span>Categoria</span><span>Bloquear</span><span>Ocultar</span></label>` +
+    `<div class="hd" aria-hidden="true"><span>Categoria</span><span>Bloquear</span><span>Ocultar</span></div>` +
     sectionData.cats
       .map(category => {
         const categoryKey = sectionName + ':' + category.id;
-        return `<label><span>${esc(category.name)}</span><input type="checkbox" data-k="${esc(categoryKey)}" data-t="locked" ${state.userData.locked.includes(categoryKey) ? 'checked' : ''}><input type="checkbox" data-k="${esc(categoryKey)}" data-t="hidden" ${state.userData.hidden.includes(categoryKey) ? 'checked' : ''}></label>`;
+        return `<div class="catrow"><span>${esc(category.name)}</span><input type="checkbox" aria-label="Bloquear ${esc(category.name)}" data-k="${esc(categoryKey)}" data-t="locked" ${state.userData.locked.includes(categoryKey) ? 'checked' : ''}><input type="checkbox" aria-label="Ocultar ${esc(category.name)}" data-k="${esc(categoryKey)}" data-t="hidden" ${state.userData.hidden.includes(categoryKey) ? 'checked' : ''}></div>`;
       })
       .join('');
 }
@@ -73,7 +74,10 @@ export function initSettings(): void {
     addType = typeButton.dataset.t ?? 'xtream';
     $('addSeg')
       .querySelectorAll('button')
-      .forEach(segmentButton => segmentButton.classList.toggle('on', segmentButton === typeButton));
+      .forEach(segmentButton => {
+        segmentButton.classList.toggle('on', segmentButton === typeButton);
+        segmentButton.setAttribute('aria-pressed', String(segmentButton === typeButton));
+      });
     queryAll($('addForm'), '[data-for]').forEach(fieldElement => {
       fieldElement.hidden = !fieldElement.dataset.for?.split(' ').includes(addType);
     });
@@ -86,23 +90,30 @@ export function initSettings(): void {
   $('addForm').addEventListener('submit', submitEvent => submitEvent.preventDefault());
 
   /**
+   * Ao digitar de novo, some o erro do formulário de adicionar lista.
+   */
+  $('addForm').addEventListener('input', () => clearFormError($('addError'), queryAll($('addForm'), 'input,textarea')));
+
+  /**
    * Valida o formulário, cadastra a nova lista e a abre.
    * URLs `get.php` com usuário e senha viram Xtream automaticamente.
    */
   $('addBtn').onclick = async () => {
     const id = Date.now().toString(36),
       name = $('aName').value.trim() || 'Minha lista';
+    clearFormError($('addError'), queryAll($('addForm'), 'input,textarea'));
     let newPlaylist: Playlist | undefined;
     if (addType === 'xtream') {
       let server = $('aServer').value.trim();
       const user = $('aUser').value.trim(),
         pass = $('aPass').value;
-      if (!server || !user) return toast('Preencha servidor, usuário e senha.');
+      if (!server || !user)
+        return showFormError($('addError'), 'Preencha servidor, usuário e senha.', [!server ? $('aServer') : $('aUser')]);
       if (!/^https?:\/\//i.test(server)) server = 'http://' + server;
       newPlaylist = { id, name, type: 'xtream', server, user, pass };
     } else if (addType === 'm3u') {
       const url = $('aUrl').value.trim();
-      if (!url) return toast('Informe a URL da lista.');
+      if (!url) return showFormError($('addError'), 'Informe a URL da lista.', [$('aUrl')]);
       try {
         const parsedUrl = new URL(url);
         const urlUsername = parsedUrl.searchParams.get('username'),
@@ -115,14 +126,15 @@ export function initSettings(): void {
       const selectedFile = $('aFile').files?.[0],
         pastedText = $('aRaw').value.trim();
       const m3uText = selectedFile ? await selectedFile.text() : pastedText;
-      if (!m3uText) return toast('Escolha um arquivo ou cole o conteúdo.');
+      if (!m3uText) return showFormError($('addError'), 'Escolha um arquivo ou cole o conteúdo.', [$('aRaw')]);
       try {
         buildFromM3U(m3uText);
       } catch (error) {
-        return toast(errorMessage(error));
+        return showFormError($('addError'), errorMessage(error), [$('aRaw')]);
       }
       newPlaylist = { id, name, type: 'm3u', epg: $('aEpg').value.trim() };
-      if (!store.set('m3u_' + id, m3uText)) return toast('A lista é grande demais para salvar neste navegador. Use a URL.');
+      if (!store.set('m3u_' + id, m3uText))
+        return showFormError($('addError'), 'A lista é grande demais para salvar neste navegador. Use a URL.', [$('aRaw')]);
     }
     state.playlists.push(newPlaylist);
     store.set('pls', state.playlists);
@@ -135,8 +147,10 @@ export function initSettings(): void {
    * Altera o PIN do controle parental.
    */
   $('pinSave').onclick = () => {
-    if ($('pinOld').value !== (state.options.pin || '0000')) return toast('PIN atual incorreto.');
-    if (!/^\d{4,8}$/.test($('pinNew').value)) return toast('O novo PIN precisa ter de 4 a 8 números.');
+    clearFormError($('pinFormError'), [$('pinOld'), $('pinNew')]);
+    if ($('pinOld').value !== (state.options.pin || '0000')) return showFormError($('pinFormError'), 'PIN atual incorreto.', [$('pinOld')]);
+    if (!/^\d{4,8}$/.test($('pinNew').value))
+      return showFormError($('pinFormError'), 'O novo PIN precisa ter de 4 a 8 números.', [$('pinNew')]);
     state.options.pin = $('pinNew').value;
     saveOptions();
     $('pinOld').value = $('pinNew').value = '';
@@ -234,4 +248,19 @@ export function initSettings(): void {
   };
 
   $('loadCancel').onclick = cancelLoading;
+
+  /**
+   * Esc cancela o carregamento que está na tela.
+   * @param keyEvent Evento de tecla.
+   */
+  document.addEventListener(
+    'keydown',
+    keyEvent => {
+      if (keyEvent.key !== 'Escape' || $('loading').hidden) return;
+      keyEvent.preventDefault();
+      keyEvent.stopImmediatePropagation();
+      cancelLoading();
+    },
+    true,
+  );
 }

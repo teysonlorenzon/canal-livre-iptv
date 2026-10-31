@@ -70,5 +70,7 @@ declare global {
     webkitSupportsPresentationMode?(mode: string): boolean;
     webkitSetPresentationMode?(mode: string): void;
     webkitPresentationMode?: string;
+    /** Seletor de destinos do AirPlay (Safari). */
+    webkitShowPlaybackTargetPicker?(): void;
   }
 }

@@ -61,6 +61,15 @@ terminou. O `tsconfig.json` é `strict` e não pode ser afrouxado.
 
 ## Convenções
 
+- **Acessibilidade sempre** (WCAG 2.2 AA, skill `accessibility`): ao criar ou mudar qualquer
+  interface, pense em acessibilidade desde o desenho. Nome acessível (`aria-label` em botão só
+  com ícone), papel e estado (`aria-pressed`, `aria-expanded`, `role="status"`), uso só por
+  teclado e controle remoto com foco visível, contraste nos dois temas, alvos de toque de 44px,
+  respeito a `prefers-reduced-motion`. Cubra no `tests/e2e/acessibilidade.spec.ts` e diga no
+  relatório final o que foi considerado. Use os utilitários de `src/core/a11y.ts` (modal inerte,
+  foco guardado e devolvido, `announce`, `showFormError`) e o padrão de botão real dentro da
+  linha (`.row-main` + botões irmãos); veja `src/README.md`.
+
 - **Sem comentários, só JSDoc**: nunca escreva comentários de linha (`//`) nem de bloco
   (`/* */`) explicando código. A documentação é só JSDoc (`/** ... */`, em português) acima de
   funções, constantes e observers/listeners de nível superior, com `@param nome descrição` e
