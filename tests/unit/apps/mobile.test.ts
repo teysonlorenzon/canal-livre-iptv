@@ -9,6 +9,7 @@ interface FakeNative {
   setFullscreen: jest.Mock;
   setAutoPip: jest.Mock;
   enterPip: jest.Mock;
+  openCastSettings: jest.Mock;
   backButton: () => void;
   pipChanged: (pipState: { active?: boolean }) => void;
 }
@@ -26,6 +27,7 @@ function installCapacitor(platform: 'android' | 'ios', withPlugins = true): Fake
     setFullscreen: jest.fn(),
     setAutoPip: jest.fn(),
     enterPip: jest.fn(() => Promise.resolve({ entered: true })),
+    openCastSettings: jest.fn(() => Promise.resolve({ opened: true })),
     backButton: () => undefined,
     pipChanged: () => undefined,
   };
@@ -47,6 +49,7 @@ function installCapacitor(platform: 'android' | 'ios', withPlugins = true): Fake
                 setFullscreen: native.setFullscreen,
                 setAutoPip: native.setAutoPip,
                 enterPip: native.enterPip,
+                openCastSettings: native.openCastSettings,
                 addListener: (_eventName: string, listener: (pipState: { active?: boolean }) => void) => {
                   native.pipChanged = listener;
                 },
@@ -255,6 +258,31 @@ describe('celular', () => {
       app.player.playMedia(mediaDescriptor());
       element('#plBack').click();
       expect(element('#player').hidden).toBe(true);
+    });
+  });
+
+  describe('replicar a tela', () => {
+    it('no Android abre a tela do sistema e orienta a escolher a TV', async () => {
+      const { native } = await bootMobile();
+      element('#cCast').click();
+      await flush();
+      expect(native.openCastSettings).toHaveBeenCalled();
+      expect(element('#toast').textContent).toBe('Escolha a TV na lista para replicar a tela do celular.');
+    });
+
+    it('se o aparelho não tem a opção, explica onde procurar', async () => {
+      const { native } = await bootMobile();
+      native.openCastSettings.mockResolvedValueOnce({ opened: false });
+      element('#cCast').click();
+      await flush();
+      expect(element('#toast').textContent).toContain('Smart View');
+    });
+
+    it('sem o plugin (iOS) mantém o botão do vídeo', async () => {
+      const { native } = await bootMobile('ios');
+      element('#cCast').click();
+      await flush();
+      expect(native.openCastSettings).not.toHaveBeenCalled();
     });
   });
 

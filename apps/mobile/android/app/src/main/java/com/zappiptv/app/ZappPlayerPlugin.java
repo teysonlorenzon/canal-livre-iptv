@@ -2,9 +2,12 @@ package com.zappiptv.app;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.provider.Settings;
 import android.util.Rational;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -17,7 +20,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
  * Recursos do player que a WebView do Android não oferece: picture-in-picture (janela
- * flutuante) e tela cheia de verdade (esconde as barras do sistema e gira para paisagem).
+ * flutuante), tela cheia de verdade (esconde as barras do sistema e gira para paisagem) e a
+ * replicação da tela para a TV (Smart View, Chromecast e similares).
  */
 @CapacitorPlugin(name = "ZappPlayer")
 public class ZappPlayerPlugin extends Plugin {
@@ -72,6 +76,46 @@ public class ZappPlayerPlugin extends Plugin {
             result.put("entered", enter(getActivity()));
             call.resolve(result);
         });
+    }
+
+    /**
+     * Abre a tela do sistema que replica a tela do celular numa TV e responde se ela abriu
+     * (`opened`). Cada fabricante usa a sua (Smart View na Samsung, Transmitir, Wi-Fi Display),
+     * então tenta uma por vez até alguma abrir.
+     */
+    @PluginMethod
+    public void openCastSettings(PluginCall call) {
+        Activity activity = getActivity();
+        activity.runOnUiThread(() -> {
+            JSObject result = new JSObject();
+            result.put("opened", startFirstAvailable(activity, castIntents()));
+            call.resolve(result);
+        });
+    }
+
+    /** Telas de replicar a tela, da mais específica para a mais genérica. */
+    private static Intent[] castIntents() {
+        return new Intent[] {
+            new Intent().setClassName("com.samsung.android.smartmirroring", "com.samsung.android.smartmirroring.CastingDialog"),
+            new Intent(Settings.ACTION_CAST_SETTINGS),
+            new Intent("android.settings.WIFI_DISPLAY_SETTINGS"),
+        };
+    }
+
+    /**
+     * Inicia a primeira intent que o aparelho consegue abrir.
+     * @return Se alguma abriu.
+     */
+    private static boolean startFirstAvailable(Activity activity, Intent[] intents) {
+        for (Intent intent : intents) {
+            try {
+                activity.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
+            } catch (ActivityNotFoundException | SecurityException exception) {
+                continue;
+            }
+        }
+        return false;
     }
 
     /** Liga ou desliga (`enabled`) a entrada automática em PiP ao sair do app. */

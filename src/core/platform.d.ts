@@ -26,11 +26,12 @@ interface NativeAppPlugin {
   exitApp(): void;
 }
 
-/** Plugin ZappPlayer (`ZappPlayerPlugin.java`): PiP e tela cheia no Android. */
+/** Plugin ZappPlayer (`ZappPlayerPlugin.java`): PiP, tela cheia e replicar a tela no Android. */
 interface ZappPlayerPlugin {
   setFullscreen(options: { enabled: boolean }): void;
   setAutoPip(options: { enabled: boolean }): void;
   enterPip(): Promise<{ entered: boolean }>;
+  openCastSettings(): Promise<{ opened: boolean }>;
   addListener(eventName: 'pipChanged', listener: (pipState: { active?: boolean }) => void): void;
 }
 

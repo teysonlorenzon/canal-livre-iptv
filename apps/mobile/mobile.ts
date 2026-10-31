@@ -123,6 +123,16 @@ import { togglePlaylistMenu } from '../../src/features/playlists/playlists';
     const pipResult = zappPlayer ? await zappPlayer.enterPip() : { entered: false };
     if (!pipResult.entered) toast('Picture-in-Picture indisponível neste aparelho.');
   };
+  /**
+   * Replicar a tela: a WebView não tem a transmissão do navegador, então no Android abre a tela
+   * do sistema (Smart View, Transmitir) para escolher a TV; o iOS usa o AirPlay do próprio vídeo.
+   */
+  if (zappPlayer && !isIos)
+    $('cCast').onclick = async () => {
+      const castResult = await zappPlayer.openCastSettings();
+      if (castResult.opened) toast('Escolha a TV na lista para replicar a tela do celular.');
+      else toast('Este aparelho não tem a opção de replicar a tela. Procure por Smart View ou Transmitir nos ajustes.');
+    };
   /** No modo PiP, só o vídeo aparece na janela flutuante. */
   if (zappPlayer)
     zappPlayer.addListener('pipChanged', pipState => {
