@@ -44,7 +44,7 @@ test.describe('perfis', () => {
     await page.locator('#profileAdd').click();
     await app.enterPin('0000');
     await page.locator('#profileEditSave').click();
-    await expect(app.toast).toHaveText('Digite o nome do usuário.');
+    await expect(page.locator('#profileEditError')).toHaveText('Digite o nome do usuário.');
     await page.locator('#profileEditCancel').click();
     await expect(page.locator('#dSettings')).toBeVisible();
   });

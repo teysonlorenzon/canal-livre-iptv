@@ -1,4 +1,5 @@
-import { $, $optional, closest, queryAll } from '../../core/dom';
+import { announce, preservingFocus } from '../../core/a11y';
+import { $, $optional, closest, query, queryAll } from '../../core/dom';
 import { activeCatalog, isFav, removeRecentChannel, state, toggleFav } from '../../core/state';
 import type { Item, SectionName, TimerId } from '../../core/types';
 import { esc, formatHourMinute, initials, onDialogClose, SECTION_NAMES, toast } from '../../core/utils';
@@ -32,6 +33,13 @@ export async function openSection(sectionName: SectionName): Promise<void> {
  * Desenha a lista de categorias da seção atual com contagens.
  */
 export function renderCats(): void {
+  preservingFocus($('cats'), drawCats);
+}
+
+/**
+ * Monta o HTML da lista de categorias da seção atual.
+ */
+function drawCats(): void {
   const sectionData = activeCatalog()[state.currentSection];
   if (!sectionData) return;
   const visibleCategories = sectionData.cats.filter(category => !state.userData.hidden.includes(state.currentSection + ':' + category.id));
@@ -47,7 +55,7 @@ export function renderCats(): void {
   $('cats').innerHTML = categoryRows
     .map(
       categoryRow =>
-        `<li data-c="${esc(categoryRow.id)}" class="${categoryRow.id === state.currentCategory ? 'on' : ''}"><span>${esc(categoryRow.name)}</span>${state.userData.locked.includes(state.currentSection + ':' + categoryRow.id) ? '<span class="lock" title="Bloqueada">🔒</span>' : ''}<small>${categoryRow.n}</small></li>`,
+        `<li data-c="${esc(categoryRow.id)}" class="${categoryRow.id === state.currentCategory ? 'on' : ''}"><button type="button" class="cat-btn"${categoryRow.id === state.currentCategory ? ' aria-current="true"' : ''}><span>${esc(categoryRow.name)}</span>${state.userData.locked.includes(state.currentSection + ':' + categoryRow.id) ? '<span class="lock" aria-hidden="true">🔒</span><span class="visually-hidden">(bloqueada)</span>' : ''}<small>${categoryRow.n}</small></button></li>`,
     )
     .join('');
   $('secTitle').textContent = SECTION_NAMES[state.currentSection];
@@ -94,6 +102,7 @@ export function requestPin(
   $('pinIn').value = '';
   $('pinError').hidden = true;
   $('pinIn').classList.remove('wrong');
+  $('pinIn').removeAttribute('aria-invalid');
   $('dPin').showModal();
   $('pinIn').focus();
   /**
@@ -111,6 +120,8 @@ export function requestPin(
     void $('pinError').offsetWidth;
     $('pinError').hidden = false;
     $('pinIn').classList.add('wrong');
+    $('pinIn').setAttribute('aria-invalid', 'true');
+    $('pinIn').setAttribute('aria-describedby', 'pinError');
     $('pinIn').focus();
   };
   pinCancelAction = onCancel || null;
@@ -171,11 +182,45 @@ function currentItems(): Item[] {
  * Desenha os itens da seção atual (lista de canais ou grade de pôsteres), paginados.
  */
 export function renderItems(): void {
+  preservingFocus($('items'), drawItems, nearestItemButton(Number(closest(document.activeElement, '[data-i]')?.dataset.i ?? 0)));
+}
+
+/**
+ * Onde focar se o item que tinha o foco sumiu da lista redesenhada: o vizinho mais próximo, ou a categoria.
+ * @param index Posição do item que tinha o foco.
+ * @returns Função que acha o elemento.
+ */
+const nearestItemButton = (index: number) => (): HTMLElement | null => {
+  const mainButtons = queryAll($('items'), '.row-main, .card[data-i]');
+  return mainButtons[Math.min(index, mainButtons.length - 1)] ?? query(document, '#cats li.on .cat-btn');
+};
+
+/**
+ * Anuncia ao leitor de tela quantos itens a lista tem agora.
+ */
+function announceResults(): void {
+  const count = state.listedItems.length;
+  const [singular, plural] = RESULT_UNITS[state.currentSection];
+  announce(count ? `${count} ${count === 1 ? singular : plural}` : 'Nada encontrado.');
+}
+
+/** Nome de cada tipo de item, no singular e no plural, para anunciar os resultados. */
+const RESULT_UNITS: Record<SectionName, [string, string]> = {
+  live: ['canal', 'canais'],
+  vod: ['filme', 'filmes'],
+  series: ['série', 'séries'],
+};
+
+/**
+ * Desenha a lista de itens da seção atual.
+ */
+function drawItems(): void {
   const allItems = currentItems(),
     itemsBox = $('items'),
     visibleItems = allItems.slice(0, state.visibleItemCount);
   if (!allItems.length) {
     itemsBox.innerHTML = `<div class="empty">${state.currentCategory === 'fav' ? 'Nenhum favorito nesta seção.' : 'Nada encontrado.'}</div>`;
+    state.listedItems = [];
     return;
   }
   if (state.currentSection === 'live') {
@@ -190,7 +235,8 @@ export function renderItems(): void {
           if (currentProgram)
             subtitleHtml = `<span style="color:var(--fg)">${esc(currentProgram.title)}</span> · ${formatHourMinute(new Date(currentProgram.s))}–${formatHourMinute(new Date(currentProgram.e))}`;
         }
-        return `<li data-i="${index}" class="${channel.k === playingChannelKey ? 'on' : ''}${isRecentCategory ? ' rm' : ''}"><span class="num">${esc(channel.num)}</span>${channel.logo ? `<img class="logo" loading="lazy" src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='<span class=logo>${initials(channel.name)}</span>'">` : `<span class="logo">${initials(channel.name)}</span>`}<span class="nm"><b>${esc(channel.name)}${channel.archive ? '<span class="badge">CATCH-UP</span>' : ''}</b><small>${subtitleHtml}</small></span>${isRecentCategory ? `<button class="del" aria-label="Remover dos recentes" title="Remover dos recentes">${icon('close')}</button>` : ''}<button class="star ${isFav('live', channel.k) ? 'on' : ''}" aria-label="Favoritar">★</button></li>`;
+        const isChannelFavorite = isFav('live', channel.k);
+        return `<li data-i="${index}" class="${channel.k === playingChannelKey ? 'on' : ''}${isRecentCategory ? ' rm' : ''}"><button type="button" class="row-main"${channel.k === playingChannelKey ? ' aria-current="true"' : ''}><span class="num">${esc(channel.num)}</span>${channel.logo ? `<img class="logo" loading="lazy" src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='<span class=logo aria-hidden=true>${initials(channel.name)}</span>'">` : `<span class="logo" aria-hidden="true">${initials(channel.name)}</span>`}<span class="nm"><b>${esc(channel.name)}${channel.archive ? '<span class="badge">CATCH-UP</span>' : ''}</b><small>${subtitleHtml}</small></span></button>${isRecentCategory ? `<button type="button" class="del" aria-label="Remover ${esc(channel.name)} dos recentes" title="Remover dos recentes">${icon('close')}</button>` : ''}<button type="button" class="star ${isChannelFavorite ? 'on' : ''}" aria-label="Favoritar ${esc(channel.name)}" aria-pressed="${isChannelFavorite}">${isChannelFavorite ? '★' : '☆'}</button></li>`;
       })
       .join('')}</ul>`;
   } else {
@@ -199,13 +245,15 @@ export function renderItems(): void {
   if (allItems.length > state.visibleItemCount)
     itemsBox.insertAdjacentHTML(
       'beforeend',
-      `<div class="more"><button class="btn" id="moreBtn">Mostrar mais (${allItems.length - state.visibleItemCount} restantes)</button></div>`,
+      `<div class="more"><button type="button" class="btn" id="moreBtn">Mostrar mais (${allItems.length - state.visibleItemCount} restantes)</button></div>`,
     );
   const moreButton = $optional('moreBtn');
   if (moreButton)
     moreButton.onclick = () => {
+      const firstNewIndex = state.visibleItemCount;
       state.visibleItemCount += 300;
       renderItems();
+      queryAll($('items'), '.row-main, .card[data-i]')[firstNewIndex]?.focus();
     };
   state.listedItems = allItems;
 }
@@ -250,6 +298,7 @@ export function initSection(): void {
       renderCats();
       renderItems();
       $('items').scrollTop = 0;
+      announceResults();
     });
   };
 
@@ -259,6 +308,7 @@ export function initSection(): void {
   $('pinIn').addEventListener('input', () => {
     $('pinError').hidden = true;
     $('pinIn').classList.remove('wrong');
+    $('pinIn').removeAttribute('aria-invalid');
   });
 
   /**
@@ -291,8 +341,11 @@ export function initSection(): void {
       renderCats();
       return;
     }
-    if (clickEvent.target instanceof Element && clickEvent.target.classList.contains('star')) {
-      clickEvent.target.classList.toggle('on', toggleFav(state.currentSection, item.k));
+    if (clickEvent.target instanceof HTMLElement && clickEvent.target.classList.contains('star')) {
+      const isNowFavorite = toggleFav(state.currentSection, item.k);
+      clickEvent.target.classList.toggle('on', isNowFavorite);
+      clickEvent.target.setAttribute('aria-pressed', String(isNowFavorite));
+      clickEvent.target.textContent = isNowFavorite ? '★' : '☆';
       if (state.currentCategory === 'fav') renderItems();
       renderCats();
       return;
@@ -312,6 +365,7 @@ export function initSection(): void {
     searchDebounceTimer = setTimeout(() => {
       state.visibleItemCount = 200;
       renderItems();
+      announceResults();
     }, 150);
   };
 
@@ -321,5 +375,6 @@ export function initSection(): void {
   $('sort').onchange = () => {
     state.visibleItemCount = 200;
     renderItems();
+    announceResults();
   };
 }

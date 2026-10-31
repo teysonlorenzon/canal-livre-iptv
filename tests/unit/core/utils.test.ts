@@ -10,8 +10,10 @@ describe('utilitários', () => {
     document.body.innerHTML = `
       <dialog id="dPin"><input id="pinIn"></dialog>
       <dialog id="dDetail"></dialog>
+      <header></header><main id="app"><button id="before">antes</button></main>
+      <div id="player" hidden></div>
       <div id="toast"></div>
-      <div id="loading" hidden><p id="loadingTxt"></p><p id="loadingNote"></p><ol id="loadingSteps"></ol><p id="loadingSec"></p><p id="loadingHint" hidden></p></div>`;
+      <div id="loading" hidden><button id="loadCancel">Cancelar</button><p id="loadingTxt"></p><p id="loadingNote"></p><ol id="loadingSteps"></ol><p id="loadingSec"></p><p id="loadingHint" hidden></p></div>`;
     utils = await import('../../../src/core/utils');
   });
 
@@ -90,6 +92,14 @@ describe('utilitários', () => {
       expect(toastElement().parentElement?.id).toBe('dPin');
     });
 
+    it('fica dentro do player, quando ele está aberto', () => {
+      const player = document.getElementById('player');
+      if (!player) throw new Error('sem player');
+      player.hidden = false;
+      utils.toast('no player');
+      expect(toastElement().parentElement).toBe(player);
+    });
+
     it('volta para a página quando o diálogo fecha', async () => {
       utils.initToast();
       const dialog = document.querySelector('dialog');
@@ -156,6 +166,36 @@ describe('utilitários', () => {
       expect(byId('loadingHint').hidden).toBe(false);
       jest.advanceTimersByTime(49000);
       expect(byId('loadingSec').textContent).toBe('1:05');
+    });
+
+    it('trava o fundo, foca Cancelar e devolve o foco ao esconder', () => {
+      const before = byId('before');
+      before.focus();
+      utils.loading('Baixando…');
+      expect(document.querySelector('header')?.hasAttribute('inert')).toBe(true);
+      expect(byId('app').hasAttribute('inert')).toBe(true);
+      expect(document.activeElement).toBe(byId('loadCancel'));
+      utils.loading('Outra etapa…');
+      utils.loading(null);
+      expect(byId('app').hasAttribute('inert')).toBe(false);
+      expect(document.activeElement).toBe(before);
+      utils.loading(null);
+      expect(byId('app').hasAttribute('inert')).toBe(false);
+    });
+
+    it('sem foco anterior, esconder a tela solta o foco do botão oculto', () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      utils.loading('Baixando…');
+      expect(document.activeElement).toBe(byId('loadCancel'));
+      utils.loading(null);
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it('na TV não leva o foco para Cancelar', () => {
+      document.documentElement.classList.add('tv');
+      utils.loading('Baixando…');
+      expect(document.activeElement).not.toBe(byId('loadCancel'));
+      utils.loading(null);
     });
 
     it('esconde a tela e recomeça as etapas', () => {

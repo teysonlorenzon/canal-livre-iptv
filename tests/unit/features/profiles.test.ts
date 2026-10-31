@@ -439,7 +439,7 @@ describe('perfis', () => {
       await bootApp();
       await openNewProfileEditor();
       element('#profileEditSave').click();
-      expect(element('#toast').textContent).toBe('Digite o nome do usuário.');
+      expect(element('#profileEditError').textContent).toBe('Digite o nome do usuário.');
       expect(element('#dProfileEdit').hasAttribute('open')).toBe(true);
     });
 

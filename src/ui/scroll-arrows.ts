@@ -1,3 +1,4 @@
+import { prefersReducedMotion } from '../core/a11y';
 import { closest, query } from '../core/dom';
 import { icon } from './icons';
 
@@ -18,7 +19,7 @@ let scrollArrowBindings: { scrollElement: HTMLElement; arrowsElement: HTMLElemen
  * @returns HTML.
  */
 export const scrollArrowsHtml = (extraClass?: string, id?: string): string =>
-  `<span class="scroll-arrows${extraClass ? ' ' + extraClass : ''}"${id ? ` id="${id}"` : ''} hidden><button class="scroll-arrow" type="button" data-scroll="-1" aria-label="Voltar" tabindex="-1">${icon('back')}</button><button class="scroll-arrow next" type="button" data-scroll="1" aria-label="Avançar" tabindex="-1">${icon('back')}</button></span>`;
+  `<span class="scroll-arrows${extraClass ? ' ' + extraClass : ''}"${id ? ` id="${id}"` : ''} aria-hidden="true" hidden><button class="scroll-arrow" type="button" data-scroll="-1" aria-label="Rolar para a esquerda" tabindex="-1">${icon('back')}</button><button class="scroll-arrow next" type="button" data-scroll="1" aria-label="Rolar para a direita" tabindex="-1">${icon('back')}</button></span>`;
 
 /**
  * Mostra as setas só quando a faixa não cabe e apaga a seta do lado em que ela já chegou ao fim.
@@ -43,7 +44,10 @@ export function bindScrollArrows(scrollElement: HTMLElement, arrowsElement: HTML
   arrowsElement.onclick = clickEvent => {
     const arrow = closest(clickEvent.target, '[data-scroll]');
     if (!arrow) return;
-    scrollElement.scrollBy({ left: Number(arrow.dataset.scroll) * Math.max(scrollElement.clientWidth * 0.8, 120), behavior: 'smooth' });
+    scrollElement.scrollBy({
+      left: Number(arrow.dataset.scroll) * Math.max(scrollElement.clientWidth * 0.8, 120),
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
   };
   scrollElement.addEventListener('scroll', () => updateScrollArrows(scrollElement, arrowsElement), { passive: true });
   scrollArrowBindings = scrollArrowBindings.filter(binding => binding.scrollElement.isConnected).concat({ scrollElement, arrowsElement });

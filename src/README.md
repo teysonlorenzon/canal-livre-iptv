@@ -50,6 +50,16 @@ src/
 - **`any` é proibido**. Dado externo (`fetch`, `localStorage`, plataforma) entra como `unknown` e
   passa por `core/guards.ts` ou `core/saved-data.ts`. `$()` só aceita ids registrados em
   `core/dom.ts`: ao criar um id novo, registre-o lá com o tipo do elemento.
+- **Acessibilidade** (WCAG 2.2 AA): `core/a11y.ts` reúne foco e avisos. Use `lockBackground()` /
+  `unlockBackground()` em modais (deixam `body > header`, `#app` e o link de pular inertes),
+  `rememberFocus()` / `preservingFocus()` ao redesenhar uma lista com o foco dentro,
+  `rescueFocus()` ao trocar de tela, `announce()` para o leitor de tela (`#srStatus`) e
+  `showFormError()` para erro de formulário no próprio campo. Itens clicáveis são `<button>`
+  reais: linhas de lista têm um botão principal (`.row-main`, `.cat-btn`, `.ep-main`,
+  `.side-btn`) e, ao lado dele, os botões de favoritar/remover; cartões removíveis ficam em
+  `.card-wrap` com o `.card-del` como irmão do `.card`. Cores de texto usam os tokens `--*-text`
+  e o contraste mínimo é 4,5:1 (3:1 em bordas de campo). `npm run test:e2e` roda o axe em todas
+  as telas, nos dois temas.
 - **Onde colocar código novo**:
   - algo de uma funcionalidade só → na pasta dela em `features/` (crie uma pasta nova para uma
     funcionalidade nova, com `nome.view.ts` para o markup e `nome.ts` para a lógica);

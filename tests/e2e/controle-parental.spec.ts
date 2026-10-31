@@ -69,11 +69,11 @@ test.describe('controle parental', () => {
     await page.locator('#openSettings').click();
     await page.locator('#pinOld').fill('9999');
     await page.locator('#pinSave').click();
-    await expect(app.toast).toHaveText('PIN atual incorreto.');
+    await expect(page.locator('#pinFormError')).toHaveText('PIN atual incorreto.');
     await page.locator('#pinOld').fill('0000');
     await page.locator('#pinNew').fill('12');
     await page.locator('#pinSave').click();
-    await expect(app.toast).toHaveText('O novo PIN precisa ter de 4 a 8 números.');
+    await expect(page.locator('#pinFormError')).toHaveText('O novo PIN precisa ter de 4 a 8 números.');
     await page.locator('#pinNew').fill('4321');
     await page.locator('#pinSave').click();
     await expect(app.toast).toHaveText('PIN alterado.');

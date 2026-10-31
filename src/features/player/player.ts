@@ -1,4 +1,5 @@
-import { $, $optional, closest, topOpenDialog } from '../../core/dom';
+import { type FocusMemory, isTvPlatform, lockBackground, preservingFocus, rememberFocus, unlockBackground } from '../../core/a11y';
+import { $, $optional, closest, query, topOpenDialog } from '../../core/dom';
 import { errorName } from '../../core/guards';
 import { activeCatalog, isFav, profileKey, saveUserData, state, toggleFav } from '../../core/state';
 import type { HistoryEntry, Item, MediaDescriptor, PlaybackStage, Programme, SeriesContext, TimerId } from '../../core/types';
@@ -11,6 +12,13 @@ import { renderHome } from '../home/home';
 import { renderItems, withPin } from '../section/section';
 import { liveGuardReset, liveRecover } from './live-guard';
 import { type ActiveStage, playback, playerPlatformHooks, playerScreen, video } from './playback';
+
+/** Título da página quando nada está tocando. */
+const APP_TITLE = 'Zapp IPTV';
+/** Texto só para leitor de tela que acompanha o indicador de carregamento. */
+const SPINNER_HTML = '<div class="spinner"></div><span class="visually-hidden">Carregando…</span>';
+/** Onde o foco estava quando o player abriu, para devolvê-lo ao fechar. */
+let focusBeforePlayer: FocusMemory | null = null;
 
 /** Momento (ms) do último salvamento do progresso. */
 let lastProgressSaveAt = 0;
@@ -117,7 +125,7 @@ function runChain(chain: PlaybackStage[], live: boolean): void {
       failStage('tempo esgotado');
     };
     watchdog = currentStage.wd = setTimeout(checkStarted, 20000);
-    if (!retrying) showPlayerMessage('<div class="spinner"></div>');
+    if (!retrying) showPlayerMessage(SPINNER_HTML);
     if (engineName === 'hls') {
       const HlsLibrary = window.Hls;
       if (HlsLibrary && HlsLibrary.isSupported()) {
@@ -405,15 +413,51 @@ function chainFor(url: string, live: boolean): PlaybackStage[] {
  * Exibe o player e mantém a tela ligada.
  */
 function openPlayer(): void {
+  const wasOpen = !playerScreen().hidden;
+  if (!wasOpen) {
+    focusBeforePlayer = rememberFocus();
+    lockBackground();
+  }
   playerScreen().hidden = false;
   void requestWakeLock();
   poke();
+  if (!wasOpen) playerPlatformHooks.focusPlayer();
   playerPlatformHooks.afterOpen();
+}
+
+/**
+ * Põe o título do que está tocando no player, no vídeo (para o leitor de tela) e na aba do navegador.
+ * @param title Título.
+ */
+function setPlayerTitle(title: string): void {
+  $('plTitle').textContent = title;
+  video().setAttribute('aria-label', title);
+  document.title = `${title} · ${APP_TITLE}`;
+}
+
+/**
+ * Mostra no botão de favorito do player se o canal é favorito.
+ * @param isFavorite Se é favorito.
+ */
+export function showFavoriteButton(isFavorite: boolean): void {
+  $('cFav').innerHTML = icon('star', isFavorite ? 'on' : '');
+  $('cFav').setAttribute('aria-pressed', String(isFavorite));
+}
+
+/**
+ * Fecha o painel lateral e devolve o foco ao botão que o abriu.
+ */
+function closeSidePanel(): void {
+  const wasOpen = !$('side').hidden;
+  const toggleId = $('side').dataset.mode === 'epg' ? '#cEpg' : '#cList';
+  $('side').hidden = true;
+  if (wasOpen && !isTvPlatform()) query(document, toggleId)?.focus();
 }
 /**
  * Fecha o player, salva o progresso e volta à tela anterior.
  */
 export function closePlayer(): void {
+  const wasOpen = !playerScreen().hidden;
   ++playback.playbackToken;
   playback.engine = null;
   liveGuardReset();
@@ -423,11 +467,18 @@ export function closePlayer(): void {
   $('side').hidden = true;
   playback.currentMedia = null;
   clearInterval(epgTimer);
+  document.title = APP_TITLE;
+  video().removeAttribute('aria-label');
   if (!$('section').hidden) renderItems();
   else renderHome();
   try {
     if (document.fullscreenElement) void document.exitFullscreen();
   } catch {}
+  if (wasOpen) {
+    unlockBackground();
+    if (!focusBeforePlayer?.restore() && !isTvPlatform()) query(document, '#app')?.focus();
+    focusBeforePlayer = null;
+  }
   playerPlatformHooks.afterClose();
 }
 
@@ -451,7 +502,7 @@ export function playLive(channel: Item | undefined, channelList?: Item[]): void 
   state.userData.recentLive = [channel.k, ...state.userData.recentLive.filter(recentKey => recentKey !== channel.k)].slice(0, 30);
   saveUserData();
   openPlayer();
-  $('plTitle').textContent = `${channel.num}  ${channel.name}`;
+  setPlayerTitle(`${channel.num}  ${channel.name}`);
   $('osdName').textContent = `${channel.num}  ${channel.name}`;
   $('osdLogo').innerHTML = channel.logo
     ? `<img src="${esc(channel.logo)}" alt="" onerror="this.outerHTML='${initials(channel.name)}'">`
@@ -465,7 +516,7 @@ export function playLive(channel: Item | undefined, channelList?: Item[]): void 
   $('cList').hidden = false;
   $('cEpg').hidden = false;
   $('cFav').hidden = false;
-  $('cFav').innerHTML = icon('star', isFav('live', channel.k) ? 'on' : '');
+  showFavoriteButton(isFav('live', channel.k));
   resetTracks();
   liveGuardReset();
   runChain(chainFor(playback.currentMedia.url, true), true);
@@ -483,7 +534,7 @@ export function playLive(channel: Item | undefined, channelList?: Item[]): void 
 export function playMedia(desc: MediaDescriptor, startPosition = 0, seriesContext: SeriesContext | null = null): void {
   playback.currentMedia = { kind: desc.kind, desc, url: desc.url, ctx: seriesContext, resume: startPosition };
   openPlayer();
-  $('plTitle').textContent = desc.title;
+  setPlayerTitle(desc.title);
   $('epgNow').hidden = true;
   $('seekRow').hidden = false;
   $('cBack10').hidden = $('cFwd10').hidden = false;
@@ -523,7 +574,7 @@ export function playCatchup(channel: Item, programme: Programme): void {
   const url =
     channel.url && state.activePlaylist?.type !== 'xtream' ? channel.url : xtreamTimeshiftUrl(durationMinutes, timeshiftStart, channel.k);
   playback.currentMedia = { kind: 'catchup', item: channel, url, desc: { title: `${channel.name} · ${programme.title}` } };
-  $('plTitle').textContent = `${channel.name} · ${programme.title} (${formatHourMinute(new Date(programme.s))})`;
+  setPlayerTitle(`${channel.name} · ${programme.title} (${formatHourMinute(new Date(programme.s))})`);
   $('seekRow').hidden = false;
   $('cBack10').hidden = $('cFwd10').hidden = false;
   $('epgNow').hidden = true;
@@ -695,17 +746,20 @@ const syncPlayIcon = () => {
  */
 function showChannelSide(): void {
   const sidePanel = $('side');
+  const wasHidden = sidePanel.hidden;
   sidePanel.hidden = false;
   sidePanel.dataset.mode = 'list';
   if (playback.currentMedia && playback.currentMedia.ctx) {
     const seriesContext = playback.currentMedia.ctx;
     $('sideTitle').textContent = seriesContext.s.name;
-    $('sideList').innerHTML = seriesContext.flat
-      .map(
-        (episode, index) =>
-          `<li data-x="${index}" class="${index === seriesContext.i ? 'on' : ''}"><span class="tm">T${episode.season}E${episode.num}</span><span>${esc(episode.title)}</span></li>`,
-      )
-      .join('');
+    setSideList(
+      seriesContext.flat
+        .map(
+          (episode, index) =>
+            `<li data-x="${index}" class="${index === seriesContext.i ? 'on' : ''}"><button type="button" class="side-btn"${index === seriesContext.i ? ' aria-current="true"' : ''}><span class="tm">T${episode.season}E${episode.num}</span><span>${esc(episode.title)}</span></button></li>`,
+        )
+        .join(''),
+    );
     $('sideList').onclick = clickEvent => {
       const listItem = closest(clickEvent.target, 'li');
       if (listItem) playEpisode(seriesContext.s, seriesContext.info, seriesContext.flat, Number(listItem.dataset.x));
@@ -714,13 +768,15 @@ function showChannelSide(): void {
     $('sideTitle').textContent = 'Canais';
     const channelList = playback.liveChannelList,
       currentChannel = playback.currentMedia && playback.currentMedia.item;
-    $('sideList').innerHTML = channelList
-      .slice(0, 1500)
-      .map(
-        (channel, index) =>
-          `<li data-x="${index}" class="${channel === currentChannel ? 'on' : ''}"><span class="tm">${esc(channel.num)}</span><span>${esc(channel.name)}</span></li>`,
-      )
-      .join('');
+    setSideList(
+      channelList
+        .slice(0, 1500)
+        .map(
+          (channel, index) =>
+            `<li data-x="${index}" class="${channel === currentChannel ? 'on' : ''}"><button type="button" class="side-btn"${channel === currentChannel ? ' aria-current="true"' : ''}><span class="tm">${esc(channel.num)}</span><span>${esc(channel.name)}</span></button></li>`,
+        )
+        .join(''),
+    );
     $('sideList').onclick = clickEvent => {
       const listItem = closest(clickEvent.target, 'li');
       if (listItem) playLive(channelList[Number(listItem.dataset.x)], channelList);
@@ -728,6 +784,25 @@ function showChannelSide(): void {
   }
   const selectedItem = $('sideList').querySelector('.on');
   if (selectedItem) selectedItem.scrollIntoView({ block: 'center' });
+  if (wasHidden) focusSidePanel();
+}
+
+/**
+ * Troca o conteúdo da lista lateral sem derrubar o foco de quem usa o teclado.
+ * @param html HTML dos itens.
+ */
+function setSideList(html: string): void {
+  preservingFocus($('sideList'), () => {
+    $('sideList').innerHTML = html;
+  });
+}
+
+/**
+ * Leva o foco para dentro do painel lateral recém-aberto (o item atual, ou o primeiro). Na TV o controle remoto move o foco.
+ */
+function focusSidePanel(): void {
+  if (isTvPlatform()) return;
+  (query($('sideList'), '.on .side-btn, .cur .side-btn') ?? query($('sideList'), '.side-btn') ?? $('sideClose')).focus();
 }
 /**
  * Abre o painel lateral com o guia do canal, permitindo catch-up.
@@ -736,25 +811,29 @@ async function showEpgSide(): Promise<void> {
   const sidePanel = $('side'),
     channel = playback.currentMedia && playback.currentMedia.item;
   if (!channel) return;
+  const wasHidden = sidePanel.hidden;
   sidePanel.hidden = false;
   sidePanel.dataset.mode = 'epg';
   $('sideTitle').textContent = 'Guia · ' + channel.name;
-  $('sideList').innerHTML = '<li><span></span><span class="hint">Carregando guia…</span></li>';
+  setSideList('<li class="side-note"><span></span><span class="hint">Carregando guia…</span></li>');
   const programmeList = await getEpg(channel),
     now = Date.now();
   if (!programmeList.length) {
-    $('sideList').innerHTML = '<li><span></span><span class="hint">Sem guia de programação para este canal.</span></li>';
+    setSideList('<li class="side-note"><span></span><span class="hint">Sem guia de programação para este canal.</span></li>');
+    if (wasHidden) focusSidePanel();
     return;
   }
-  $('sideList').innerHTML = programmeList
-    .map((programme, index) => {
-      const isPast = programme.e < now,
-        isCurrent = programme.s <= now && programme.e > now,
-        hasCatchup = isPast && (programme.archive || channel.archive);
-      const dayLabel = new Date(programme.s).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
-      return `<li data-x="${index}" class="${isPast ? 'past' : ''} ${isCurrent ? 'cur' : ''}"><span class="tm">${dayLabel}<br>${formatHourMinute(new Date(programme.s))}</span><span><b style="font-weight:500">${esc(programme.title)}</b>${isCurrent ? ' <span class="badge" style="color:var(--live);border-color:var(--live)">AGORA</span>' : ''}${hasCatchup ? ' <span class="badge">▶ CATCH-UP</span>' : ''}${programme.desc ? `<br><small class="hint">${esc(programme.desc.slice(0, 140))}</small>` : ''}</span></li>`;
-    })
-    .join('');
+  setSideList(
+    programmeList
+      .map((programme, index) => {
+        const isPast = programme.e < now,
+          isCurrent = programme.s <= now && programme.e > now,
+          hasCatchup = isPast && (programme.archive || channel.archive);
+        const dayLabel = new Date(programme.s).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
+        return `<li data-x="${index}" class="${isPast ? 'past' : ''} ${isCurrent ? 'cur' : ''}"><button type="button" class="side-btn"${isCurrent ? ' aria-current="true"' : ''}><span class="tm">${dayLabel}<br>${formatHourMinute(new Date(programme.s))}</span><span><b style="font-weight:500">${esc(programme.title)}</b>${isCurrent ? ' <span class="badge" style="color:var(--live-text);border-color:var(--live-text)">AGORA</span>' : ''}${hasCatchup ? ' <span class="badge">▶ CATCH-UP</span>' : ''}${programme.desc ? `<br><small class="hint">${esc(programme.desc.slice(0, 140))}</small>` : ''}</span></button></li>`;
+      })
+      .join(''),
+  );
   $('sideList').onclick = clickEvent => {
     const listItem = closest(clickEvent.target, 'li[data-x]');
     if (!listItem) return;
@@ -766,6 +845,18 @@ async function showEpgSide(): Promise<void> {
   };
   const currentItem = $('sideList').querySelector('.cur');
   if (currentItem) currentItem.scrollIntoView({ block: 'center' });
+  if (wasHidden) focusSidePanel();
+}
+
+/**
+ * Mostra o tempo atual e a duração ao lado da barra de progresso e no texto lido pelo leitor de tela.
+ * @param currentTime Posição em segundos.
+ * @param duration Duração em segundos.
+ */
+function showSeekTimes(currentTime: number, duration: number): void {
+  $('tCur').textContent = formatTime(currentTime);
+  $('tDur').textContent = formatTime(duration);
+  $('seek').setAttribute('aria-valuetext', `${formatTime(currentTime)} de ${formatTime(duration)}`);
 }
 
 /** Timer que esconde os controles do player. */
@@ -879,7 +970,7 @@ export function initPlayer(): void {
    * Mostra o indicador de carregamento durante o buffer.
    */
   video().addEventListener('waiting', () => {
-    if (!playerScreen().hidden) showPlayerMessage('<div class="spinner"></div>');
+    if (!playerScreen().hidden) showPlayerMessage(SPINNER_HTML);
   });
 
   /**
@@ -901,8 +992,7 @@ export function initPlayer(): void {
     const duration = video().duration;
     if (isFinite(duration) && duration > 0 && !isSeekDragging) {
       $('seek').value = String((video().currentTime / duration) * 1000);
-      $('tCur').textContent = formatTime(video().currentTime);
-      $('tDur').textContent = formatTime(duration);
+      showSeekTimes(video().currentTime, duration);
     }
     if (Date.now() - lastProgressSaveAt > 5000) saveProgress();
   });
@@ -925,7 +1015,7 @@ export function initPlayer(): void {
    */
   $('seek').addEventListener('input', () => {
     isSeekDragging = true;
-    $('tCur').textContent = formatTime((Number($('seek').value) / 1000) * video().duration);
+    showSeekTimes((Number($('seek').value) / 1000) * video().duration, video().duration);
   });
 
   /**
@@ -980,14 +1070,14 @@ export function initPlayer(): void {
   $('cMute').onclick = () => {
     video().muted = !video().muted;
     $('cMute').innerHTML = icon(video().muted ? 'mute' : 'vol');
+    $('cMute').setAttribute('aria-pressed', String(video().muted));
   };
 
   /**
    * Alterna o favorito do canal em reprodução.
    */
   $('cFav').onclick = () => {
-    if (playback.currentMedia && playback.currentMedia.item)
-      $('cFav').innerHTML = icon('star', toggleFav('live', playback.currentMedia.item.k) ? 'on' : '');
+    if (playback.currentMedia && playback.currentMedia.item) showFavoriteButton(toggleFav('live', playback.currentMedia.item.k));
   };
 
   /**
@@ -1025,21 +1115,19 @@ export function initPlayer(): void {
   /**
    * Abre ou fecha o painel de canais/episódios.
    */
-  $('cList').onclick = () => (!$('side').hidden && $('side').dataset.mode === 'list' ? ($('side').hidden = true) : showChannelSide());
+  $('cList').onclick = () => (!$('side').hidden && $('side').dataset.mode === 'list' ? closeSidePanel() : showChannelSide());
 
   /**
    * Abre ou fecha o painel do guia.
    */
-  $('cEpg').onclick = () => (!$('side').hidden && $('side').dataset.mode === 'epg' ? ($('side').hidden = true) : showEpgSide());
+  $('cEpg').onclick = () => (!$('side').hidden && $('side').dataset.mode === 'epg' ? closeSidePanel() : void showEpgSide());
 
   /**
    * Fecha o painel lateral.
    */
-  $('sideClose').onclick = () => {
-    $('side').hidden = true;
-  };
+  $('sideClose').onclick = closeSidePanel;
 
-  ['mousemove', 'touchstart', 'click'].forEach(eventName => playerScreen().addEventListener(eventName, poke, { passive: true }));
+  ['mousemove', 'touchstart', 'click', 'focusin'].forEach(eventName => playerScreen().addEventListener(eventName, poke, { passive: true }));
 
   /**
    * Atalhos de teclado e controle remoto: troca de canal, busca, play/pause,
@@ -1049,12 +1137,14 @@ export function initPlayer(): void {
   document.addEventListener('keydown', keyEvent => {
     if ((keyEvent.target instanceof Element && keyEvent.target.matches('input,textarea,select')) || topOpenDialog()) return;
     if (playerScreen().hidden) {
-      if (keyEvent.key === '/' && !$('section').hidden) {
+      if (keyEvent.key === '/' && $('section').contains(document.activeElement)) {
         keyEvent.preventDefault();
         $('q').focus();
       }
       return;
     }
+    const focusedElement = document.activeElement;
+    if (focusedElement && focusedElement !== document.body && !playerScreen().contains(focusedElement)) return;
     poke();
     const isLive = playback.currentMedia && playback.currentMedia.kind === 'live';
     switch (keyEvent.key) {
@@ -1104,7 +1194,7 @@ export function initPlayer(): void {
       case 'Escape':
       case 'Backspace':
       case 'BrowserBack':
-        if (!$('side').hidden) $('side').hidden = true;
+        if (!$('side').hidden) closeSidePanel();
         else if (!document.fullscreenElement) closePlayer();
         break;
       default:

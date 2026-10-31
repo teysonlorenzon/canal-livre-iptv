@@ -39,6 +39,7 @@
     "ios:sync": "node apps/mobile/build.ts && cap sync ios"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@capacitor/android": "8.5.3",
     "@capacitor/app": "8.1.2",
     "@capacitor/cli": "8.5.3",

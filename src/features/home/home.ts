@@ -1,3 +1,4 @@
+import { rescueFocus } from '../../core/a11y';
 import { $, $optional, query, queryAll } from '../../core/dom';
 import { isOnDemandSection, isSectionName } from '../../core/guards';
 import { removeHistoryEntry, removeRecentChannel, state } from '../../core/state';
@@ -22,6 +23,7 @@ export function show(view: 'home' | 'section'): void {
   $('home').hidden = view !== 'home';
   $('section').hidden = view !== 'section';
   if (view === 'home') renderHome();
+  rescueFocus(view === 'home' ? $('appTitle') : $('secTitle'));
 }
 
 /**
@@ -84,9 +86,9 @@ export function renderHome(): void {
     .slice(0, 20);
   homeScreen.innerHTML = `
     <div class="tiles">
-      <button class="tile live" data-sec="live"><em>● AO VIVO</em><b>TV ao vivo</b><span>${countVisibleItems('live')} canais</span></button>
-      <button class="tile" data-sec="vod"><em>FILMES</em><b>Filmes</b><span>${countLabel('vod', 'títulos')}</span></button>
-      <button class="tile" data-sec="series"><em>SÉRIES</em><b>Séries</b><span>${countLabel('series', 'séries')}</span></button>
+      <button class="tile live" data-sec="live"><em aria-hidden="true">● AO VIVO</em><b>TV ao vivo</b><span>${countVisibleItems('live')} canais</span></button>
+      <button class="tile" data-sec="vod"><em aria-hidden="true">FILMES</em><b>Filmes</b><span>${countLabel('vod', 'títulos')}</span></button>
+      <button class="tile" data-sec="series"><em aria-hidden="true">SÉRIES</em><b>Séries</b><span>${countLabel('series', 'séries')}</span></button>
     </div>
     ${accountHtml}
     <div class="shelves">
@@ -146,8 +148,8 @@ export function renderHome(): void {
   queryAll(homeScreen, '.card-del').forEach(removeButton => {
     removeButton.onclick = clickEvent => {
       clickEvent.stopPropagation();
-      const cardElement = removeButton.closest('.card');
-      if (!(cardElement instanceof HTMLElement)) return;
+      const cardElement = query(removeButton.parentElement ?? removeButton, '.card');
+      if (!cardElement) return;
       const historyRef = cardElement.dataset.cont
         ? continueWatching[Number(cardElement.dataset.cont)]?.ref
         : cardElement.dataset.watched
@@ -156,7 +158,14 @@ export function renderHome(): void {
       if (historyRef) removeHistoryEntry(historyRef);
       else if (cardElement.dataset.live) removeRecentChannel(cardElement.dataset.live);
       toast('Removido do histórico.');
+      const hadFocus = document.activeElement === removeButton;
+      const shelfElement = removeButton.closest('.shelf');
+      const shelfClass = [...(shelfElement?.classList ?? [])].find(className => className.startsWith('shelf-'));
+      const cardIndex = shelfElement ? queryAll(shelfElement, '.card').indexOf(cardElement) : 0;
       renderHome();
+      if (!hadFocus) return;
+      const shelfCards = shelfClass ? queryAll(document, '#home .' + shelfClass + ' .card') : [];
+      (shelfCards[Math.min(cardIndex, shelfCards.length - 1)] ?? query(document, '#home .tile'))?.focus();
     };
   });
   queryAll(homeScreen, '[data-live]').forEach(channelButton => {
@@ -217,14 +226,16 @@ const shelfHtml = (
   itemsHtml: string,
   emptyText: string,
 ): string => `<section class="shelf shelf-${kind}">
-  <div class="shelf-h"><span class="shelf-ico">${icon(SHELF_ICONS[kind])}</span><div><h3>${title}</h3><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>${scrollArrowsHtml()}` : ''}</div>
+  <div class="shelf-h"><span class="shelf-ico" aria-hidden="true">${icon(SHELF_ICONS[kind])}</span><div><h2>${title}</h2><small>${subtitle}</small></div>${itemCount ? `<span class="shelf-n">${itemCount}</span>${scrollArrowsHtml()}` : ''}</div>
   ${itemCount ? `<div class="strip">${itemsHtml}</div>` : `<div class="shelf-empty"><span class="shelf-ghost"></span><span class="shelf-ghost"></span><span class="shelf-ghost"></span><p>${emptyText}</p></div>`}
 </section>`;
 /**
- * HTML do botão "×" que remove um cartão do histórico.
- *
+ * HTML do botão "×" que remove um cartão do histórico, ao lado do cartão (um botão dentro do outro não é válido).
+ * @param name Nome do que será removido.
+ * @returns HTML.
  */
-const removeFromHistoryHtml = `<span class="card-del" role="button" aria-label="Remover do histórico" title="Remover do histórico">${icon('close')}</span>`;
+const removeFromHistoryHtml = (name: string): string =>
+  `<button type="button" class="card-del" aria-label="Remover ${esc(name)} do histórico" title="Remover do histórico">${icon('close')}</button>`;
 /**
  * HTML do cartão compacto de um canal.
  * @param channel Canal.
@@ -232,14 +243,37 @@ const removeFromHistoryHtml = `<span class="card-del" role="button" aria-label="
  * @returns HTML.
  */
 const chipHtml = (channel: Item, removable?: boolean): string =>
-  `<button class="card" data-live="${esc(channel.k)}" style="flex:0 0 130px"><div class="poster" style="aspect-ratio:16/10">${channel.logo ? `<img loading="lazy" src="${esc(channel.logo)}" alt="" style="object-fit:contain;padding:10px" onerror="this.remove()">` : ''}${initials(channel.name)}${removable ? removeFromHistoryHtml : ''}</div><b>${esc(channel.name)}</b></button>`;
+  withRemoveButton(
+    `<button type="button" class="card" data-live="${esc(channel.k)}"><div class="poster" style="aspect-ratio:16/10">${channel.logo ? `<img loading="lazy" src="${esc(channel.logo)}" alt="" style="object-fit:contain;padding:10px" onerror="this.remove()">` : ''}<span aria-hidden="true">${initials(channel.name)}</span></div><b>${esc(channel.name)}</b></button>`,
+    removable ? channel.name : null,
+  );
+/**
+ * Põe o botão de remover ao lado de um cartão, dentro de um invólucro que ocupa o lugar do cartão na faixa.
+ * @param cardHtmlText HTML do cartão.
+ * @param removableName Nome do item, se o cartão puder ser removido do histórico; `null` se não puder.
+ * @returns HTML.
+ */
+const withRemoveButton = (cardHtmlText: string, removableName: string | null): string =>
+  removableName === null ? cardHtmlText : `<div class="card-wrap">${cardHtmlText}${removeFromHistoryHtml(removableName)}</div>`;
 /**
  * HTML do pôster de um filme, série ou item do histórico (capa, iniciais, nota, progresso).
  * @param cardData Dados do cartão (`pg` = progresso de 0 a 1; `removable` mostra o botão de remover do histórico; `rank` mostra a posição do Top 10).
  * @returns HTML.
  */
 const posterHtml = (cardData: { name: string; logo?: string; rate?: number; pg?: number; removable?: boolean; rank?: number }): string =>
-  `<div class="poster">${initials(cardData.name)}${cardData.logo ? `<img loading="lazy" src="${esc(cardData.logo)}" alt="" onerror="this.remove()">` : ''}${cardData.rate ? `<span class="rt">★ ${(+cardData.rate).toFixed(1)}</span>` : ''}${cardData.pg ? `<span class="pg" style="width:${Math.min(100, cardData.pg * 100)}%"></span>` : ''}${cardData.removable ? removeFromHistoryHtml : ''}${cardData.rank ? `<span class="top-shade"></span><span class="top-rank" aria-hidden="true">${cardData.rank}</span>` : ''}</div>`;
+  `<div class="poster"><span aria-hidden="true">${initials(cardData.name)}</span>${cardData.logo ? `<img loading="lazy" src="${esc(cardData.logo)}" alt="" onerror="this.remove()">` : ''}${cardData.rate ? `<span class="rt" aria-hidden="true">★ ${(+cardData.rate).toFixed(1)}</span>` : ''}${cardData.pg ? `<span class="pg" style="width:${Math.min(100, cardData.pg * 100)}%"></span>` : ''}${cardData.rank ? `<span class="top-shade"></span><span class="top-rank" aria-hidden="true">${cardData.rank}</span>` : ''}</div>`;
+/**
+ * Texto só para leitor de tela com a nota e o progresso de um cartão.
+ * @param cardData Dados do cartão.
+ * @returns HTML.
+ */
+const cardSpokenDetails = (cardData: { rate?: number; pg?: number }): string => {
+  const details = [
+    cardData.rate ? `nota ${(+cardData.rate).toFixed(1)}` : '',
+    cardData.pg ? `${Math.round(Math.min(100, cardData.pg * 100))}% assistido` : '',
+  ].filter(Boolean);
+  return details.length ? `<span class="visually-hidden">, ${details.join(', ')}</span>` : '';
+};
 /**
  * HTML do cartão com pôster de um filme, série ou item do histórico.
  * @param cardData Dados do cartão.
@@ -249,7 +283,11 @@ const posterHtml = (cardData: { name: string; logo?: string; rate?: number; pg?:
 export const cardHtml = (
   cardData: { name: string; logo?: string; rate?: number; pg?: number; removable?: boolean },
   extraAttributes: string,
-): string => `<button class="card" ${extraAttributes}>${posterHtml(cardData)}<b>${esc(cardData.name)}</b></button>`;
+): string =>
+  withRemoveButton(
+    `<button type="button" class="card" ${extraAttributes}>${posterHtml(cardData)}<b>${esc(cardData.name)}</b>${cardSpokenDetails(cardData)}</button>`,
+    cardData.removable ? cardData.name : null,
+  );
 /**
  * HTML do cartão do Top 10: o número da posição fica dentro do pôster, sobre um degradê.
  * @param item Filme ou série.
@@ -258,7 +296,7 @@ export const cardHtml = (
  * @returns HTML.
  */
 const topCardHtml = (item: Item, index: number, sectionName: OnDemandSection): string =>
-  `<button class="card top-card" data-top="${sectionName}" data-rank="${index}" data-fav="${sectionName}:${esc(item.k)}" aria-label="${index + 1}º: ${esc(item.name)}">${posterHtml({ ...item, rank: index + 1 })}<b>${esc(item.name)}</b></button>`;
+  `<button type="button" class="card top-card" data-top="${sectionName}" data-rank="${index}" data-fav="${sectionName}:${esc(item.k)}" aria-label="${index + 1}º: ${esc(item.name)}">${posterHtml({ ...item, rank: index + 1 })}<b>${esc(item.name)}</b></button>`;
 
 /** Títulos do Top 10 e de onde vieram (texto do subtítulo). */
 interface WeeklyTop {

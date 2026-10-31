@@ -18,7 +18,7 @@ describe('listas', () => {
       expect(element('#plSelTxt').textContent).toBe('Minha M3U');
       expect(element('#plSel').title).toBe('Lista: Minha M3U');
       expect(menuItem(1).textContent).toBe('Minha M3UM3U');
-      expect(menuItem(1).getAttribute('aria-selected')).toBe('true');
+      expect(menuItem(1).getAttribute('aria-checked')).toBe('true');
       expect(menuItem(2).textContent).toBe('De arquivoArquivo M3U');
       expect(menuItem(3).textContent).toBe('Minha XtreamXtream');
       expect(menuItem(4).textContent).toBe('Gerenciar listas…');

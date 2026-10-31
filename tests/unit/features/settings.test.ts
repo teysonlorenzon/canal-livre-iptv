@@ -1,4 +1,15 @@
-import { type AppModules, bootApp, element, fire, flush, inputField, openCatalog, readStorage, selectField } from '../support/boot';
+import {
+  type AppModules,
+  bootApp,
+  element,
+  fire,
+  flush,
+  inputField,
+  openCatalog,
+  pressKey,
+  readStorage,
+  selectField,
+} from '../support/boot';
 import { catalog, M3U_PLAYLIST, movie, SAMPLE_M3U, sectionData, userData, xtreamHandler } from '../support/fixtures';
 
 /**
@@ -88,7 +99,17 @@ describe('configurações', () => {
       await bootSettings();
       element('#addBtn').click();
       await flush();
-      expect(element('#toast').textContent).toBe('Preencha servidor, usuário e senha.');
+      expect(element('#addError').textContent).toBe('Preencha servidor, usuário e senha.');
+    });
+
+    it('o erro do formulário some ao digitar de novo', async () => {
+      await bootSettings();
+      element('#addBtn').click();
+      await flush();
+      expect(element('#aServer').getAttribute('aria-invalid')).toBe('true');
+      element('#aServer').dispatchEvent(new Event('input', { bubbles: true }));
+      expect(element('#addError').textContent).toBe('');
+      expect(element('#aServer').hasAttribute('aria-invalid')).toBe(false);
     });
 
     it('cadastra Xtream completando o protocolo', async () => {
@@ -121,7 +142,7 @@ describe('configurações', () => {
       chooseAddType('m3u');
       element('#addBtn').click();
       await flush();
-      expect(element('#toast').textContent).toBe('Informe a URL da lista.');
+      expect(element('#addError').textContent).toBe('Informe a URL da lista.');
     });
 
     it('cadastra M3U por URL', async () => {
@@ -170,7 +191,7 @@ describe('configurações', () => {
       chooseAddType('file');
       element('#addBtn').click();
       await flush();
-      expect(element('#toast').textContent).toBe('Escolha um arquivo ou cole o conteúdo.');
+      expect(element('#addError').textContent).toBe('Escolha um arquivo ou cole o conteúdo.');
     });
 
     it('recusa conteúdo sem canais', async () => {
@@ -179,7 +200,7 @@ describe('configurações', () => {
       fillField('aRaw', '#EXTM3U');
       element('#addBtn').click();
       await flush();
-      expect(element('#toast').textContent).toBe('Nenhum canal encontrado no conteúdo');
+      expect(element('#addError').textContent).toBe('Nenhum canal encontrado no conteúdo');
     });
 
     it('cadastra o conteúdo colado e salva a cópia', async () => {
@@ -217,7 +238,7 @@ describe('configurações', () => {
       element('#addBtn').click();
       await flush();
       setItem.mockRestore();
-      expect(element('#toast').textContent).toBe('A lista é grande demais para salvar neste navegador. Use a URL.');
+      expect(element('#addError').textContent).toBe('A lista é grande demais para salvar neste navegador. Use a URL.');
     });
   });
 
@@ -226,11 +247,11 @@ describe('configurações', () => {
       await bootSettings();
       fillField('pinOld', '1111');
       element('#pinSave').click();
-      expect(element('#toast').textContent).toBe('PIN atual incorreto.');
+      expect(element('#pinFormError').textContent).toBe('PIN atual incorreto.');
       fillField('pinOld', '0000');
       fillField('pinNew', '12');
       element('#pinSave').click();
-      expect(element('#toast').textContent).toBe('O novo PIN precisa ter de 4 a 8 números.');
+      expect(element('#pinFormError').textContent).toBe('O novo PIN precisa ter de 4 a 8 números.');
       fillField('pinNew', '4321');
       element('#pinSave').click();
       expect(element('#toast').textContent).toBe('PIN alterado.');
@@ -259,6 +280,17 @@ describe('configurações', () => {
       fillField('optAuto', '1');
       fire(element('#optAuto'), 'change');
       expect(readStorage('opts')).toMatchObject({ fmt: 'm3u8', auto: '1' });
+    });
+  });
+
+  describe('carregamento', () => {
+    it('Esc cancela o carregamento na tela e é ignorado sem carregamento', async () => {
+      await bootApp({ storage: { pls: [M3U_PLAYLIST] }, fetch: () => new Promise<Response>(() => undefined) });
+      expect(element('#loading').hidden).toBe(false);
+      expect(pressKey(document.body, 'Escape').defaultPrevented).toBe(true);
+      await flush();
+      expect(element('#loading').hidden).toBe(true);
+      expect(pressKey(document.body, 'Escape').defaultPrevented).toBe(false);
     });
   });
 

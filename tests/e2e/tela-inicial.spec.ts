@@ -34,7 +34,7 @@ test.describe('tela inicial', () => {
     await expect(card).toContainText('Filme Antigo');
     await expect(card.locator('.pg')).toHaveAttribute('style', /width: ?50%/);
     await card.hover();
-    await card.locator('.card-del').click();
+    await page.locator('.shelf-cont .card-del').click();
     await expect(app.toast).toHaveText('Removido do histórico.');
     await expect(page.locator('.shelf-cont .card')).toHaveCount(0);
   });
@@ -65,7 +65,7 @@ test.describe('tela inicial', () => {
     await expect(shelf).toContainText('Sucesso');
     await expect(shelf.locator('.top-rank')).toHaveText('1');
     await shelf.locator('.card').click();
-    await expect(page.locator('#detailBody h3')).toHaveText('Sucesso');
+    await expect(page.locator('#detailTitle')).toHaveText('Sucesso');
   });
 
   test('as setas rolam as prateleiras cheias', async ({ app, page }) => {

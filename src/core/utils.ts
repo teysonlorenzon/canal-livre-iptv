@@ -1,5 +1,6 @@
 import { icon } from '../ui/icons';
-import { $, topOpenDialog } from './dom';
+import { type FocusMemory, isTvPlatform, lockBackground, rememberFocus, unlockBackground } from './a11y';
+import { $, query, topOpenDialog } from './dom';
 import type { SectionName, TimerId } from './types';
 
 /** Entidades HTML de cada caractere especial. */
@@ -75,12 +76,12 @@ export const onDialogClose = (dialog: HTMLDialogElement, handler: () => void): v
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 /**
  * Coloca o aviso (toast) dentro do diálogo em uso (o do elemento focado, ou o último aberto), ou
- * no corpo da página se não houver nenhum. Diálogos modais ficam numa camada acima de tudo e esconderiam o aviso.
+ * dentro do player, se estiver aberto, ou no corpo da página se não houver nenhum. Diálogos modais ficam numa camada acima de tudo e esconderiam o aviso.
  */
 function placeToast(): void {
   const toastElement = $('toast');
   const focusedDialog = document.activeElement ? document.activeElement.closest('dialog[open]') : null;
-  const toastParent = focusedDialog ?? topOpenDialog() ?? document.body;
+  const toastParent = focusedDialog ?? topOpenDialog() ?? query(document, '#player:not([hidden])') ?? document.body;
   if (toastElement.parentElement !== toastParent) toastParent.appendChild(toastElement);
 }
 /** Timer que esconde o aviso atual. */
@@ -101,6 +102,8 @@ export const toast = (message: string): void => {
 let loadingStartedAt: number = 0;
 /** Intervalo que atualiza o tempo decorrido do carregamento. */
 let loadingTickTimer: TimerId | undefined;
+/** Onde o foco estava quando a tela de carregamento apareceu. */
+let focusBeforeLoading: FocusMemory | null = null;
 /** Etapas já concluídas no carregamento atual. */
 let completedLoadingSteps: string[] = [];
 /** Segundos de espera a partir dos quais aparece a dica sobre servidores lentos. */
@@ -126,9 +129,15 @@ function renderLoadingTime(): void {
  */
 export const loading = (text: string | null): void => {
   clearInterval(loadingTickTimer);
+  const wasVisible = !$('loading').hidden;
   if (!text) {
     $('loading').hidden = true;
     completedLoadingSteps = [];
+    if (wasVisible) {
+      unlockBackground();
+      if (!focusBeforeLoading?.restore() && $('loading').contains(document.activeElement)) $('loadCancel').blur();
+      focusBeforeLoading = null;
+    }
     return;
   }
   const noteMatch = text.match(/^(.*?)\s*\(([^)]+)\)$/),
@@ -140,6 +149,11 @@ export const loading = (text: string | null): void => {
     completedLoadingSteps = [];
   } else if (previousStep !== stepTitle) completedLoadingSteps.push(previousStep);
   $('loading').hidden = false;
+  if (!wasVisible) {
+    focusBeforeLoading = rememberFocus();
+    lockBackground();
+    if (!isTvPlatform()) $('loadCancel').focus();
+  }
   $('loadingTxt').textContent = stepTitle;
   $('loadingNote').textContent = note.charAt(0).toUpperCase() + note.slice(1);
   $('loadingSteps').innerHTML = completedLoadingSteps

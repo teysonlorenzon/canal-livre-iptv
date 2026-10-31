@@ -73,17 +73,17 @@ test.describe('listas', () => {
     await app.open({ storage: { pls: [] } });
     await page.locator('#wAdd').click();
     await page.locator('#addBtn').click();
-    await expect(app.toast).toHaveText('Preencha servidor, usuário e senha.');
+    await expect(page.locator('#addError')).toHaveText('Preencha servidor, usuário e senha.');
     await page.locator('#addSeg [data-t="m3u"]').click();
     await page.locator('#addBtn').click();
-    await expect(app.toast).toHaveText('Informe a URL da lista.');
+    await expect(page.locator('#addError')).toHaveText('Informe a URL da lista.');
     await page.locator('#addSeg [data-t="file"]').click();
     await page.locator('#addBtn').click();
-    await expect(app.toast).toHaveText('Escolha um arquivo ou cole o conteúdo.');
+    await expect(page.locator('#addError')).toHaveText('Escolha um arquivo ou cole o conteúdo.');
     await page.locator('#aRaw').fill('não é lista');
     await page.locator('#aRaw').fill('#EXTM3U');
     await page.locator('#addBtn').click();
-    await expect(app.toast).toHaveText('Nenhum canal encontrado no conteúdo');
+    await expect(page.locator('#addError')).toHaveText('Nenhum canal encontrado no conteúdo');
   });
 
   test('erro do servidor aparece na tela inicial', async ({ app, page }) => {
