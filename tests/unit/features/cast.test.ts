@@ -72,10 +72,19 @@ describe('transmitir para a TV', () => {
     element('#cCast').click();
     await flush();
     expect(element('#toast').textContent).toContain('Nenhuma TV encontrada');
+  });
+
+  it('ensina a transmitir a aba quando o canal não pode ir direto para a TV', async () => {
+    const remote = new FakeRemotePlayback();
+    remote.prompt.mockRejectedValueOnce(new DOMException('sem suporte', 'NotSupportedError'));
+    await bootCast(remote);
+    element('#cCast').click();
+    await flush();
+    expect(element('#toast').textContent).toContain('Transmitir aba ou tela');
     remote.prompt.mockRejectedValueOnce(new Error('falhou'));
     element('#cCast').click();
     await flush();
-    expect(element('#toast').textContent).toContain('Nenhuma TV encontrada');
+    expect(element('#toast').textContent).toContain('Transmitir aba ou tela');
   });
 
   it('usa o AirPlay no Safari', async () => {

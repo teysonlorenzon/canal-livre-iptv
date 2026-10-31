@@ -26,6 +26,8 @@ function syncRemoteSource(): void {
   videoElement.appendChild(sourceElement);
 }
 
+const MENU_CAST_HINT = 'Este canal não pode ser enviado direto para a TV. Use o menu do navegador: Transmitir aba ou tela.';
+
 /**
  * Atualiza o botão conforme a transmissão esteja ligada ou não.
  * @param connected Se o vídeo está sendo transmitido.
@@ -38,7 +40,8 @@ function showCastState(connected: boolean): void {
 /**
  * Abre o seletor de aparelhos para transmitir o vídeo para a TV: Remote Playback (Chrome,
  * Edge e outros, para Chromecast e TVs compatíveis) ou AirPlay (Safari). Onde nenhum dos
- * dois existe, ensina a transmitir a aba pelo menu do navegador.
+ * dois existe, ou o canal não pode ser enviado direto, ensina a transmitir a aba pelo menu do
+ * navegador, que espelha a página em qualquer TV com Chromecast.
  */
 async function openCastPicker(): Promise<void> {
   const videoElement = video();
@@ -49,8 +52,10 @@ async function openCastPicker(): Promise<void> {
     try {
       await remote.prompt();
     } catch (error) {
-      if (!(error instanceof DOMException) || error.name !== 'NotAllowedError')
+      if (error instanceof DOMException && error.name === 'NotAllowedError') return;
+      if (error instanceof DOMException && error.name === 'NotFoundError')
         toast('Nenhuma TV encontrada na rede. Confira se o aparelho está no mesmo Wi-Fi.');
+      else toast(MENU_CAST_HINT);
     }
     return;
   }
