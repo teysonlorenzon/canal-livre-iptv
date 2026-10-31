@@ -2,11 +2,16 @@ import js from '@eslint/js';
 import prettierConfig from 'eslint-config-prettier';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default [
+export default tseslint.config(
   {
     ignores: [
       'node_modules/',
+      'dist/',
+      'coverage/',
+      'playwright-report/',
+      'test-results/',
       'apps/tv-webos/dist/',
       'apps/tv-webos/out/',
       'apps/desktop/app/',
@@ -17,31 +22,60 @@ export default [
       '.claude/',
     ],
   },
+  { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
   js.configs.recommended,
   {
-    files: ['src/**/*.js', 'apps/*/*.js'],
+    files: ['**/*.ts'],
+    extends: tseslint.configs.recommendedTypeChecked,
     languageOptions: {
-      ecmaVersion: 2020,
-      sourceType: 'script',
-      globals: { ...globals.browser, Hls: 'readonly', mpegts: 'readonly', webOS: 'readonly', Capacitor: 'readonly' },
+      parserOptions: {
+        project: ['./tsconfig.json', './tsconfig.node.json', './tsconfig.tests.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
-      'no-undef': 'off',
-      'no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/no-unsafe-type-assertion': 'error',
+      '@typescript-eslint/ban-ts-comment': ['error', { 'ts-check': false, 'ts-expect-error': true, 'ts-ignore': true, 'ts-nocheck': true }],
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
+      '@typescript-eslint/no-unnecessary-condition': 'error',
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-empty': ['error', { allowEmptyCatch: true }],
-      'no-useless-assignment': 'warn',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']",
+          message: '`as unknown as` esconde o tipo: valide o dado com um type guard.',
+        },
+      ],
     },
   },
   {
-    files: ['**/*.mjs'],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: globals.node },
+    files: ['src/ui/dialog-motion.ts'],
+    rules: { '@typescript-eslint/unbound-method': 'off' },
   },
   {
-    files: ['**/*.cjs'],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: globals.node },
+    files: ['tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/consistent-type-imports': ['error', { disallowTypeAnnotations: false }],
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-type-assertion': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+    },
   },
   {
-    files: ['**/*.mjs', '**/*.cjs'],
+    files: ['eslint.config.mjs', 'jest.config.mjs', 'playwright.config.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
     plugins: { 'simple-import-sort': simpleImportSort },
     rules: {
       'simple-import-sort/imports': 'error',
@@ -49,4 +83,4 @@ export default [
     },
   },
   prettierConfig,
-];
+);

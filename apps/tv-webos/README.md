@@ -1,6 +1,6 @@
 # Zapp IPTV para TV LG (webOS)
 
-Empacota o player web (`../../src/iptv-player.html`) como app `.ipk` para TVs LG.
+Empacota o player web (`../../src/`) como app `.ipk` para TVs LG.
 
 ## Gerar o pacote
 
@@ -57,8 +57,8 @@ Developer Mode e use **Extend** antes de acabar o prazo.
 
 - A interface é renderizada em 1280×720 (`resolution` no `appinfo.json`) e o webOS
   estica para a tela inteira, deixando tudo maior para ver do sofá.
-- `build.mjs` junta os scripts do app num só arquivo convertido para o Chromium 68
-  (webOS 5, TVs de 2020), copia `hls.js` e `mpegts.js` para dentro do pacote e
-  acrescenta `tv.js` (navegação pelo controle) e `tv.css` (foco visível).
+- `build.ts` gera o bundle a partir de `tv.ts` (que inicia o player e acrescenta a navegação pelo
+  controle) e `tv.css` (foco visível), minificado e convertido para o Chromium 68 (webOS 5, TVs de
+  2020), e copia `hls.js` e `mpegts.js` para dentro do pacote.
 - Mudanças no player web entram no app da TV rodando `npm run package` de novo.
   Para atualizar uma TV que já tem o app, aumente `version` em `appinfo.json`.

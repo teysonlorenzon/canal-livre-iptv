@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["jest", "node"],
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests",
+    "src",
+    "apps/tv-webos/tv.ts",
+    "apps/mobile/mobile.ts",
+    "apps/desktop/desktop.ts",
+    "apps/desktop/main.ts",
+    "tools",
+    "playwright.config.ts",
+    "apps/tv-webos/build.ts",
+    "apps/mobile/build.ts",
+    "apps/mobile/icons.ts",
+    "apps/desktop/build.ts"
+  ]
+}

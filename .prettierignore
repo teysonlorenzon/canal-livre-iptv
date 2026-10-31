@@ -1,4 +1,8 @@
 node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
 package-lock.json
 apps/tv-webos/dist/
 apps/tv-webos/out/
@@ -7,7 +11,7 @@ apps/desktop/out/
 apps/mobile/www/
 apps/mobile/android/
 apps/mobile/ios/
-src/data/default-list.js
+src/data/default-list.ts
 listas/
 store/
 brand/

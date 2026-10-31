@@ -1,7 +1,8 @@
 # Zapp IPTV: desktop e celular
 
-Os apps usam o mesmo player web da raiz (`src/iptv-player.html`). `tools/bundle.mjs` junta os
-scripts, copia hls.js/mpegts.js para dentro do app e acrescenta os ajustes de cada plataforma.
+Os apps usam o mesmo player de `src/`. `tools/bundle.ts` gera o bundle a partir da entrada de cada
+plataforma (`desktop.ts`, `mobile.ts`), minificado para o navegador alvo, e copia hls.js/mpegts.js
+para dentro do app.
 
 Instale as dependências uma vez, na raiz do repositório:
 

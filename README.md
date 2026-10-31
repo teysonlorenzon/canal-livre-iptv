@@ -10,12 +10,12 @@
 
 | Plataforma      | Onde fica                                  | Formato                                         |
 | --------------- | ------------------------------------------ | ----------------------------------------------- |
-| Navegador       | `src/iptv-player.html`                     | abre direto, sem instalação                     |
+| Navegador       | `dist/index.html` (`npm run web:build`)    | abre direto, sem instalação                     |
 | TV LG (webOS)   | [`apps/tv-webos`](apps/tv-webos/README.md) | `.ipk`                                          |
 | Windows e Linux | [`apps/desktop`](apps/README.md)           | `.exe` / `.zip`, `.AppImage`, `.deb` (Electron) |
 | Android e iOS   | [`apps/mobile`](apps/README.md)            | `.apk` / `.aab`, projeto Xcode (Capacitor)      |
 
-Todas usam o mesmo código: `tools/bundle.mjs` monta o player web para cada plataforma e
+Todas usam o mesmo código em TypeScript: `tools/bundle.ts` monta o player para cada plataforma e
 acrescenta os ajustes de cada uma (controle remoto na TV, CORS liberado no desktop, botão
 Voltar e requisições nativas no celular).
 
@@ -33,7 +33,7 @@ Voltar e requisições nativas no celular).
 
 ## Usar no navegador
 
-Abra o `src/iptv-player.html` (Chrome ou Edge recomendados; no GitHub Pages, o `index.html` da raiz redireciona para ele). A lista de exemplo já abre sozinha;
+Acesse o [site](https://teysonlorenzon.github.io/canal-livre-iptv/) ou gere a pasta `dist/` com `npm run web:build` e abra o `dist/index.html` (Chrome ou Edge recomendados). A lista de exemplo já abre sozinha;
 para adicionar a sua, vá em **Configurações**. Tudo fica salvo só no navegador (`localStorage`).
 
 > Por causa de CORS, alguns servidores só funcionam com a página aberta direto do arquivo
@@ -63,6 +63,25 @@ os pacotes de Linux, o APK e um build de verificação do iOS no GitHub Actions
 Material para publicar na Google Play (imagens, textos, formulários e passo a passo):
 [store/play/README.md](store/play/README.md).
 
+## Desenvolvimento
+
+O código é TypeScript com módulos ES; o navegador não executa `.ts` direto, então use um dos comandos:
+
+| Comando                | O que faz                                                        |
+| ---------------------- | ---------------------------------------------------------------- |
+| `npm run web:dev`      | Servidor em `http://127.0.0.1:8765`, remontando a cada mudança   |
+| `npm run web:build`    | Gera `dist/`: tudo minificado, abre em qualquer navegador        |
+| `npm test`             | Testes com Jest; exige 100% de linhas e funções                  |
+| `npm run test:e2e`     | Testes com Playwright em navegador de verdade (web, celular, TV) |
+| `npm run typecheck`    | Verifica os tipos                                                |
+| `npm run lint`         | ESLint (`any` é proibido)                                        |
+| `npm run format:check` | Confere a formatação do Prettier                                 |
+
+Na primeira vez, instale o navegador dos testes: `npx playwright install chromium`.
+
+A versão web é publicada no GitHub Pages pelo workflow
+[`pages.yml`](.github/workflows/pages.yml) a cada push na `main`, se as checagens passarem.
+
 ## Estrutura
 
 Monorepo organizado por funcionalidade: o código do player fica em `src/` (camadas `core`,
@@ -71,18 +90,20 @@ Detalhes e regras de onde colocar código novo em [src/README.md](src/README.md)
 
 ```
 src/
-  iptv-player.html   entrada do player (carrega o CSS e os scripts na ordem certa)
-  core/              base: utilidades, estado global, tema
+  iptv-player.html   molde da página
+  core/              base: tipos, DOM, utilidades, estado global, tema
   data/              fontes de dados: lista padrão, M3U, Xtream, guia (EPG)
   ui/                peças visuais comuns: ícones, abertura, cabeçalho, diálogos
   features/          home, playlists, section, details, player, settings (tela + lógica)
   styles/style.css   tokens de cor, temas e layouts (computador, TV e celular)
-  main.js            ponto de partida
+  main.ts            ponto de partida: inicia cada parte do app, em ordem
 apps/
   tv-webos/          app para TV LG (webOS)
   desktop/           app para Windows e Linux (Electron)
   mobile/            app para Android e iOS (Capacitor)
-tools/bundle.mjs     monta o player para as plataformas de apps/
+tools/               build (bundle.ts), versão web (build-web.ts) e servidor de desenvolvimento
+tests/unit/          testes com Jest (100% de linhas e funções)
+tests/e2e/           testes de ponta a ponta com Playwright
 brand/               ícones da marca (app e TV)
 listas/              lista de exemplo com canais abertos e públicos
 store/               material das lojas (play/ e lg/)
@@ -90,7 +111,7 @@ store/               material das lojas (play/ e lg/)
 ```
 
 Bibliotecas: [hls.js](https://github.com/video-dev/hls.js) e [mpegts.js](https://github.com/xqq/mpegts.js)
-(via CDN no navegador; embutidas nos apps).
+(embutidas em todas as plataformas, em `vendor/`).
 
 ## Privacidade e conteúdo
 
