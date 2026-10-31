@@ -53,6 +53,13 @@ Android precisa de `JAVA_HOME=~/.jdks/jdk-21` e `ANDROID_HOME=~/Android/Sdk`.
   nomes de variáveis e funções autodeclarativos (sem abreviações); `icon('nome')`
   para ícones, variáveis CSS para cores, nada que o Chromium 68 (TVs LG de 2020) não suporte
   em CSS (`:has()`, `aspect-ratio`, `color-mix`). Nunca use CSS `zoom` na TV.
+- **Acessibilidade em toda mudança de interface** (WCAG 2.2 AA; skill `accessibility`): todo
+  elemento novo ou alterado precisa de nome acessível (`aria-label` em botão só com ícone),
+  papel e estado corretos (`aria-pressed`, `aria-expanded`, `role="status"` para avisos),
+  alcance e operação só por teclado e controle remoto (foco visível, ordem lógica, sem armadilha),
+  contraste suficiente nos temas claro e escuro e alvos de toque de pelo menos 44px. Pense nisso
+  ao desenhar, não depois; mudança de interface sem isso não está pronta. Cubra no
+  `tests/e2e/acessibilidade.spec.ts`.
 - Ajustes de plataforma ficam em `apps/<plataforma>/`, não em `src/`.
 - `localStorage` usa o prefixo `cl_` — não renomear (perde os dados dos usuários).
 - Lista padrão: só canais gratuitos de fontes oficiais. Não adicionar canais pagos nem listas

@@ -2,6 +2,7 @@ import './styles/style.css';
 
 import { activeProfile, state } from './core/state';
 import { initToast, store } from './core/utils';
+import { initCast } from './features/cast/cast';
 import { initHome, renderHome } from './features/home/home';
 import { initLiveGuard } from './features/player/live-guard';
 import { initPlayer } from './features/player/player';
@@ -41,6 +42,7 @@ function startApp(): void {
   initSection();
   initPlayer();
   initLiveGuard();
+  initCast();
   initSettings();
   initProfiles();
 

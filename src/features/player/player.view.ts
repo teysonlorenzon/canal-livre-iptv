@@ -49,6 +49,7 @@ export function renderPlayerView(): void {
         <button class="btn ib" id="cList" title="Lista de canais (L)">${icon('list')}<span>Canais</span></button>
         <button class="btn ib" id="cEpg" title="Guia e catch-up (G)">${icon('guide')}<span>Guia</span></button>
         <button class="btn ib" id="cFav" title="Favorito" aria-label="Favorito">${icon('star')}</button>
+        <button class="btn ib" id="cCast" type="button" title="Transmitir para a TV" aria-label="Transmitir para a TV" aria-pressed="false">${icon('cast')}</button>
         <button class="btn ib" id="cPip" title="Picture-in-Picture" aria-label="Picture-in-Picture">${icon('pip')}</button>
         <button class="btn ib" id="cFs" title="Tela cheia (F)" aria-label="Tela cheia">${icon('fs')}</button>
       </div>

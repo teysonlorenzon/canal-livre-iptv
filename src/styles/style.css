@@ -2577,3 +2577,7 @@ dialog[open]::backdrop {
     transition: opacity 0.2s;
   }
 }
+
+#cCast.on {
+  color: var(--accent);
+}

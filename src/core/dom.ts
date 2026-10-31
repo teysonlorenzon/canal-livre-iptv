@@ -29,6 +29,7 @@ const ELEMENT_TYPES = {
   cList: HTMLButtonElement,
   clock: HTMLElement,
   closeSettings: HTMLButtonElement,
+  cCast: HTMLButtonElement,
   cMute: HTMLButtonElement,
   cNext: HTMLButtonElement,
   cPip: HTMLButtonElement,

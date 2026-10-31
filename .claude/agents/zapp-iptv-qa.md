@@ -58,6 +58,11 @@ tela como prova de problemas visuais.
 
 ## Roteiro de regressão
 
+- **Acessibilidade (em toda mudança de interface)**: navegue só pelo teclado (Tab, Shift+Tab,
+  Enter, Espaço, Esc) e confira foco visível e ordem; confira nomes acessíveis e estados com
+  `read_page`; verifique contraste nos temas claro e escuro e `prefers-reduced-motion`. Relate
+  falhas como bug.
+
 Rode os itens ligados ao que mudou; antes de uma versão, rode todos.
 
 - **Abertura**: tela de carregamento, abertura animada e a lista padrão carregando sozinha.

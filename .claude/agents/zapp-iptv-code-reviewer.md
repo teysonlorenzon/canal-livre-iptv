@@ -23,6 +23,16 @@ Não altere arquivos. Use o `Bash` só para ler (`git diff`, `git log`, `npm run
 
 ## O que bloqueia
 
+**Acessibilidade (sempre verifique em mudanças de interface)**
+
+- Botão só com ícone sem `aria-label`; controle sem papel ou estado (`aria-pressed`,
+  `aria-expanded`); aviso dinâmico sem `role="status"`/`aria-live`.
+- Elemento clicável que não é `button`/`a` ou que não se alcança e aciona por teclado/controle
+  remoto; foco invisível, ordem de foco ilógica ou armadilha de foco em diálogo.
+- Cor sem contraste suficiente em algum tema, alvo de toque menor que 44px, animação sem
+  respeitar `prefers-reduced-motion`.
+- Funcionalidade nova de interface sem cobertura em `tests/e2e/acessibilidade.spec.ts`.
+
 **Tipagem (`any` é proibido, sem exceção)**
 
 - `any` explícito, em qualquer forma: `: any`, `as any`, `any[]`, `Array<any>`, `<any>`,

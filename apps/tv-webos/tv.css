@@ -48,6 +48,7 @@ html.tv [data-editing] {
   outline-color: var(--ok) !important;
   box-shadow: 0 0 0 6px rgba(62, 207, 142, 0.25);
 }
+html.tv #cCast,
 html.tv #cPip,
 html.tv #cFs,
 html.tv #cMute {
