@@ -211,11 +211,34 @@ describe('player', () => {
       expect(app.playback.playback.engine?.eng).toBe('native');
     });
 
-    it('sem a biblioteca também passa adiante', async () => {
+    it('sem a biblioteca baixa o arquivo e, se não vier, também passa adiante', async () => {
       const { app } = await bootPlayer();
       Object.assign(window, { Hls: undefined, mpegts: undefined });
+      const appendChild = document.head.appendChild.bind(document.head);
+      const appended = jest.spyOn(document.head, 'appendChild').mockImplementation(<NodeType extends Node>(node: NodeType): NodeType => {
+        if (node instanceof HTMLScriptElement) node.onerror?.(new Event('error'));
+        return appendChild(node);
+      });
       app.player.playLive(channel(1));
+      appended.mockRestore();
       expect(app.playback.playback.engine?.eng).toBe('native');
+    });
+
+    it('ignora a biblioteca que chega depois de o canal ser trocado', async () => {
+      const { app } = await bootPlayer();
+      Object.assign(window, { Hls: undefined });
+      let finishDownload: (() => void) | undefined;
+      const appended = jest.spyOn(document.head, 'appendChild').mockImplementation(<NodeType extends Node>(node: NodeType): NodeType => {
+        if (node instanceof HTMLScriptElement) finishDownload = () => node.onload?.(new Event('load'));
+        return node;
+      });
+      app.player.playLive(channel(1, { url: 'http://x/a.m3u8' }));
+      appended.mockRestore();
+      app.player.closePlayer();
+      Object.assign(window, { Hls: FakeHls });
+      const instancesBefore = FakeHls.instances.length;
+      finishDownload?.();
+      expect(FakeHls.instances).toHaveLength(instancesBefore);
     });
   });
 

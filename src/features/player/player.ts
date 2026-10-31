@@ -12,6 +12,7 @@ import { renderHome } from '../home/home';
 import { renderItems, withPin } from '../section/section';
 import { liveGuardReset, liveRecover } from './live-guard';
 import { type ActiveStage, playback, playerPlatformHooks, playerScreen, video } from './playback';
+import { type VendorLibrary, whenLibraryReady } from './vendor-loader';
 
 /** Título da página quando nada está tocando. */
 const APP_TITLE = 'Zapp IPTV';
@@ -126,78 +127,88 @@ function runChain(chain: PlaybackStage[], live: boolean): void {
     };
     watchdog = currentStage.wd = setTimeout(checkStarted, 20000);
     if (!retrying) showPlayerMessage(SPINNER_HTML);
-    if (engineName === 'hls') {
-      const HlsLibrary = window.Hls;
-      if (HlsLibrary && HlsLibrary.isSupported()) {
-        const hlsPlayer = new HlsLibrary(
+    /**
+     * Cria o motor da etapa, depois que a biblioteca dele foi baixada. Ignora a chamada se a
+     * etapa já foi trocada ou cancelada enquanto o download acontecia.
+     */
+    const startEngine = (): void => {
+      if (chainToken !== playback.playbackToken || playback.engine !== currentStage) return;
+      if (engineName === 'hls') {
+        const HlsLibrary = window.Hls;
+        if (HlsLibrary && HlsLibrary.isSupported()) {
+          const hlsPlayer = new HlsLibrary(
+            live
+              ? {
+                  enableWorker: true,
+                  lowLatencyMode: false,
+                  backBufferLength: 30,
+                  maxBufferLength: 30,
+                  maxMaxBufferLength: 60,
+                  liveSyncDurationCount: 3,
+                  liveMaxLatencyDurationCount: 10,
+                  maxLiveSyncPlaybackRate: 1.1,
+                  manifestLoadingMaxRetry: 3,
+                  levelLoadingMaxRetry: 4,
+                  fragLoadingMaxRetry: 6,
+                  nudgeMaxRetry: 6,
+                }
+              : { enableWorker: true, backBufferLength: 30, maxBufferLength: 60, fragLoadingMaxRetry: 6 },
+          );
+          playback.hlsPlayer = hlsPlayer;
+          let recoveryAttempts = 0;
+          hlsPlayer.on(HlsLibrary.Events.MANIFEST_PARSED, () => {
+            setupTracks();
+            video().play().catch(tapToPlay);
+          });
+          hlsPlayer.on(HlsLibrary.Events.FRAG_LOADING, (_eventName, eventData) => {
+            currentStage.frag = eventData.frag;
+          });
+          hlsPlayer.on(HlsLibrary.Events.AUDIO_TRACKS_UPDATED, () => setupTracks());
+          hlsPlayer.on(HlsLibrary.Events.SUBTITLE_TRACKS_UPDATED, () => setupTracks());
+          hlsPlayer.on(HlsLibrary.Events.ERROR, (_eventName, errorData) => {
+            if (!errorData.fatal) return;
+            if (errorData.type === HlsLibrary.ErrorTypes.MEDIA_ERROR && recoveryAttempts++ < 2) return hlsPlayer.recoverMediaError();
+            if (
+              errorData.type === HlsLibrary.ErrorTypes.NETWORK_ERROR &&
+              recoveryAttempts++ < 1 &&
+              errorData.details !== HlsLibrary.ErrorDetails.MANIFEST_LOAD_ERROR
+            )
+              return hlsPlayer.startLoad();
+            failStage(errorData.details);
+          });
+          hlsPlayer.loadSource(url);
+          hlsPlayer.attachMedia(video());
+        } else if (video().canPlayType('application/vnd.apple.mpegurl')) playNative(url, failStage);
+        else failStage('HLS não suportado');
+      } else if (engineName === 'ts') {
+        const mpegtsLibrary = window.mpegts;
+        if (!mpegtsLibrary || !mpegtsLibrary.isSupported()) return failStage('MPEG-TS não suportado');
+        const mpegtsPlayer = mpegtsLibrary.createPlayer(
+          { type: 'mpegts', isLive: live, url },
           live
             ? {
                 enableWorker: true,
-                lowLatencyMode: false,
-                backBufferLength: 30,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 10,
-                maxLiveSyncPlaybackRate: 1.1,
-                manifestLoadingMaxRetry: 3,
-                levelLoadingMaxRetry: 4,
-                fragLoadingMaxRetry: 6,
-                nudgeMaxRetry: 6,
+                lazyLoad: false,
+                enableStashBuffer: true,
+                stashInitialSize: 384 * 1024,
+                autoCleanupSourceBuffer: true,
+                liveBufferLatencyChasing: true,
+                liveBufferLatencyMaxLatency: 8,
+                liveBufferLatencyMinRemain: 3,
               }
-            : { enableWorker: true, backBufferLength: 30, maxBufferLength: 60, fragLoadingMaxRetry: 6 },
+            : { enableWorker: true, lazyLoad: true },
         );
-        playback.hlsPlayer = hlsPlayer;
-        let recoveryAttempts = 0;
-        hlsPlayer.on(HlsLibrary.Events.MANIFEST_PARSED, () => {
-          setupTracks();
-          video().play().catch(tapToPlay);
-        });
-        hlsPlayer.on(HlsLibrary.Events.FRAG_LOADING, (_eventName, eventData) => {
-          currentStage.frag = eventData.frag;
-        });
-        hlsPlayer.on(HlsLibrary.Events.AUDIO_TRACKS_UPDATED, () => setupTracks());
-        hlsPlayer.on(HlsLibrary.Events.SUBTITLE_TRACKS_UPDATED, () => setupTracks());
-        hlsPlayer.on(HlsLibrary.Events.ERROR, (_eventName, errorData) => {
-          if (!errorData.fatal) return;
-          if (errorData.type === HlsLibrary.ErrorTypes.MEDIA_ERROR && recoveryAttempts++ < 2) return hlsPlayer.recoverMediaError();
-          if (
-            errorData.type === HlsLibrary.ErrorTypes.NETWORK_ERROR &&
-            recoveryAttempts++ < 1 &&
-            errorData.details !== HlsLibrary.ErrorDetails.MANIFEST_LOAD_ERROR
-          )
-            return hlsPlayer.startLoad();
-          failStage(errorData.details);
-        });
-        hlsPlayer.loadSource(url);
-        hlsPlayer.attachMedia(video());
-      } else if (video().canPlayType('application/vnd.apple.mpegurl')) playNative(url, failStage);
-      else failStage('HLS não suportado');
-    } else if (engineName === 'ts') {
-      const mpegtsLibrary = window.mpegts;
-      if (!mpegtsLibrary || !mpegtsLibrary.isSupported()) return failStage('MPEG-TS não suportado');
-      const mpegtsPlayer = mpegtsLibrary.createPlayer(
-        { type: 'mpegts', isLive: live, url },
-        live
-          ? {
-              enableWorker: true,
-              lazyLoad: false,
-              enableStashBuffer: true,
-              stashInitialSize: 384 * 1024,
-              autoCleanupSourceBuffer: true,
-              liveBufferLatencyChasing: true,
-              liveBufferLatencyMaxLatency: 8,
-              liveBufferLatencyMinRemain: 3,
-            }
-          : { enableWorker: true, lazyLoad: true },
-      );
-      playback.mpegtsPlayer = mpegtsPlayer;
-      mpegtsPlayer.on(mpegtsLibrary.Events.ERROR, (errorType: string, errorDetail: string) => failStage(errorDetail || errorType));
-      mpegtsPlayer.attachMediaElement(video());
-      mpegtsPlayer.load();
-      const playPromise = mpegtsPlayer.play();
-      if (playPromise) playPromise.catch(tapToPlay);
-    } else playNative(url, failStage);
+        playback.mpegtsPlayer = mpegtsPlayer;
+        mpegtsPlayer.on(mpegtsLibrary.Events.ERROR, (errorType: string, errorDetail: string) => failStage(errorDetail || errorType));
+        mpegtsPlayer.attachMediaElement(video());
+        mpegtsPlayer.load();
+        const playPromise = mpegtsPlayer.play();
+        if (playPromise) playPromise.catch(tapToPlay);
+      } else playNative(url, failStage);
+    };
+    const library: VendorLibrary | null = engineName === 'hls' ? 'hls' : engineName === 'ts' ? 'mpegts' : null;
+    if (library) whenLibraryReady(library, startEngine);
+    else startEngine();
   };
   startStage(0);
 }

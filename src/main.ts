@@ -7,6 +7,7 @@ import { initHome, renderHome } from './features/home/home';
 import { initLiveGuard } from './features/player/live-guard';
 import { initPlayer } from './features/player/player';
 import { renderPlayerView } from './features/player/player.view';
+import { preloadHlsLibrary } from './features/player/vendor-loader';
 import { fallbackPlaylistId, initPlaylists, openPlaylist, renderPlaylistSelect } from './features/playlists/playlists';
 import { initProfiles, openProfilePicker } from './features/profiles/profiles';
 import { renderProfilesView } from './features/profiles/profiles.view';
@@ -55,6 +56,7 @@ function startApp(): void {
       ? savedActivePlaylistId
       : fallbackPlaylistId();
     if (playlistIdToOpen) void openPlaylist(playlistIdToOpen);
+    preloadHlsLibrary();
   });
 }
 

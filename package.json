@@ -70,6 +70,11 @@
   "build": {
     "appId": "com.zappiptv.desktop",
     "productName": "Zapp IPTV",
+    "compression": "maximum",
+    "electronLanguages": [
+      "pt-BR",
+      "en-US"
+    ],
     "directories": {
       "output": "apps/desktop/out",
       "buildResources": "apps/desktop/build"

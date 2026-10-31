@@ -1,6 +1,17 @@
 import { expect, M3U_PLAYLIST, MOCK_ORIGIN, test } from './support/app';
 
 test.describe('player', () => {
+  test('as bibliotecas de vídeo não são baixadas na abertura, só o hls.js pouco depois', async ({ app, page }) => {
+    const requestedLibraries: string[] = [];
+    page.on('request', request => {
+      const libraryName = new URL(request.url()).pathname.match(/\/vendor\/(.+)$/)?.[1];
+      if (libraryName) requestedLibraries.push(libraryName);
+    });
+    await app.openWithList();
+    expect(requestedLibraries).toEqual([]);
+    await expect.poll(() => requestedLibraries, { timeout: 10000 }).toEqual(['hls.min.js']);
+  });
+
   test('toca um filme e mostra os controles de tempo', async ({ app, page }) => {
     await app.openWithList();
     await app.openSection('vod');

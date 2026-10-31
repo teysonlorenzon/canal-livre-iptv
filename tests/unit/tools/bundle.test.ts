@@ -61,7 +61,8 @@ describe('build', () => {
     it('gera a página minificada e copia as bibliotecas de vídeo', () => {
       writeStaticFiles(outDir);
       const pageHtml = readFileSync(join(outDir, 'index.html'), 'utf8');
-      expect(pageHtml).toContain('<script src="app.js"></script><script src="vendor/hls.min.js">');
+      expect(pageHtml).toContain('<script src="app.js"></script>');
+      expect(pageHtml).not.toContain('<script src="vendor/');
       expect(pageHtml).not.toContain('\n');
       expect(existsSync(join(outDir, 'vendor/hls.min.js'))).toBe(true);
       expect(readFileSync(join(outDir, 'vendor/mpegts.js'), 'utf8')).not.toContain('sourceMappingURL');

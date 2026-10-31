@@ -33,7 +33,8 @@ src/
     section/     categorias e itens de TV ao vivo, filmes e séries
     details/     detalhes de filme e série
     player/      player (hls.js / mpegts.js / nativo), controles, guia e reconexão;
-                 playback.ts guarda o estado da reprodução
+                 playback.ts guarda o estado da reprodução; vendor-loader.ts baixa o
+                 hls.js e o mpegts.js só quando um motor precisa deles
     settings/    configurações (listas, PIN, reprodução)
     profiles/    usuários sem login: seletor "Quem está assistindo?", editor (nome, ícone, cor)
   styles/style.css   tokens de cor, temas e layouts (computador, TV e celular)
