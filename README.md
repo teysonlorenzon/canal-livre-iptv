@@ -33,7 +33,7 @@ Voltar e requisições nativas no celular).
 
 ## Usar no navegador
 
-Acesse o [site](https://teysonlorenzon.github.io/canal-livre-iptv/) ou gere a pasta `dist/` com `npm run web:build` e abra o `dist/index.html` (Chrome ou Edge recomendados). A lista de exemplo já abre sozinha;
+Acesse o [site](https://teysonlorenzon.github.io/canal-livre-iptv/) ou abra o `dist/index.html` (Chrome ou Edge recomendados). A lista de exemplo já abre sozinha;
 para adicionar a sua, vá em **Configurações**. Tudo fica salvo só no navegador (`localStorage`).
 
 > Por causa de CORS, alguns servidores só funcionam com a página aberta direto do arquivo
@@ -67,20 +67,25 @@ Material para publicar na Google Play (imagens, textos, formulários e passo a p
 
 O código é TypeScript com módulos ES; o navegador não executa `.ts` direto, então use um dos comandos:
 
-| Comando                | O que faz                                                        |
-| ---------------------- | ---------------------------------------------------------------- |
-| `npm run web:dev`      | Servidor em `http://127.0.0.1:8765`, remontando a cada mudança   |
-| `npm run web:build`    | Gera `dist/`: tudo minificado, abre em qualquer navegador        |
-| `npm test`             | Testes com Jest; exige 100% de linhas e funções                  |
-| `npm run test:e2e`     | Testes com Playwright em navegador de verdade (web, celular, TV) |
-| `npm run typecheck`    | Verifica os tipos                                                |
-| `npm run lint`         | ESLint (`any` é proibido)                                        |
-| `npm run format:check` | Confere a formatação do Prettier                                 |
+| Comando                | O que faz                                                           |
+| ---------------------- | ------------------------------------------------------------------- |
+| `npm run web:dev`      | Servidor em `http://127.0.0.1:8765`, remontando a cada mudança      |
+| `npm run web:build`    | Gera a `dist/` (versionada): minificada, abre em qualquer navegador |
+| `npm test`             | Testes com Jest; exige 100% de linhas e funções                     |
+| `npm run test:e2e`     | Testes com Playwright em navegador de verdade (web, celular, TV)    |
+| `npm run typecheck`    | Verifica os tipos                                                   |
+| `npm run lint`         | ESLint (`any` é proibido)                                           |
+| `npm run format:check` | Confere a formatação do Prettier                                    |
 
 Na primeira vez, instale o navegador dos testes: `npx playwright install chromium`.
 
-A versão web é publicada no GitHub Pages pelo workflow
-[`pages.yml`](.github/workflows/pages.yml) a cada push na `main`, se as checagens passarem.
+### Site no GitHub Pages
+
+A pasta `dist/` é **versionada**: o GitHub Pages serve a branch `main` (Settings → Pages → Deploy
+from a branch → `main` / `/ (root)`), e o `index.html` da raiz leva para `dist/index.html`.
+Depois de mexer em `src/`, rode `npm run web:build` e inclua a `dist/` no commit: o `npm test` falha
+(e o workflow [`checks.yml`](.github/workflows/checks.yml) também) se ela estiver diferente de um
+build novo. O `npm run web:dev` escreve em `.dev/`, fora do git, e nunca mexe na `dist/`.
 
 ## Estrutura
 
@@ -101,7 +106,9 @@ apps/
   tv-webos/          app para TV LG (webOS)
   desktop/           app para Windows e Linux (Electron)
   mobile/            app para Android e iOS (Capacitor)
-tools/               build (bundle.ts), versão web (build-web.ts) e servidor de desenvolvimento
+dist/                versão web minificada e versionada (servida pelo GitHub Pages)
+index.html           redireciona a raiz do site para dist/index.html
+tools/               build (bundle.ts, web.ts, build-web.ts) e servidor de desenvolvimento
 tests/unit/          testes com Jest (100% de linhas e funções)
 tests/e2e/           testes de ponta a ponta com Playwright
 brand/               ícones da marca (app e TV)

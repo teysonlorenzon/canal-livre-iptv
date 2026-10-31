@@ -13,7 +13,10 @@ github.com/teysonlorenzon/canal-livre-iptv (o nome antigo do app era "Canal Livr
   [src/README.md](src/README.md) (ordem de carregamento e onde colocar código novo).
 - `apps/tv-webos/`, `apps/desktop/`, `apps/mobile/` — empacotamento e ajustes de cada plataforma.
 - `tools/bundle.ts` — monta o player para as plataformas; `tools/build-web.ts` gera `dist/`, a versão
-  web minificada; `tools/dev-server.ts` serve em desenvolvimento.
+  web minificada; `tools/dev-server.ts` serve em desenvolvimento (escreve em `.dev/`, nunca na `dist/`).
+- `dist/` — versão web de produção, **versionada**: o GitHub Pages serve a branch `main` e o
+  `index.html` da raiz redireciona para `dist/index.html`. Depois de mexer em `src/`, rode
+  `npm run web:build` e **inclua a `dist/` no commit**; `npm test` falha se ela estiver velha.
 - `tests/unit/` (Jest) e `tests/e2e/` (Playwright).
 - `listas/brasil-gratis.m3u` + cópia em `src/data/default-list.ts` — lista padrão (manter iguais).
 - `store/play/`, `store/lg/` — material e passo a passo das lojas.
@@ -29,7 +32,7 @@ npm run tv:package                       # .ipk da TV  (tv:install / tv:launch p
 npm run desktop:dist:linux               # AppImage + .deb   (desktop:dist:win: .exe/.zip)
 npm run android:apk                      # APK de teste      (android:aab: bundle assinado)
 npm run web:dev                          # servidor em 127.0.0.1:8765, remonta a cada mudança
-npm run web:build                        # gera dist/: minificado, abre em qualquer navegador
+npm run web:build                        # gera dist/ (versionada): minificado, abre em qualquer navegador
 npm run tv:build | desktop:build | mobile:build   # só monta a pasta do app, para testar no navegador
 npm run typecheck / lint / format        # tipos, ESLint e Prettier
 npm test                                 # Jest; exige 100% de linhas e funções
@@ -72,6 +75,9 @@ Android precisa de `JAVA_HOME=~/.jdks/jdk-21` e `ANDROID_HOME=~/Android/Sdk`.
   credenciais de listas IPTV do usuário.
 - Versões: TV em `apps/tv-webos/appinfo.json` (id `com.zappiptv.tv` está cadastrado na LG — não
   mudar), Android em `apps/mobile/android/app/build.gradle`, desktop em `package.json` (raiz, campo `version`).
-- A política de privacidade (`store/play/politica-de-privacidade.html`) é publicada junto com o
-  `dist/`: o endereço está cadastrado na Google Play e na LG e não pode mudar.
+- A política de privacidade fica em `store/play/politica-de-privacidade.html`, servida pelo Pages
+  nesse caminho (e copiada para a `dist/`): o endereço está cadastrado na Google Play e na LG e não
+  pode mudar.
+- Não há deploy por workflow: o site é a branch. Só commite a `dist/` gerada por `npm run web:build`
+  (nunca a do servidor de desenvolvimento nem editada à mão).
 - Instale em aparelhos, faça commit ou push só quando o usuário pedir. Commits em português.

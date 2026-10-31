@@ -13,35 +13,39 @@ interface TrackedListener {
 
 const trackedListeners: TrackedListener[] = [];
 const trackedObservers: MutationObserver[] = [];
-const nativeAddEventListener = EventTarget.prototype.addEventListener;
-const nativeWindowAddEventListener = window.addEventListener;
-const NativeMutationObserver = MutationObserver;
 
-EventTarget.prototype.addEventListener = function addTrackedListener(
-  this: EventTarget,
-  type: string,
-  listener: EventListenerOrEventListenerObject | null,
-  options?: AddEventListenerOptions | boolean,
-): void {
-  if (listener) trackedListeners.push({ target: this, type, listener, options });
-  nativeAddEventListener.call(this, type, listener, options);
-};
+/** Passa a guardar os eventos e observadores que o app registra, para removê-los ao reiniciar a página. */
+function installTracking(): void {
+  const nativeAddEventListener = EventTarget.prototype.addEventListener;
+  const nativeWindowAddEventListener = window.addEventListener;
+  const NativeMutationObserver = MutationObserver;
 
-window.addEventListener = function addTrackedWindowListener(
-  type: string,
-  listener: EventListenerOrEventListenerObject,
-  options?: AddEventListenerOptions | boolean,
-): void {
-  trackedListeners.push({ target: window, type, listener, options });
-  nativeWindowAddEventListener.call(window, type, listener, options);
-};
+  EventTarget.prototype.addEventListener = function addTrackedListener(
+    this: EventTarget,
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: AddEventListenerOptions | boolean,
+  ): void {
+    if (listener) trackedListeners.push({ target: this, type, listener, options });
+    nativeAddEventListener.call(this, type, listener, options);
+  };
 
-globalThis.MutationObserver = class TrackedMutationObserver extends NativeMutationObserver {
-  constructor(callback: MutationCallback) {
-    super(callback);
-    trackedObservers.push(this);
-  }
-};
+  window.addEventListener = function addTrackedWindowListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: AddEventListenerOptions | boolean,
+  ): void {
+    trackedListeners.push({ target: window, type, listener, options });
+    nativeWindowAddEventListener.call(window, type, listener, options);
+  };
+
+  globalThis.MutationObserver = class TrackedMutationObserver extends NativeMutationObserver {
+    constructor(callback: MutationCallback) {
+      super(callback);
+      trackedObservers.push(this);
+    }
+  };
+}
 
 /** `close()` do `<dialog>`, que o jsdom não implementa. */
 function closeDialog(this: HTMLDialogElement, returnValue?: string): void {
@@ -83,4 +87,7 @@ export function resetBrowser(): void {
   installBrowserStubs();
 }
 
-installBrowserStubs();
+if (typeof window !== 'undefined') {
+  installTracking();
+  installBrowserStubs();
+}

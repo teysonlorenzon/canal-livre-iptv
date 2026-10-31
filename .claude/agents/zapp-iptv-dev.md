@@ -111,6 +111,8 @@ Para TV LG e publicação na LG Content Store use a skill `lg-webos-store` (ou o
 Rode `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test` e
 `npm run test:e2e`. Todo código novo vem com teste: o Jest exige 100% de linhas e funções, e cada
 funcionalidade tem cobertura no Playwright (use dados falsos com `page.route`, nunca a rede de
-verdade). Em mudanças maiores, peça a
+verdade). Se mexeu em `src/` (ou nas ferramentas de build), rode `npm run web:build` e inclua a
+`dist/` no commit: ela é versionada e o GitHub Pages serve a branch; o `npm test` falha se estiver
+velha. Em mudanças maiores, peça a
 revisão ao agente `zapp-iptv-code-reviewer` e a validação ao `zapp-iptv-qa`. Relate o que mudou, como foi testado (com números/resultados reais), o que não deu para testar
 e o próximo passo.

@@ -216,22 +216,16 @@ test.describe('player', () => {
     await app.openSection('live');
     await page.locator('#items li').click();
     await app.waitForPlayback();
+    const announcements = await page.evaluate(() => {
+      const readMessage = (): string => document.getElementById('plMsg')?.textContent ?? '';
+      window.dispatchEvent(new Event('offline'));
+      const afterOffline = readMessage();
+      window.dispatchEvent(new Event('online'));
+      return { afterOffline, afterOnline: readMessage() };
+    });
+    expect(announcements.afterOffline).toContain('Sem internet');
+    expect(announcements.afterOnline).toContain('Conexão de volta, reconectando…');
     await expect(page.locator('#plMsg')).toBeEmpty();
-    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-    await expect(page.locator('#plMsg')).toContainText('Sem internet');
-    const reconnectionAnnounced = await page.evaluate(
-      () =>
-        new Promise<boolean>(resolve => {
-          const message = document.getElementById('plMsg');
-          if (!message) return resolve(false);
-          new MutationObserver(() => resolve(message.textContent.includes('Conexão de volta, reconectando…'))).observe(message, {
-            childList: true,
-            subtree: true,
-          });
-          window.dispatchEvent(new Event('online'));
-        }),
-    );
-    expect(reconnectionAnnounced).toBe(true);
     await app.waitForPlayback();
   });
 

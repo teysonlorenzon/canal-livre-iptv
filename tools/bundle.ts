@@ -17,8 +17,11 @@ const require = createRequire(import.meta.url);
 /** Navegadores da versão web: os que têm `<dialog>`, de que o app precisa, e o Chromium das TVs LG de 2020. */
 export const WEB_TARGET = ['chrome68', 'edge79', 'firefox98', 'safari15'];
 
-/** Pasta da versão web. */
+/** Pasta da versão web de produção, versionada no git. */
 export const WEB_OUT_DIR = join(root, 'dist');
+
+/** Pasta do servidor de desenvolvimento, fora do git: `dist/` só recebe o build de produção. */
+export const WEB_DEV_DIR = join(root, '.dev');
 
 /** Como montar o player para uma plataforma. */
 interface BundleOptions {

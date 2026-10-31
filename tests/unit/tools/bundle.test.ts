@@ -8,7 +8,17 @@ const mockExecFileSync = jest.fn();
 jest.mock('esbuild', () => ({ build: (options: unknown): unknown => mockBuild(options) }));
 jest.mock('node:child_process', () => ({ execFileSync: (...args: unknown[]): unknown => mockExecFileSync(...args) }));
 
-import { bundleOptions, bundleWeb, renderIcons, renderSvg, root, WEB_OUT_DIR, WEB_TARGET, writeStaticFiles } from '../../../tools/bundle';
+import {
+  bundleOptions,
+  bundleWeb,
+  renderIcons,
+  renderSvg,
+  root,
+  WEB_DEV_DIR,
+  WEB_OUT_DIR,
+  WEB_TARGET,
+  writeStaticFiles,
+} from '../../../tools/bundle';
 
 describe('build', () => {
   let outDir: string;
@@ -42,6 +52,7 @@ describe('build', () => {
 
     it('a versão web sai em dist/ e inclui o Chromium das TVs', () => {
       expect(WEB_OUT_DIR).toBe(join(root, 'dist'));
+      expect(WEB_DEV_DIR).toBe(join(root, '.dev'));
       expect(WEB_TARGET).toContain('chrome68');
     });
   });

@@ -28,6 +28,7 @@ jest.mock('../../../tools/bundle.ts', () => ({
   renderIcons: mockRenderIcons,
   renderSvg: mockRenderSvg,
   root: '/projeto',
+  WEB_DEV_DIR: '/projeto/.dev',
   WEB_OUT_DIR: '/projeto/dist',
   WEB_TARGET: ['chrome68'],
   writeStaticFiles: mockWriteStaticFiles,
@@ -51,8 +52,8 @@ describe('scripts de build', () => {
   });
 
   it('web: mantém a política de privacidade no endereço cadastrado nas lojas', async () => {
-    const { buildFinished } = await import('../../../tools/build-web');
-    await buildFinished;
+    const { buildWeb } = await import('../../../tools/web');
+    await buildWeb('/projeto/dist');
     expect(mockFs.mkdirSync).toHaveBeenCalledWith('/projeto/dist/store/play', { recursive: true });
     expect(mockFs.copyFileSync).toHaveBeenCalledWith(
       '/projeto/store/play/politica-de-privacidade.html',
@@ -60,14 +61,15 @@ describe('scripts de build', () => {
     );
   });
 
-  it('dev: limpa, serve e remonta a cada mudança', async () => {
+  it('dev: serve de .dev/, sem tocar na dist/ versionada, e remonta a cada mudança', async () => {
     const { serverStarted } = await import('../../../tools/dev-server');
     await serverStarted;
-    expect(mockFs.rmSync).toHaveBeenCalledWith('/projeto/dist', { recursive: true, force: true });
-    expect(mockWriteStaticFiles).toHaveBeenCalledWith('/projeto/dist');
+    expect(mockFs.rmSync).toHaveBeenCalledWith('/projeto/.dev', { recursive: true, force: true });
+    expect(mockFs.rmSync).not.toHaveBeenCalledWith('/projeto/dist', expect.anything());
+    expect(mockWriteStaticFiles).toHaveBeenCalledWith('/projeto/.dev');
     expect(mockContext).toHaveBeenCalledWith(expect.objectContaining({ minify: false, sourcemap: true }));
     expect(mockWatch).toHaveBeenCalled();
-    expect(mockServe).toHaveBeenCalledWith({ servedir: '/projeto/dist', host: '127.0.0.1', port: 8765 });
+    expect(mockServe).toHaveBeenCalledWith({ servedir: '/projeto/.dev', host: '127.0.0.1', port: 8765 });
   });
 
   it('TV: monta para o Chromium 68, copia o appinfo e gera os ícones quadrados', async () => {

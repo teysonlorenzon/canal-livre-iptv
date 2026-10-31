@@ -32,10 +32,14 @@ npm run format:check
 npm test
 npm run test:e2e
 npm run web:build
+git status --short dist
 npm run tv:build
 npm run desktop:build
 npm run mobile:build
 ```
+
+Se `git status --short dist` mostrar alguma mudança logo depois do `web:build`, a `dist/` versionada
+(o site do GitHub Pages) estava velha em relação ao código: relate como defeito.
 
 ## Como testar
 

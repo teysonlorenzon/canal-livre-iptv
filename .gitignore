@@ -6,8 +6,8 @@ node_modules/
 *.m3u8
 !listas/brasil-gratis.m3u
 
-# Builds gerados e resultados de testes
-dist/
+# Builds gerados e resultados de testes (a dist/ da versão web é versionada: o GitHub Pages serve a branch)
+.dev/
 coverage/
 playwright-report/
 test-results/

@@ -57,8 +57,10 @@ Não altere arquivos. Use o `Bash` só para ler (`git diff`, `git log`, `npm run
 - Dado por usuário salvo sem `profileKey()`.
 - Ajuste de plataforma dentro de `src/` em vez de `apps/<plataforma>/`.
 - Código executado ao importar um módulo, fora de `main.ts`.
-- `store/play/politica-de-privacidade.html` fora do `dist/` ou com outro endereço: a URL está
-  cadastrada na Google Play e na LG.
+- `dist/` desatualizada em relação a `src/` (o `npm test` acusa), com build de desenvolvimento
+  (sem minificar, com `.map`) ou editada à mão: ela é o site publicado pelo GitHub Pages.
+- `store/play/politica-de-privacidade.html` movida ou com outro endereço: a URL está cadastrada na
+  Google Play e na LG.
 - Código novo sem teste no Jest ou sem cobertura da funcionalidade no Playwright.
 - CSS que o Chromium 68 não suporta (`:has()`, `aspect-ratio`, `color-mix`) ou CSS `zoom` na TV.
 - API nova de JavaScript que o esbuild não converte e não existe no Chromium 68 (ele converte

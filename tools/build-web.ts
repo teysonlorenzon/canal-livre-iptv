@@ -1,23 +1,9 @@
 /**
- * Monta em dist/ a versão web: tudo minificado, num `index.html` que abre em qualquer navegador
- * moderno, inclusive direto do arquivo, sem servidor. A política de privacidade vai junto, no
- * mesmo endereço cadastrado na Google Play e na LG Content Store.
+ * Monta em dist/ a versão web de produção. A pasta é versionada: o GitHub Pages serve a branch, e
+ * o `index.html` da raiz leva para `dist/index.html`. Depois de mexer em `src/`, rode este script
+ * e inclua a `dist/` no commit; o teste `tests/unit/tools/dist.test.ts` acusa quando ela está velha.
  */
-import { copyFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { WEB_OUT_DIR } from './bundle.ts';
+import { buildWeb } from './web.ts';
 
-import { bundleWeb, root, WEB_OUT_DIR, WEB_TARGET } from './bundle.ts';
-
-const PRIVACY_POLICY_PATH = 'store/play/politica-de-privacidade.html';
-
-/**
- * Monta a versão web.
- */
-async function buildWeb(): Promise<void> {
-  await bundleWeb(WEB_OUT_DIR, { target: WEB_TARGET });
-  mkdirSync(dirname(join(WEB_OUT_DIR, PRIVACY_POLICY_PATH)), { recursive: true });
-  copyFileSync(join(root, PRIVACY_POLICY_PATH), join(WEB_OUT_DIR, PRIVACY_POLICY_PATH));
-  console.log('dist/ pronto');
-}
-
-export const buildFinished = buildWeb();
+export const buildFinished = buildWeb(WEB_OUT_DIR).then(() => console.log('dist/ pronto'));
