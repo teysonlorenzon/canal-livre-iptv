@@ -297,6 +297,14 @@ header .dd-menu {
   cursor: pointer;
   outline: none;
 }
+.dd-menu li[hidden] {
+  display: none;
+}
+.toolbar .dd-menu {
+  left: auto;
+  right: 0;
+  min-width: 100%;
+}
 .dd-menu li b {
   font-weight: 500;
   overflow: hidden;

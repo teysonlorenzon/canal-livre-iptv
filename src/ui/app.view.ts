@@ -1,3 +1,4 @@
+import { dropdownHtml } from './dropdown';
 import { scrollArrowsHtml } from './scroll-arrows';
 
 /**
@@ -20,13 +21,13 @@ export function renderAppView(): void {
       <div class="toolbar gut">
         <h2 id="secTitle" tabindex="-1"></h2>
         <input id="q" type="search" placeholder="Buscar…" aria-label="Buscar nesta seção" autocomplete="off">
-        <select id="sort" title="Ordenar" aria-label="Ordenar">
-          <option value="">Ordem da lista</option>
-          <option value="az">A → Z</option>
-          <option value="za">Z → A</option>
-          <option value="new">Mais recentes</option>
-          <option value="rate">Melhor avaliados</option>
-        </select>
+        ${dropdownHtml('sortDd', 'Ordenar', [
+          { value: '', label: 'Ordem da lista' },
+          { value: 'az', label: 'A → Z' },
+          { value: 'za', label: 'Z → A' },
+          { value: 'new', label: 'Mais recentes' },
+          { value: 'rate', label: 'Melhor avaliados' },
+        ])}
       </div>
       <div id="items" class="gut"></div>
     </div>

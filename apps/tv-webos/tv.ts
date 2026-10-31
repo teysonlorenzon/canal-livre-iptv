@@ -9,8 +9,8 @@ import { toast } from '../../src/core/utils';
 import { renderHome, show } from '../../src/features/home/home';
 import { playback, playerPlatformHooks, playerScreen, video } from '../../src/features/player/playback';
 import { closePlayer, poke, showFavoriteButton, stepChannel } from '../../src/features/player/player';
-import { togglePlaylistMenu } from '../../src/features/playlists/playlists';
 import { openSection, renderCats, renderItems } from '../../src/features/section/section';
+import { toggleDropdown } from '../../src/ui/dropdown';
 
 /**
  * Adaptação para controle remoto de TV (LG webOS): navegação pelas setas entre os
@@ -159,9 +159,11 @@ function tvBack(): void {
     openDialog.close();
     return;
   }
-  if (!$('plMenu').hidden) {
-    togglePlaylistMenu(false);
-    $('plSel').focus();
+  const openMenu = query(document, '.dd-menu:not([hidden])');
+  if (openMenu) {
+    const menuRoot = closest(openMenu, '.dd');
+    if (menuRoot) toggleDropdown(menuRoot, false);
+    query(menuRoot ?? document, '.dd-btn')?.focus();
     return;
   }
   if (!$('player').hidden) {
@@ -511,7 +513,10 @@ function focusSearchField(): void {
  */
 function openSearch(): void {
   queryAll(document, 'dialog[open]', HTMLDialogElement).forEach(openDialog => openDialog.close());
-  if (!$('plMenu').hidden) togglePlaylistMenu(false);
+  queryAll(document, '.dd-menu:not([hidden])').forEach(openMenu => {
+    const menuRoot = closest(openMenu, '.dd');
+    if (menuRoot) toggleDropdown(menuRoot, false);
+  });
   let targetSection = state.currentSection;
   if (!$('player').hidden) {
     if (playback.currentMedia) targetSection = SECTION_OF_MEDIA_KIND[playback.currentMedia.kind];
@@ -579,6 +584,59 @@ function handlePlayerKey(event: KeyboardEvent): void {
 }
 
 /**
+ * Troca a opção de uma lista (`select`) sem abrir a lista nativa, que trava o app na TV.
+ * @param select Lista de opções.
+ * @param step 1 para a próxima opção, -1 para a anterior.
+ */
+function stepSelect(select: HTMLSelectElement, step: 1 | -1): void {
+  const available = Array.from(select.options).filter(option => !option.hidden && !option.disabled);
+  const currentOption = select.options.item(select.selectedIndex);
+  const nextOption = currentOption ? available[available.indexOf(currentOption) + step] : undefined;
+  if (!nextOption) return;
+  select.value = nextOption.value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/**
+ * Edita uma lista de opções pelo controle: o OK começa e termina a edição, e Cima e Baixo
+ * trocam a opção. A lista nativa nunca abre.
+ * @param event Evento de tecla.
+ * @param select Lista de opções focada.
+ * @returns `true` se a tecla foi tratada aqui.
+ */
+function handleSelectKey(event: KeyboardEvent, select: HTMLSelectElement): boolean {
+  const direction = ARROW_DIRECTIONS[event.key];
+  const isEditing = Boolean(select.dataset.editing);
+  if (event.key !== 'Enter' && !(isEditing && direction)) return false;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (event.key === 'Enter') {
+    if (isEditing) delete select.dataset.editing;
+    else select.dataset.editing = '1';
+  } else if (direction === 'up' || direction === 'down') stepSelect(select, direction === 'down' ? 1 : -1);
+  return true;
+}
+
+/** Clicar numa lista de opções com o ponteiro também edita pela TV, sem abrir a lista nativa. */
+document.addEventListener(
+  'mousedown',
+  event => {
+    const select = event.target;
+    if (!(select instanceof HTMLSelectElement)) return;
+    event.preventDefault();
+    select.focus();
+    if (select.dataset.editing) delete select.dataset.editing;
+    else select.dataset.editing = '1';
+  },
+  true,
+);
+
+/** Ao sair de uma lista de opções, encerra a edição. */
+document.addEventListener('focusout', event => {
+  if (event.target instanceof HTMLSelectElement) delete event.target.dataset.editing;
+});
+
+/**
  * Trata as teclas do controle antes dos atalhos do app. Num campo de texto em edição, o OK
  * confirma: sai da edição e deixa o Enter seguir para o app (ex.: PIN).
  * @param event Evento de tecla.
@@ -590,10 +648,12 @@ document.addEventListener(
       event.preventDefault();
       event.stopImmediatePropagation();
       const backTarget = event.target;
-      if (isTextField(backTarget) && backTarget.dataset.editing) stopEdit(backTarget);
+      if (backTarget instanceof HTMLSelectElement && backTarget.dataset.editing) delete backTarget.dataset.editing;
+      else if (isTextField(backTarget) && backTarget.dataset.editing) stopEdit(backTarget);
       else tvBack();
       return;
     }
+    if (event.target instanceof HTMLSelectElement && handleSelectKey(event, event.target)) return;
     const isPlayerOpen = !$('player').hidden && !firstOpenDialog();
     if (isPlayerOpen) {
       handlePlayerKey(event);
@@ -635,7 +695,7 @@ document.addEventListener(
     }
     const direction = ARROW_DIRECTIONS[event.key];
     if (!direction) return;
-    if (target?.closest('#plMenu')) return;
+    if (target?.closest('.dd-menu')) return;
     if (target?.id === 'plSel' && direction === 'down') return;
     if (isTextField(target) && target.dataset.editing) {
       if (direction === 'left' || direction === 'right') return;

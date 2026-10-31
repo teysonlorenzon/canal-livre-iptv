@@ -40,19 +40,37 @@ test.describe('seções', () => {
   test('ordena de A a Z e de Z a A', async ({ app, page }) => {
     await app.openWithList();
     await app.openSection('vod');
-    await page.locator('#sort').selectOption('az');
+    await page.locator('#sortDd .dd-btn').click();
+    await page.locator('#sortDd li', { hasText: 'A → Z' }).click();
     await expect(page.locator('#items .card b').first()).toHaveText('Filme Proibido');
-    await page.locator('#sort').selectOption('za');
+    await expect(page.locator('#sortDd .dd-btn')).toHaveAccessibleName('Ordenar: A → Z');
+    await page.locator('#sortDd .dd-btn').click();
+    await page.locator('#sortDd li', { hasText: 'Z → A' }).click();
     await expect(page.locator('#items .card b').first()).toHaveText('Velozes e Furiosos 2');
+  });
+
+  test('a ordenação funciona pelo teclado e em séries', async ({ app, page }) => {
+    await app.openWithList();
+    await app.openSection('series');
+    await page.locator('#sortDd .dd-btn').focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('#sortDd li[aria-selected=true]')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#sortDd .dd-btn')).toHaveAccessibleName('Ordenar: A → Z');
+    await expect(page.locator('#sortDd .dd-btn')).toBeFocused();
+    await page.locator('#sortDd .dd-btn').click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#sortDdMenu')).toBeHidden();
   });
 
   test('canais não têm ordenação por nota', async ({ app, page }) => {
     await app.openWithList();
     await app.openSection('live');
-    await expect(page.locator('#sort [value=rate]')).toHaveJSProperty('hidden', true);
+    await expect(page.locator('#sortDd [data-value=rate]')).toHaveJSProperty('hidden', true);
     await page.locator('#goHome').click();
     await app.openSection('vod');
-    await expect(page.locator('#sort [value=rate]')).toHaveJSProperty('hidden', false);
+    await expect(page.locator('#sortDd [data-value=rate]')).toHaveJSProperty('hidden', false);
   });
 
   test('favorita um canal e ele aparece nos favoritos e na tela inicial', async ({ app, page }) => {

@@ -77,6 +77,18 @@ async function bootTv(catalogData = catalog(), preferences = userData()): Promis
 }
 
 /**
+ * Cria uma lista de opções nativa na tela, com a primeira opção vazia.
+ * @returns A lista.
+ */
+function nativeSelect(): HTMLSelectElement {
+  const options = document.createElement('select');
+  options.innerHTML =
+    '<option value="">—</option><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option>';
+  element('#app').appendChild(options);
+  return options;
+}
+
+/**
  * Aperta uma tecla do controle no elemento focado.
  * @param key Nome da tecla.
  * @param keyCode Código da tecla.
@@ -318,6 +330,94 @@ describe('TV LG', () => {
       element('#openSettings').click();
       pressRemote('Back', KEY_BACK);
       expect(element('#dSettings').hasAttribute('open')).toBe(false);
+    });
+
+    it('com uma lista de opções em edição, Voltar só termina a edição e continua na seção', async () => {
+      const { app } = await bootTv();
+      await app.section.openSection('live');
+      const options = nativeSelect();
+      options.focus();
+      pressRemote('Enter');
+      expect(options.dataset.editing).toBe('1');
+      pressRemote('Back', KEY_BACK);
+      expect(options.dataset.editing).toBeUndefined();
+      expect(element('#section').hidden).toBe(false);
+      pressRemote('Back', KEY_BACK);
+      expect(element('#section').hidden).toBe(true);
+    });
+
+    it('Cima e Baixo trocam a opção sem abrir a lista nativa, e OK confirma', async () => {
+      await bootTv();
+      const options = nativeSelect();
+      const changed = jest.fn();
+      options.addEventListener('change', changed);
+      options.focus();
+      pressRemote('ArrowDown');
+      expect(options.value).toBe('');
+      options.focus();
+      pressRemote('Enter');
+      pressRemote('ArrowUp');
+      expect(options.value).toBe('');
+      expect(changed).not.toHaveBeenCalled();
+      pressRemote('ArrowDown');
+      expect(options.value).toBe('a');
+      pressRemote('ArrowLeft');
+      pressRemote('ArrowRight');
+      expect(document.activeElement).toBe(options);
+      pressRemote('ArrowDown');
+      pressRemote('ArrowDown');
+      expect(options.value).toBe('c');
+      expect(changed).toHaveBeenCalledTimes(3);
+      pressRemote('Enter');
+      expect(options.dataset.editing).toBeUndefined();
+    });
+
+    it('a troca de opção pula as escondidas', async () => {
+      await bootTv();
+      const options = nativeSelect();
+      const hidden = options.options.item(2);
+      if (hidden) hidden.hidden = true;
+      options.focus();
+      pressRemote('Enter');
+      pressRemote('ArrowDown');
+      pressRemote('ArrowDown');
+      expect(options.value).toBe('c');
+    });
+
+    it('clicar com o ponteiro edita sem abrir a lista, e sair do campo encerra a edição', async () => {
+      await bootTv();
+      const options = nativeSelect();
+      const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      options.dispatchEvent(mouseDown);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(options.dataset.editing).toBe('1');
+      options.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      expect(options.dataset.editing).toBeUndefined();
+      options.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      element('#q').focus();
+      expect(options.dataset.editing).toBeUndefined();
+      const outsideClick = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      element('#q').dispatchEvent(outsideClick);
+      expect(outsideClick.defaultPrevented).toBe(false);
+    });
+
+    it('fecha o seletor de ordenação aberto e devolve o foco ao botão', async () => {
+      const { app } = await bootTv();
+      await app.section.openSection('live');
+      element('#sortDd .dd-btn').click();
+      expect(element('#sortDdMenu').hidden).toBe(false);
+      pressRemote('Back', KEY_BACK);
+      expect(element('#sortDdMenu').hidden).toBe(true);
+      expect(element('#section').hidden).toBe(false);
+      expect(document.activeElement).toBe(element('#sortDd .dd-btn'));
+    });
+
+    it('o botão vermelho fecha o seletor aberto', async () => {
+      const { app } = await bootTv();
+      await app.section.openSection('live');
+      element('#sortDd .dd-btn').click();
+      pressRemote('Red', KEY_RED);
+      expect(element('#sortDdMenu').hidden).toBe(true);
     });
 
     it('fecha o menu de listas', async () => {

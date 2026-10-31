@@ -80,6 +80,14 @@ for (const theme of THEMES)
       expect(await audit(page)).toEqual([]);
     });
 
+    test('seletor de ordenação aberto', async ({ app, page }) => {
+      await app.openWithList({ ...theme.storage });
+      await app.openSection('series');
+      await page.locator('#sortDd .dd-btn').click();
+      await expect(page.locator('#sortDdMenu')).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
     test('detalhes de filme e de série', async ({ app, page }) => {
       await app.openWithList({ ...theme.storage });
       await app.openSection('vod');

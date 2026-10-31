@@ -80,9 +80,9 @@ describe('seções', () => {
       openCatalog(app, catalog());
       await openTestSection(app, 'vod');
       expect(element('#cats').textContent).not.toContain('Recentes');
-      expect(element('#sort [value=new]').hidden).toBe(false);
+      expect(element('#sortDd [data-value=new]').hidden).toBe(false);
       await openTestSection(app, 'live');
-      expect(element('#sort [value=rate]').hidden).toBe(true);
+      expect(element('#sortDd [data-value=rate]').hidden).toBe(true);
     });
 
     it('sem dados da seção não desenha nada', async () => {
@@ -268,10 +268,8 @@ describe('seções', () => {
       );
       openCatalog(app, catalog({ vod }));
       await openTestSection(app, 'vod');
-      const sort = element('#sort');
-      if (!(sort instanceof HTMLSelectElement)) throw new Error('sem ordenação');
-      sort.value = order;
-      fire(sort, 'change');
+      element('#sortDd .dd-btn').click();
+      element(`#sortDd li[data-value="${order}"]`).click();
       expect(listedNames()).toEqual(expected);
       expect(vod.items[0]?.name).toBe('Beta');
     });

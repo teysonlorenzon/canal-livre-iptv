@@ -5,6 +5,7 @@ import type { Item, SectionName, TimerId } from '../../core/types';
 import { esc, formatHourMinute, initials, onDialogClose, SECTION_NAMES, toast } from '../../core/utils';
 import { nowNext } from '../../data/epg';
 import { ensureSection } from '../../data/xtream';
+import { dropdownValue, initDropdown, setDropdownOptionsHidden, setDropdownValue } from '../../ui/dropdown';
 import { icon } from '../../ui/icons';
 import { bindScrollArrows, updateScrollArrows } from '../../ui/scroll-arrows';
 import { openMovie, openSeries } from '../details/details';
@@ -23,7 +24,7 @@ export async function openSection(sectionName: SectionName): Promise<void> {
   state.currentCategory = '*';
   state.visibleItemCount = 200;
   $('q').value = '';
-  $('sort').value = '';
+  setDropdownValue($('sortDd'), '');
   show('section');
   renderCats();
   renderItems();
@@ -60,9 +61,7 @@ function drawCats(): void {
     .join('');
   $('secTitle').textContent = SECTION_NAMES[state.currentSection];
   updateScrollArrows($('cats'), $('catsArrows'));
-  queryAll($('sort'), '[value=new],[value=rate]').forEach(sortOption => {
-    sortOption.hidden = state.currentSection === 'live';
-  });
+  setDropdownOptionsHidden($('sortDd'), ['new', 'rate'], state.currentSection === 'live');
 }
 
 /**
@@ -151,7 +150,7 @@ const ITEM_ORDERS: Record<string, (firstItem: Item, secondItem: Item) => number>
  */
 function currentItems(): Item[] {
   const searchText = $('q').value.trim().toLowerCase(),
-    sortOrder = $('sort').value;
+    sortOrder = dropdownValue($('sortDd'));
   const sectionItems = activeCatalog()[state.currentSection]?.items ?? [];
   let filteredItems = sectionItems;
   if (state.currentCategory === 'fav')
@@ -372,9 +371,9 @@ export function initSection(): void {
   /**
    * Reordena os itens.
    */
-  $('sort').onchange = () => {
+  initDropdown($('sortDd'), () => {
     state.visibleItemCount = 200;
     renderItems();
     announceResults();
-  };
+  });
 }

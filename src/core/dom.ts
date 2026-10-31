@@ -127,7 +127,7 @@ const ELEMENT_TYPES = {
   sideClose: HTMLButtonElement,
   sideList: HTMLElement,
   sideTitle: HTMLElement,
-  sort: HTMLSelectElement,
+  sortDd: HTMLElement,
   sResume: HTMLButtonElement,
   srStatus: HTMLElement,
   tCur: HTMLElement,
